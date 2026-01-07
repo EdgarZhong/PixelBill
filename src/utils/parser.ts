@@ -1,26 +1,16 @@
 import Papa from 'papaparse';
 import type { Transaction } from '../types';
-import { parse, isValid } from 'date-fns';
+import { TransactionStatus } from '../types/metadata';
+import { parse, isValid, format } from 'date-fns';
 
-// 关键词匹配引擎 - 简单的正则匹配
-const MEAL_KEYWORDS = [
-  '餐饮', '美食', '外卖', '饿了么', '美团', '肯德基', '麦当劳', '星巴克', '瑞幸', 
-  '面', '粉', '饭', '烧烤', '火锅', '麻辣烫', '小吃', '咖啡', '茶', '饮', '食堂', '餐厅'
-];
-
-const isMeal = (text: string): boolean => {
-  return MEAL_KEYWORDS.some(keyword => text.includes(keyword));
-};
-
-// 生成唯一ID
-const generateId = (str: string) => {
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) {
-    const char = str.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
-    hash = hash & hash; // Convert to 32bit integer
-  }
-  return Math.abs(hash).toString(16);
+// 生成唯一ID (SHA-256)
+const generateId = async (str: string) => {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(str);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  // 取前 16 位 hex 足够了
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('').slice(0, 16);
 };
 
 // 清洗金额
@@ -31,8 +21,27 @@ const cleanAmount = (amountStr: string): number => {
   return parseFloat(cleanStr) || 0;
 };
 
+// 状态映射助手函数
+const mapWeChatStatus = (statusStr: string = ''): TransactionStatus => {
+  const s = statusStr.trim();
+  if (s.includes('支付成功') || s.includes('已收钱') || s.includes('已存入')) return TransactionStatus.SUCCESS;
+  if (s.includes('退款')) return TransactionStatus.REFUND;
+  if (s.includes('已关闭') || s.includes('已撤销') || s.includes('对方已退还')) return TransactionStatus.CLOSED;
+  if (s.includes('待') || s.includes('处理中')) return TransactionStatus.PROCESSING;
+  return TransactionStatus.OTHER; // e.g. 转入零钱, 提现已到账
+};
+
+const mapAlipayStatus = (statusStr: string = ''): TransactionStatus => {
+  const s = statusStr.trim();
+  if (s.includes('成功')) return TransactionStatus.SUCCESS; // 交易成功, 支付成功
+  if (s.includes('关闭')) return TransactionStatus.CLOSED; // 交易关闭
+  if (s.includes('退款')) return TransactionStatus.REFUND;
+  if (s.includes('进行中') || s.includes('等待')) return TransactionStatus.PROCESSING;
+  return TransactionStatus.OTHER;
+};
+
 // 解析微信 CSV
-const parseWeChatCSV = (csvText: string): Transaction[] => {
+const parseWeChatCSV = async (csvText: string): Promise<Transaction[]> => {
   // 微信CSV前16行是头部信息，第17行是表头
   // 找到表头行 "交易时间,交易类型..."
   const lines = csvText.split('\n');
@@ -45,52 +54,64 @@ const parseWeChatCSV = (csvText: string): Transaction[] => {
   const results = Papa.parse(csvContent, {
     header: true,
     skipEmptyLines: true,
+    transformHeader: (h) => h.trim(), // 去除表头空格
   });
 
   const transactions: Transaction[] = [];
 
-  results.data.forEach((row: any) => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  for (const row of results.data as any[]) {
     // 微信字段: 交易时间,交易类型,交易对方,商品,收/支,金额(元),支付方式,当前状态,交易单号,商户单号,备注
-    const dateStr = row['交易时间'];
-    if (!dateStr) return;
+    const dateStr = row['交易时间']?.trim();
+    if (!dateStr) continue;
 
     const date = parse(dateStr, 'yyyy-MM-dd HH:mm:ss', new Date());
-    if (!isValid(date)) return;
+    if (!isValid(date)) continue;
 
-    const directionStr = row['收/支'];
-    const amountStr = row['金额(元)'];
+    const directionStr = row['收/支']?.trim();
+    const amountStr = row['金额(元)']?.trim();
     
     // 过滤掉非收支记录（如中性交易）或者金额为0的
-    if (directionStr !== '收入' && directionStr !== '支出') return;
+    if (directionStr !== '收入' && directionStr !== '支出') continue;
 
     const amount = cleanAmount(amountStr);
-    const counterparty = row['交易对方'] || 'Unknown';
-    const product = row['商品'] || 'Unknown';
-    const category = row['交易类型'] || 'Unknown';
+    const counterparty = row['交易对方']?.trim() || 'Unknown';
+    const product = row['商品']?.trim() || 'Unknown';
+    const category = row['交易类型']?.trim() || 'Unknown';
+    const tradeNo = row['交易单号']?.trim(); // 微信官方唯一单号
+    const paymentMethod = row['支付方式']?.trim() || 'Unknown';
+    const statusStr = row['当前状态']?.trim() || '';
+    const remark = row['备注']?.trim() || '';
 
-    // 组合关键信息用于去重ID
-    const rawString = JSON.stringify(row);
+    // 构造去重指纹
+    // 策略：必须存在官方交易单号，否则丢弃。
+    if (!tradeNo) continue;
+    const uniqueFingerprint = `wx:${tradeNo}`;
+
+    const id = await generateId(uniqueFingerprint);
 
     transactions.push({
-      id: generateId(rawString),
+      id: id,
       originalDate: date,
-      timestamp: date.getTime(),
-      type: 'wechat',
-      category: category,
+      time: format(date, 'yyyy-MM-dd HH:mm:ss'), // 生成标准时间字符串
+      sourceType: 'wechat',
+      category: 'others', // 默认分类，等待 AI/人工处理
+      rawClass: category, // 原始分类
       counterparty: counterparty,
       product: product,
       amount: amount,
       direction: directionStr === '收入' ? 'in' : 'out',
-      isMeal: isMeal(category + counterparty + product),
-      raw: row
+      paymentMethod: paymentMethod,
+      transactionStatus: mapWeChatStatus(statusStr),
+      remark: remark,
     });
-  });
+  }
 
   return transactions;
 };
 
 // 解析支付宝 CSV
-const parseAlipayCSV = (csvText: string): Transaction[] => {
+const parseAlipayCSV = async (csvText: string): Promise<Transaction[]> => {
   // 支付宝CSV前24行左右是头部，包含 "电子客户回单"
   // 表头: 交易时间,交易分类,交易对方,对方账号,商品说明,收/支,金额...
   const lines = csvText.split('\n');
@@ -105,47 +126,60 @@ const parseAlipayCSV = (csvText: string): Transaction[] => {
   const results = Papa.parse(csvContent, {
     header: true,
     skipEmptyLines: true,
+    transformHeader: (h) => h.trim(), // 去除表头空格
   });
 
   const transactions: Transaction[] = [];
 
-  results.data.forEach((row: any) => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  for (const row of results.data as any[]) {
     // 支付宝字段: 交易时间, 交易分类, 交易对方, 对方账号, 商品说明, 收/支, 金额, ...
     // 注意: 支付宝CSV字段值可能包含空格，papaparse 默认 trimHeaders: false, trimValues: false
     // 且表头可能包含空格
     
     const dateStr = (row['交易时间'] || '').trim();
-    if (!dateStr) return;
+    if (!dateStr) continue;
 
     const date = parse(dateStr, 'yyyy-MM-dd HH:mm:ss', new Date());
-    if (!isValid(date)) return;
+    if (!isValid(date)) continue;
 
     const directionStr = (row['收/支'] || '').trim(); // 支付宝可能是 "支出" 或 "收入" 或空（不计收支）
     const amountStr = (row['金额'] || '').trim();
 
-    if (directionStr !== '收入' && directionStr !== '支出') return;
+    if (directionStr !== '收入' && directionStr !== '支出') continue;
 
     const amount = cleanAmount(amountStr);
     const counterparty = (row['交易对方'] || '').trim() || 'Unknown';
     const product = (row['商品说明'] || '').trim() || 'Unknown';
     const category = (row['交易分类'] || '').trim() || 'Unknown';
+    // 兼容不同的支付宝导出格式字段名
+    const tradeNo = (row['交易号'] || row['交易订单号'] || row['商家订单号'] || '').trim(); 
+    const paymentMethod = (row['收/付款方式'] || row['支付方式'] || '').trim() || 'Unknown'; // 支付宝列名可能是这个，需注意
+    const statusStr = (row['交易状态'] || '').trim();
+    const remark = (row['备注'] || '').trim();
 
-    const rawString = JSON.stringify(row);
+    // 构造去重指纹
+    if (!tradeNo) continue;
+    const uniqueFingerprint = `ali:${tradeNo}`;
+
+    const id = await generateId(uniqueFingerprint);
 
     transactions.push({
-      id: generateId(rawString),
+      id: id,
       originalDate: date,
-      timestamp: date.getTime(),
-      type: 'alipay',
-      category: category,
+      time: format(date, 'yyyy-MM-dd HH:mm:ss'),
+      sourceType: 'alipay',
+      category: 'others',
+      rawClass: category,
       counterparty: counterparty,
       product: product,
       amount: amount,
       direction: directionStr === '收入' ? 'in' : 'out',
-      isMeal: isMeal(category + counterparty + product),
-      raw: row
+      paymentMethod: paymentMethod,
+      transactionStatus: mapAlipayStatus(statusStr),
+      remark: remark,
     });
-  });
+  }
 
   return transactions;
 };
@@ -185,9 +219,11 @@ export const parseFiles = async (files: File[]): Promise<Transaction[]> => {
       console.log(`Parsing file: ${file.name}, Detected Encoding: ${isGBK ? 'GBK' : 'UTF-8'}`);
 
       if (text.includes('微信支付账单')) {
-        allTransactions.push(...parseWeChatCSV(text));
+        const txs = await parseWeChatCSV(text);
+        allTransactions.push(...txs);
       } else if (text.includes('支付宝') || text.includes('电子客户回单')) {
-        allTransactions.push(...parseAlipayCSV(text));
+        const txs = await parseAlipayCSV(text);
+        allTransactions.push(...txs);
       } else {
         console.warn(`Unknown CSV format for file: ${file.name}`);
       }
@@ -197,6 +233,6 @@ export const parseFiles = async (files: File[]): Promise<Transaction[]> => {
     }
   }
 
-  // 按时间倒序排序
-  return allTransactions.sort((a, b) => b.timestamp - a.timestamp);
+  // 按时间倒序排序 (使用 originalDate)
+  return allTransactions.sort((a, b) => b.originalDate.getTime() - a.originalDate.getTime());
 };

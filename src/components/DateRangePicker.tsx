@@ -68,7 +68,7 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({
 
   const transition = {
     type: "tween" as const,
-    ease: "easeInOut",
+    ease: "easeInOut" as const,
     duration: 0.3
   };
 

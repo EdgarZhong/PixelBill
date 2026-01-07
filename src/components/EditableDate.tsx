@@ -21,10 +21,16 @@ const DatePartInput: React.FC<{
   const [inputValue, setInputValue] = useState(value.toString());
   const inputRef = useRef<HTMLInputElement>(null);
 
+  // Sync internal state with props when value changes, but only if not editing
   useEffect(() => {
     if (!isEditing) {
-      setInputValue(value.toString().padStart(width === 'w-10' ? 4 : 2, '0'));
+      // 避免重复渲染，仅在值真正不同时更新
+      const newVal = value.toString().padStart(width === 'w-10' ? 4 : 2, '0');
+      if (inputValue !== newVal) {
+        setInputValue(newVal);
+      }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value, width, isEditing]);
 
   useEffect(() => {

@@ -40,10 +40,11 @@ export const Header: React.FC<HeaderProps> = ({ onLoadData, isLoading }) => {
           relative overflow-hidden group
           flex items-center gap-3 px-5 py-2.5 
           font-pixel text-[10px] tracking-tight
-          border border-gray-800 hover:border-gray-600
-          bg-card hover:bg-white/5 hover:text-pixel-green
-          disabled:opacity-50 disabled:cursor-not-allowed 
+          border border-gray-800
+          bg-card 
           transition-all duration-300
+          disabled:opacity-50 disabled:cursor-default
+          enabled:hover:border-gray-600 enabled:hover:bg-white/5 enabled:hover:text-pixel-green
         "
       >
         <div className={`w-1.5 h-1.5 ${isLoading ? 'bg-income-yellow animate-spin' : 'bg-pixel-green group-hover:shadow-[0_0_8px_rgba(16,185,129,0.8)]'}`}></div>

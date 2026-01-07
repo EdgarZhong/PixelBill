@@ -69,6 +69,9 @@ PixelBill 奉行“生成式极简主义”与“赛博禅意”的设计哲学�
 *   **Micro-interactions**:
     *   **Hover**: 列表项悬停时，左侧指示器旋转 45 度，边框高亮。
     *   **Load**: 数据加载时，使用类似终端打字机或数据流解码的动画。
+*   **Context-Aware Transitions (上下文感知转场)**:
+    *   **Tab Switching (标签切换)**: 采用 **"Slide + Blur + Fade"** 组合动画。内容根据切换方向（左/右）进行横向位移，配合模糊和透明度变化，营造空间导航感。
+    *   **Pagination (翻页)**: **无动画 (Instant)**。移除所有过渡效果，确保数据即时响应，避免重复浏览时的视觉疲劳。
 
 ### 2.6 核心组件规范 (Component Specifications)
 
@@ -88,6 +91,11 @@ PixelBill 奉行“生成式极简主义”与“赛博禅意”的设计哲学�
 
 #### C. Transaction List (流水清单)
 *   **Row Style**: 极简条目，去除斑马纹，仅保留底部分割线或 margin。
+*   **Content Layout**:
+    *   **Primary Line**: `[Category Tag] Product/Counterparty`
+        *   **Category Tag**: 仅非 `others` 分类显示。格式 `[CATEGORY]` (如 `[MEAL]`)，颜色 `text-income-yellow`。
+    *   **Secondary Line**: `Raw Class • Counterparty`
+        *   使用 CSV 原始分类字符串 (Raw Class) 作为副标题，而非归一化后的分类名，保留原始数据细节。
 *   **Indicator**: 
     *   **WeChat**: 3x3 绿色实心像素块。
     *   **Alipay**: 3x3 蓝色实心像素块。
@@ -167,26 +175,203 @@ PixelBill 奉行“生成式极简主义”与“赛博禅意”的设计哲学�
 *   **布局投影的克制 (Layout Projection Control)**: 对于精密排版，**显式地控制尺寸和位置**（如明确指定 `width`, `left`）比交给自动布局引擎更稳健，消除“果冻效应”。
 *   **分层交互 (Layered Interaction)**: 引入透明覆盖层 (`z-40 overlay`) 简化触发逻辑，将视觉层与交互层分离，提升容错率。
 
+### 3.4 分页交互规范 (Pagination Specification)
+
+针对明细列表 (Transaction List) 的分页需求，采用 **“光纤轨道 + 透视滑块” (Fiber Track & Perspective Thumb)** 设计，将导航控制与进度指示融合，营造精密仪器的操作感。
+
+*   **布局结构 (Layout Structure)**: 
+    *   **位置**: 列表底部，Margin Top: 48px，Margin Bottom: 64px。
+    *   **宽度**: 轨道与上方列表完全等宽 (Full Width)。
+    *   **层级**: Track 位于底层 (`z-0`)，Thumb 悬浮于上层 (`z-10`)。
+
+*   **组件构成 (Components)**:
+    *   **1. Fiber Track (光纤轨道)**:
+        *   **形态**: 极细的绿色实线 (`1px` height, `bg-emerald-500/30`)，横跨整个容器。
+        *   **锚点**: 轨道左右两端各连接一个 **3x3 绿色实心像素块**，作为视觉锚点。
+        *   **交互**: Hover 轨道任意区域时，线条亮度提升并产生绿色光晕 (`box-shadow/drop-shadow`)。
+
+    *   **2. Integrated Thumb (集成式滑块)**:
+        *   **定义**: 一个包含翻页按钮和页码的**胶囊型容器**，在轨道上滑动。
+        *   **结构**: `[ Prev ] — [ Page Indicator ] — [ Next ]` (Flex布局，内部间距紧凑)。
+        *   **视觉状态**:
+            *   **Idle (常态)**: 
+                *   背景: 深色不透明 (`bg-zinc-900`)，**视觉上遮断**下方的绿色轨道线。
+                *   边框: 微弱灰边或无边框。
+            *   **Hover (悬停)**: 
+                *   整体反馈: 边框产生白色高光 (`border-zinc-400` 或 `box-shadow`)，内部**页码文字**变绿 (`text-emerald-500`)。
+            *   **Active (拖拽/点击)**: 
+                *   **透视模式 (Perspective Mode)**: 背景变为 **透明 (Transparent)**，边框高亮发光。
+                *   **视觉奇观**: 此时透过滑块可以看到底层的**深空背景** (Fixed Background)，同时**强制隐藏**滑块区域下方的绿色轨道线（通过 Mask 或分段渲染实现），营造滑块是“浮空透镜”的错觉。
+
+    *   **3. Internal Elements (滑块内部)**:
+        *   **Navigation Buttons (翻页键)**:
+            *   **内容**: 白色像素字体符号 `<` 和 `>`。
+            *   **位置**: 固定在滑块内部的最左侧和最右侧。
+            *   **交互**: 独立响应 Hover，触发 **变绿 (`text-emerald-500`)** + **放大 (`scale-110`)** + **高亮 (`drop-shadow`)**。
+        *   **Page Indicator (页码)**:
+            *   **内容**: `01 / 12` (Mono Font)。
+            *   **位置**: 滑块绝对居中。
+            *   **颜色**: 跟随滑块状态（常态灰 -> Hover绿 -> Active亮绿）。
+
+*   **交互逻辑 (Logic)**:
+    *   **拖动**: 拖动整个滑块可快速预览页码。
+    *   **点击**: 
+        *   点击轨道空白处 -> 滑块跳跃至该位置。
+        *   点击左右箭头 -> 翻页。
+    *   **分页量**: 20条/页。
+    *   **刷新**: Instant / No Animation (无动画)。为了保持浏览的连贯性与响应速度，翻页操作不应用任何过渡动画，实现数据的即时刷新。
+
 ## 4. 数据结构 (Data Structure)
 
 ### 4.1 数据模型 (TypeScript Interface)
 ```typescript
 type SourceType = 'wechat' | 'alipay';
 
+// 交易状态枚举
+export enum TransactionStatus {
+  SUCCESS = 'SUCCESS', // 支付成功, 交易成功, 对方已收钱
+  REFUND = 'REFUND',   // 已全额退款, 已退款, 退款成功
+  CLOSED = 'CLOSED',   // 交易关闭, 已取消
+  PROCESSING = 'PROCESSING', // 处理中, 待确认
+  OTHER = 'OTHER'      // 其他
+}
+
 interface Transaction {
-  id: string;           // 唯一标识
-  originalDate: Date;   // 原始时间对象
-  timestamp: number;    // 时间戳
-  type: SourceType;     // 来源
-  category: string;     // 交易类型
+  id: string;           // 唯一标识 (SHA-256 Hash of Unique Fingerprint)
+  time: string;         // 交易时间 (YYYY-MM-DD HH:mm:ss) - JSON存储/展示用
+  originalDate: Date;   // [Runtime Only] 原始时间对象，用于UI组件和日期计算，不写入JSON
+
+  sourceType: SourceType; // 来源 (Renamed from type)
+  category: CategoryType; // 统一后的分类 (meal | others)
+  rawClass: string;     // 原始CSV中的分类字符串 (用于展示)
   counterparty: string; // 交易对方
   product: string;      // 商品名称
   amount: number;       // 金额 (绝对值)
   direction: 'in' | 'out'; // 收支方向
-  isMeal?: boolean;     // 是否为正餐
-  raw: any;             // 原始CSV行数据
+  
+  paymentMethod: string; // 支付方式 (e.g. "零钱", "招商银行(1234)", "花呗")
+  status: TransactionStatus; // 交易状态
+
+  // --- Enhanced Fields (Replaces raw) ---
+  remark?: string;      // 备注/商品说明 (Critical for AI context)
+  // raw: any;          // REMOVED: 为了精简存储体积，不再保存原始CSV行
 }
 ```
 
-## 4. 版权信息
+### 4.2 数据完整性策略 (Data Integrity Strategy)
+
+为确保在多次导入 CSV、不同设备同步或元数据关联时的数据一致性，本项目采用**确定性 ID 生成策略 (Deterministic ID Generation)**。
+
+*   **ID Generation (ID 生成)**:
+    *   **Source**: `SHA-256(SourcePrefix + TradeNo)`.
+    *   **Constraint**: **Strictly Required (严格校验)**.
+    *   **Policy**: If `TradeNo` (交易单号) is missing, the record **MUST be silently discarded**. Fallback strategies (e.g., using date/amount hash) are **FORBIDDEN** to prevent duplicate or unstable IDs.
+    *   **Example**: `SHA-256("wx:4200002068202412155678901234")`.
+
+### 4.3 元数据存储结构 (Metadata Schema)
+
+为了支持 AI 智能分类与人工修正的持久化，系统采用 **"JSON as Database"** 策略，将完整的交易数据与元数据合并存储，确保 JSON 文件成为自包含的单一事实来源 (Single Source of Truth)。
+
+```typescript
+// 类别枚举 (初始只包含 meal 和 others，支持扩展)
+export type CategoryType = 'meal' | 'others' | string;
+
+// 基础交易数据 (对应 Transaction 接口的 JSON 序列化形式)
+export interface TransactionBase {
+  id: string;
+  time: string;         // 交易时间 (YYYY-MM-DD HH:mm:ss)
+  // originalDate: Date; // Runtime Only - Not Persisted
+  sourceType: SourceType; // Renamed from type
+  category: CategoryType;
+  rawClass: string;
+  counterparty: string;
+  product: string;
+  amount: number;
+  direction: 'in' | 'out';
+  paymentMethod: string;
+  transactionStatus: TransactionStatus;
+  remark?: string;      // 新增: 备注
+}
+
+// 元数据扩展
+export interface TransactionMeta {
+  // --- 智能层 (AI Layer) ---
+  ai_category: CategoryType; // AI 建议分类 (默认为 "")
+  ai_reasoning: string;      // AI 推理理由 (默认为 "")
+  
+  // --- 人工层 (User Layer - 优先级最高) ---
+  user_category: CategoryType; // 用户手动分类 (默认为 "")
+  user_note: string;         // 用户备注 (默认为 "")
+  
+  // --- 系统层 (System Layer) ---
+  is_verified: boolean;       // 是否已确认 (确认后 AI 不再覆盖)
+  updated_at: string;         // 最后更新时间 (YYYY-MM-DD HH:mm:ss)
+}
+
+// 完整的记录结构 = 基础数据 + 元数据
+// 注意: 序列化时即使 metadata 字段为空，也必须写入 JSON (值为空字符串)，方便用户和 AI 补全
+export interface FullTransactionRecord extends TransactionBase, TransactionMeta {}
+
+// 账本记忆文件 (Ledger Memory) - *.pixelbill.json
+export interface LedgerMemory {
+  version: string;            // e.g. "1.1"
+  last_sync: string;          // Timestamp string (YYYY-MM-DD HH:mm:ss)
+  defined_categories: string[]; // 支持的分类列表，初始为 ['meal', 'others']
+  records: Record<string, FullTransactionRecord>; // ID -> Full Record
+}
+```
+
+### 4.4 持久化机制 (Persistence)
+
+*   **技术方案**: File System Access API - `showDirectoryPicker`。
+*   **IO 策略 (IO Strategy)**: **目录即仓库 (Directory as Repository)**。
+    *   **Single Authorization (单次授权)**: 用户不再选择具体文件，而是授权一个“账单目录”。应用获得该目录的读写权限。
+    *   **Auto-Discovery (自动发现)**: 系统自动扫描目录下的所有 `.csv` 文件进行聚合。
+    *   **Hybrid Mode (混合模式)**:
+        *   **Default (Zero-Config)**: 系统优先寻找 `pixel_bill_memory.json`。若不存在，则在首次需要写入时自动创建。
+        *   **Advanced (Manual Override)**: 允许高级用户通过 **Memory Capsule** 指定其他 JSON 文件（如 `family_ledger.json`）或创建新文件。
+    *   **Implicit Sync (隐式同步)**: 所有的分类调整与备注，均自动同步至当前激活的 JSON 文件。
+
+### 4.5 记忆胶囊 (Memory Capsule)
+
+作为伴生元数据系统的核心组件，它不仅是状态指示器，更是高级数据管理的**隐式入口**。
+
+*   **位置**: 页面底部 (Footer) 居中，保持低调。
+*   **形态**: 极简胶囊形状 (Pill Shape)，类似电子设备的指示灯或物理接口。
+*   **状态反馈 (Visual Feedback)**:
+    *   **Disconnected**: 灰色轮廓/空心，无呼吸。表示尚未关联目录。
+    *   **Connected**: 绿色实心点 + 4s 周期呼吸。表示已锁定元数据文件。
+    *   **Saving**: 快速闪烁或颜色瞬变 (Yellow/White)。
+*   **交互逻辑 (Interaction)**:
+    *   **Hover**: 
+        *   显示当前连接的文件名 (e.g., `pixel_bill_memory.json`)。
+        *   如果是默认创建的文件，提示“Default Memory”。
+    *   **Click**: 
+        *   **Action**: 唤起 **Memory Manager** (悬浮菜单或极简面板)。
+        *   **Options**:
+            1.  **Switch Memory**: 列出当前目录下所有符合格式的 JSON 文件供切换。
+            2.  **New Memory**: 允许输入新文件名并创建空白元数据文件。
+
+## 5. 开发守则 (User Rules)
+
+为确保项目始终符合设计哲学并维护代码质量，所有开发行为必须遵循以下规则：
+
+1.  **交互设计红线 (Interaction Design Red Line)**:
+    *   **涉及前端交互逻辑变更，必须先在 `DESIGN.md` 完成设计并获得用户明确“确认”指令授权后方可实施代码；严禁未授权修改，且仅明确肯定回复视为确认，模糊表态（如“可以”）无效。**
+    *   **Any changes to frontend interaction logic must be designed in `DESIGN.md` first and authorized by an explicit "CONFIRM" command from the user before implementation; unauthorized modifications are strictly prohibited, and vague responses (e.g., "OK") do NOT constitute confirmation.**
+
+2.  **先设计后实现 (Design First)**: 
+    *   面临新需求时，**必须**先更新 `DESIGN.md`，明确视觉规范、交互流程和数据结构。
+    *   设计文档是项目的唯一真理来源 (Single Source of Truth)。
+
+3.  **数据优先 (Data First)**: 
+    *   前端改动不得破坏后台数据的完整性。
+    *   IO 操作必须具备原子性或防丢失机制（如自动保存、错误恢复）。
+
+4.  **极简原则 (Minimalism)**: 
+    *   增加功能 $\neq$ 增加按钮。
+    *   优先考虑自动化、上下文感知的设计。能自动推断的，绝不让用户点击。
+    *   **非侵入式**: 所有的状态提示应当是环境化的 (Ambient)，而非阻断式的 (Modal)。
+
+## 6. 版权信息
 Footer 显示: `@edgarzhong 2026`

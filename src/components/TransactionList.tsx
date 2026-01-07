@@ -1,7 +1,9 @@
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import type { Transaction } from '../types';
+import { CategoryDict } from '../types/metadata';
 import { format } from 'date-fns';
 import clsx from 'clsx';
+import { Pagination } from './Pagination';
 
 interface TransactionListProps {
   transactions: Transaction[];
@@ -31,6 +33,26 @@ const AmountDots: React.FC<{ amount: number }> = ({ amount }) => {
 };
 
 export const TransactionList: React.FC<TransactionListProps> = ({ transactions }) => {
+  const [currentPage, setCurrentPage] = useState(1);
+  const listTopRef = useRef<HTMLDivElement>(null);
+  
+  const ITEMS_PER_PAGE = 20;
+  const totalPages = Math.ceil(transactions.length / ITEMS_PER_PAGE);
+  
+  // 当交易数据总量变化时（如筛选），重置到第一页
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [transactions.length]);
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+  };
+
+  const paginatedTransactions = transactions.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
+
   // Empty State with Placeholder Lines
   if (transactions.length === 0) {
     return (
@@ -69,15 +91,15 @@ export const TransactionList: React.FC<TransactionListProps> = ({ transactions }
   }
 
   return (
-    <div className="font-mono text-sm">
+    <div className="font-mono text-sm" ref={listTopRef}>
       <div className="flex justify-between items-center mb-6 text-dim text-xs uppercase tracking-wider">
         <div className="w-24">Source</div>
         <div className="flex-1">Details</div>
         <div className="w-32 text-right">Amount</div>
       </div>
 
-      <div className="space-y-4">
-        {transactions.map((t) => (
+      <div className="space-y-4 min-h-[800px]">
+        {paginatedTransactions.map((t) => (
           <div 
             key={t.id} 
             className="group flex items-center py-3 border-b border-gray-900 hover:bg-white/[0.02] transition-colors relative"
@@ -87,11 +109,11 @@ export const TransactionList: React.FC<TransactionListProps> = ({ transactions }
               <div 
                 className={clsx(
                   "w-3 h-3 transition-transform duration-300 group-hover:rotate-45",
-                  t.type === 'wechat' ? 'bg-pixel-green' : 'bg-alipay-blue'
+                  t.sourceType === 'wechat' ? 'bg-pixel-green' : 'bg-alipay-blue'
                 )}
               />
               <span className="ml-3 text-xs text-dim opacity-0 group-hover:opacity-100 transition-opacity">
-                {t.type === 'wechat' ? 'WX' : 'ALI'}
+                {t.sourceType === 'wechat' ? 'WX' : 'ALI'}
               </span>
             </div>
 
@@ -99,13 +121,17 @@ export const TransactionList: React.FC<TransactionListProps> = ({ transactions }
             <div className="flex-1 min-w-0">
               <div className="flex items-baseline gap-3 mb-1">
                 <span className="text-primary truncate font-bold">
-                  {t.isMeal && <span className="text-income-yellow mr-2">[MEAL]</span>}
+                  {t.category !== 'others' && (
+                    <span className="text-income-yellow mr-2">
+                      [{CategoryDict[t.category] || t.category.toUpperCase()}]
+                    </span>
+                  )}
                   {t.product !== '/' && t.product !== 'Unknown' ? t.product : t.counterparty}
                 </span>
                 <span className="text-xs text-dim truncate">{format(t.originalDate, 'MM-dd HH:mm')}</span>
               </div>
               <div className="text-xs text-dim truncate max-w-md">
-                {t.category} {t.counterparty !== t.product && `• ${t.counterparty}`}
+                {t.rawClass} {t.counterparty !== t.product && `• ${t.counterparty}`}
               </div>
             </div>
 
@@ -122,6 +148,15 @@ export const TransactionList: React.FC<TransactionListProps> = ({ transactions }
           </div>
         ))}
       </div>
+      
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <Pagination 
+          currentPage={currentPage} 
+          totalPages={totalPages} 
+          onPageChange={handlePageChange} 
+        />
+      )}
     </div>
   );
 };
