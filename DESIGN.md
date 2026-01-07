@@ -352,6 +352,140 @@ export interface LedgerMemory {
             1.  **Switch Memory**: 列出当前目录下所有符合格式的 JSON 文件供切换。
             2.  **New Memory**: 允许输入新文件名并创建空白元数据文件。
 
+### 4.6 伴生元数据仲裁系统 (Associated Metadata Arbitration System)
+
+PixelBill 采用 **“插件化仲裁” (Plugin-based Arbitration)** 架构处理多源分类建议。系统不直接修改数据，而是由各方提交“提案”，最终由仲裁者决定。
+
+#### A. 核心架构 (Core Architecture)
+
+*   **Raw Data (只读)**: CSV 文件，Single Source of Truth。
+*   **Metadata (读写)**: JSON 文件，存储增强信息。
+*   **Arbitration Layer**: 位于 UI显示 与存储之间的决策层。
+
+```mermaid
+graph TD
+    User[UI Interaction] -->|Proposal| Arbiter
+    AI[AI Agent] -->|Proposal| Arbiter
+    Rule[Regex Plugin] -->|Proposal| Arbiter
+    
+    subgraph Metadata Arbiter
+        direction TB
+        Buffer[Proposal Buffer]
+        Strategy[Priority Strategy]
+    end
+    
+    Arbiter -->|Final Patch| Storage[JSON Storage]
+```
+
+#### B. 优先级策略 (Priority Strategy)
+
+仲裁者采用**可配置的优先级队列**（默认：User > Rule > AI），通过 **"Pull" (主动调度)** 模式实时从各插件获取提案。
+
+1.  **UserMetaPlugin (用户信源插件)**: 
+    *   **触发**: 实时读取 `user_category` 元数据。
+    *   **行为**: 若存在用户分类，生成 `source: USER` 提案。此提案具有**绝对锁定权**。
+    *   **is_verified 机制**: 
+        *   **显式锁定**: `is_verified` 状态**仅**通过用户显式调用 `verifyTransaction` API 触发，**不**随 User 提案自动生效。
+        *   **解除锁定**: 用户可调用 `unverifyTransaction` API 将状态重置为 `false`，此时数据重新接受仲裁。
+        *   **行为**: 
+            *   `true`: 仲裁者直接返回当前分类，跳过所有插件计算。
+            *   `false`: 正常执行 User > Rule > AI 的优先级仲裁。
+        *   **价值**: 锁定的数据将作为“黄金数据集 (Golden Dataset)”，用于未来 AI 模型的训练与微调。
+2.  **System Rule (系统规则)**: 
+    *   **触发**: 正则表达式插件匹配结果。
+    *   **行为**: 仅在无 User 提案时生效。
+3.  **AI Suggestion (AI 建议)**: 
+    *   **触发**: LLM 推理结果。
+    *   **行为**: 兜底建议。
+
+#### C. 插件接口规范 (Plugin Interface)
+
+```typescript
+export type ProposalSource = 'USER' | 'RULE_ENGINE' | 'AI_AGENT';
+
+// 提案结构
+export interface Proposal {
+  source: ProposalSource;
+  category?: string;
+  reasoning?: string;
+  // confidence: number; // 暂不启用置信度逻辑
+  timestamp: number;
+}
+
+// 插件接口
+export interface ICategoryPlugin {
+  name: string;
+  version: string;
+  // 核心分析函数
+  analyze(transaction: TransactionBase): Promise<Proposal | null>;
+}
+```
+
+#### D. 批量分类工作流 (Batch Categorization Workflow)
+
+为应对大量历史数据的初始化分类，系统支持通过脚本批量导入外部决策。
+
+1.  **工作流**:
+    *   用户/AI 编辑外部文本文件（格式：`ID | Category | Reasoning`）。
+    *   脚本读取文件，批量调用仲裁层 API。
+    *   **User File**: 映射为 `source: USER`，自动标记 `is_verified: true`。
+    *   **AI File**: 映射为 `source: AI_AGENT`，等待人工确认或被规则覆盖。
+2.  **优势**: 允许在 AI 插件未完善前，利用本地 LLM 能力快速处理数据。
+
+#### E. 触发机制与生命周期 (Trigger & Lifecycle)
+
+仲裁器不仅仅是被动比较，还负责管理插件的**调度时机**。不同插件的触发成本与时效性要求不同，需差异化处理。
+
+1.  **UserMetaPlugin (实时/热数据)**
+    *   **触发时机**: 
+        *   **初始化加载**: 应用启动读取 JSON 元数据时。
+        *   **用户交互**: 用户通过 UI 修改 `category` 或 `note` 时（实时触发）。
+        *   **解锁操作**: 用户调用 `unverifyTransaction` 时。
+    *   **调度策略**: **同步 (Synchronous)**。必须立即响应，确保用户操作即时反馈。
+
+2.  **RuleEnginePlugin (本地计算/低成本)**
+    *   **触发时机**: 
+        *   **数据导入**: 新 CSV 记录被解析时。
+        *   **规则变更**: 用户新增或修改正则规则时（触发全量或增量重新仲裁）。
+        *   **Fallback**: 当 User 提案被移除（如清空 `user_category`）时。
+    *   **调度策略**: **即时 (Immediate)**。本地正则匹配速度极快，可在主线程或微任务中完成，无需节流。
+
+3.  **AIAgentPlugin (远程调用/高成本)**
+    *   **状态**: *待完善 (Pending Refinement)* - 具体的触发阈值、防抖策略及上下文构建逻辑尚需进一步设计。
+    *   **触发时机 (Draft)**: 
+        *   **显式请求**: 用户点击“智能分类”按钮（针对单条或多条）。
+        *   **空值兜底 (Lazy)**: 当 User 和 Rule 均返回 `Uncategorized`，且用户开启“自动 AI 补全”配置时。
+        *   **批量作业**: 导入大量新数据后的后台静默队列。
+    *   **调度策略**: **异步 + 队列 + 防抖 (Async Queue & Debounce)**。
+        *   避免对同一笔交易频繁请求。
+        *   支持批量打包请求 (Batch Processing) 以节省 Token。
+        *   **必须**在 UI 上展示“AI 思考中”状态。
+
+#### F. 仲裁核心循环 (Arbitration Loop)
+
+```typescript
+async function arbitrate(tx: Transaction, trigger: TriggerType) {
+  // 1. Check Lock
+  if (tx.is_verified && trigger !== 'USER_UNLOCK') return tx.current_category;
+
+  // 2. User Level (Sync)
+  const userProposal = userPlugin.analyze(tx);
+  if (userProposal) return apply(userProposal);
+
+  // 3. Rule Level (Sync/Fast)
+  const ruleProposal = rulePlugin.analyze(tx);
+  if (ruleProposal) return apply(ruleProposal);
+
+  // 4. AI Level (Async/Costly)
+  if (shouldTriggerAI(trigger, config)) {
+    queueAIJob(tx); // Don't await, return 'Thinking...' or fallback
+    return 'PROCESSING'; 
+  }
+
+  return 'Uncategorized';
+}
+```
+
 ## 5. 开发守则 (User Rules)
 
 为确保项目始终符合设计哲学并维护代码质量，所有开发行为必须遵循以下规则：

@@ -14,9 +14,14 @@ import {
   isFileSystemSupported 
 } from './utils/fs-storage';
 import type { Transaction } from './types';
-import type { LedgerMemory, FullTransactionRecord } from './types/metadata';
+import type { LedgerMemory, FullTransactionRecord, TransactionMeta } from './types/metadata';
 import { startOfDay, endOfDay, isWithinInterval, format } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
+import { globalArbiter } from './core/arbiter/Arbiter';
+import { RegexRulePlugin } from './core/plugin';
+
+// Register default plugins once
+globalArbiter.registerPlugin(new RegexRulePlugin());
 
 function App() {
   const [rawTransactions, setRawTransactions] = useState<Transaction[]>([]);
@@ -62,27 +67,94 @@ function App() {
   });
   
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const memoryFileHandleRef = useRef<FileSystemFileHandle | null>(null);
+
+  // 性能优化：缓存上一次的合并结果
+  // Key: Transaction ID
+  // Value: { raw: 原始对象引用, meta: 元数据对象引用, result: 合并后的结果引用 }
+  // 利用 Immutable 特性，只要 raw 和 meta 引用没变，就直接复用 result
+  const transactionCacheRef = useRef<Map<string, {
+    raw: Transaction;
+    meta: FullTransactionRecord | undefined;
+    result: Transaction;
+  }>>(new Map());
+
+  // 当原始数据被完全替换时（如加载新文件），清空缓存以释放内存
+  useEffect(() => {
+    if (rawTransactions.length === 0) {
+      transactionCacheRef.current.clear();
+    }
+  }, [rawTransactions]);
 
   // 合并逻辑: Raw + Meta -> Final Transactions
   const transactions = useMemo(() => {
+    // 如果没有元数据，直接返回原始数据（也视为一种缓存未命中或无需合并的状态）
     if (!ledgerMemory) return rawTransactions;
 
+    const cache = transactionCacheRef.current;
+    
     return rawTransactions.map(t => {
       const meta = ledgerMemory.records[t.id];
-      if (!meta) return t;
+      
+      // 1. 缓存命中检查 (极速路径)
+      const cached = cache.get(t.id);
+      if (cached && cached.raw === t && cached.meta === meta) {
+        return cached.result;
+      }
 
-      // 优先级: User > AI > CSV Default
-      // 目前 parser.ts 返回的 category 是基于关键词的简单判断，视为默认值
-      // 如果 meta 中有 user_category，则覆盖
-      // 如果 meta 中有 ai_category 且已确认，则覆盖 (暂未实现 AI)
+      // 2. 缓存未命中，执行完整合并逻辑
+      const validCategories = ledgerMemory.defined_categories;
       
-      const finalCategory = meta.user_category || meta.ai_category || t.category;
-      
-      return {
-        ...t,
-        category: finalCategory,
-        // 这里可以注入更多 meta 信息供 UI 使用，如果 Transaction 接口支持的话
+      // Default empty meta if not exists
+      const safeMeta = meta || {
+        ai_category: "",
+        ai_reasoning: "",
+        user_category: "",
+        user_note: "",
+        is_verified: false,
+        updated_at: ""
       };
+
+      // Construct temporary record for arbitration
+      const tempRecord = {
+        ...t,
+        ...safeMeta,
+        // Ensure meta fields are not null (legacy data protection)
+        ai_category: safeMeta.ai_category || "",
+        ai_reasoning: safeMeta.ai_reasoning || "",
+        user_category: safeMeta.user_category || "",
+        user_note: safeMeta.user_note || "",
+        is_verified: safeMeta.is_verified || false,
+        updated_at: safeMeta.updated_at || "",
+        category: t.category 
+      };
+
+      // --- Arbitration Logic ---
+      const decision = globalArbiter.decide(tempRecord as FullTransactionRecord, ledgerMemory || undefined);
+      
+      // [DEBUG] Trace specific IDs to verify arbitration logic
+      if (['5110f45d20aab6c3', 'd4db723dbb333a5a'].includes(t.id)) {
+        console.log(`[Arbiter Trace] ID: ${t.id.slice(0,6)}... | UserCat: '${safeMeta.user_category}' | Final Decision:`, decision);
+      }
+
+      const candidate = decision.category;
+
+      // --- Category Logic (Strict Validation) ---
+      const finalCategory = validCategories.includes(candidate) ? candidate : 'others';
+
+      const newResult = {
+        ...tempRecord,
+        category: finalCategory
+      };
+
+      // 3. 更新缓存
+      cache.set(t.id, {
+        raw: t,
+        meta: meta, // 存储当前的 meta 引用（可能是 undefined）
+        result: newResult
+      });
+
+      return newResult;
     });
   }, [rawTransactions, ledgerMemory]);
 
@@ -115,6 +187,10 @@ function App() {
         }
         
         const parsedData = await parseFiles(files);
+        
+        // Pre-calculate rules before rendering
+        await globalArbiter.ingest(parsedData);
+
         setRawTransactions(parsedData);
         
         // 2. Metadata System (Backend Logic)
@@ -134,6 +210,7 @@ function App() {
           }
 
           if (memoryHandle) {
+            memoryFileHandleRef.current = memoryHandle;
             // --- Sync Logic: Ensure all transactions have a record ---
             let hasUpdates = false;
             const updatedRecords = { ...currentMemory.records };
@@ -241,7 +318,75 @@ function App() {
   };
 
   // --- Memory / Storage Handlers (Backend Logic Only) ---
-  // Handlers will be implemented when UI interaction is enabled
+  
+  /**
+   * 核心元数据更新函数
+   * 负责更新内存状态并同步持久化到 JSON 文件
+   */
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const updateTransactionMetadata = async (id: string, newMeta: Partial<TransactionMeta>) => {
+    if (!ledgerMemory) return;
+
+    // 1. Update State (Optimistic UI Update)
+    // 查找目标记录
+    const currentRecord = ledgerMemory.records[id];
+    if (!currentRecord) {
+      console.warn(`Transaction ${id} not found in memory`);
+      return;
+    }
+
+    // 构造新记录 (Immutable)
+    const updatedRecord = {
+      ...currentRecord,
+      ...newMeta,
+      updated_at: format(new Date(), 'yyyy-MM-dd HH:mm:ss')
+    } as FullTransactionRecord;
+
+    // 构造新内存状态
+    const newMemory = {
+      ...ledgerMemory,
+      records: {
+        ...ledgerMemory.records,
+        [id]: updatedRecord
+      },
+      last_sync: format(new Date(), 'yyyy-MM-dd HH:mm:ss')
+    };
+
+    // 触发 React 更新 (会激活 useMemo 的缓存机制)
+    setLedgerMemory(newMemory);
+
+    // 2. Persist to File
+    if (memoryFileHandleRef.current) {
+      try {
+        console.log(`System: Persisting metadata for ${id}...`);
+        await writeMemoryFile(memoryFileHandleRef.current, newMemory);
+      } catch (error) {
+        console.error('Failed to save metadata:', error);
+        // 生产环境可能需要回滚 State，或者提示用户保存失败
+        alert('Warning: Failed to save changes to disk.');
+      }
+    } else {
+      console.warn('System: No file handle available for persistence.');
+    }
+  };
+
+  /**
+   * 确认/锁定交易分类
+   * 用户手动确认后，该交易的分类将被锁定，不会被 AI 或规则引擎覆盖
+   */
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const verifyTransaction = async (id: string) => {
+    await updateTransactionMetadata(id, { is_verified: true });
+  };
+
+  /**
+   * 解除交易分类锁定
+   * 解除后，该交易将重新参与仲裁流程 (User > Rule > AI)
+   */
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const unverifyTransaction = async (id: string) => {
+    await updateTransactionMetadata(id, { is_verified: false });
+  };
 
   const filteredTransactions = useMemo(() => {
     let result = transactions;

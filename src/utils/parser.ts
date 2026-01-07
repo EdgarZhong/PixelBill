@@ -233,6 +233,16 @@ export const parseFiles = async (files: File[]): Promise<Transaction[]> => {
     }
   }
 
+  // 内存去重：基于 ID (SHA-256) 过滤重复交易
+  const uniqueMap = new Map<string, Transaction>();
+  for (const tx of allTransactions) {
+    if (!uniqueMap.has(tx.id)) {
+      uniqueMap.set(tx.id, tx);
+    }
+  }
+  
+  const uniqueTransactions = Array.from(uniqueMap.values());
+
   // 按时间倒序排序 (使用 originalDate)
-  return allTransactions.sort((a, b) => b.originalDate.getTime() - a.originalDate.getTime());
+  return uniqueTransactions.sort((a, b) => b.originalDate.getTime() - a.originalDate.getTime());
 };

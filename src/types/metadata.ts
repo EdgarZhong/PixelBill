@@ -50,9 +50,20 @@ export interface TransactionMeta {
 // 完整的记录结构 = 基础数据 + 元数据
 export interface FullTransactionRecord extends TransactionBase, TransactionMeta {}
 
+import type { ProposalSource } from '../core/plugin/types';
+
+export interface ArbitrationConfig {
+  /**
+   * 仲裁优先级列表，越靠前优先级越高
+   * 默认: ['USER', 'RULE_ENGINE', 'AI_AGENT']
+   */
+  priority: ProposalSource[];
+}
+
 export interface LedgerMemory {
   version: string;            // e.g. "1.0"
   last_sync: string;          // Timestamp string
   defined_categories: string[]; // 支持的分类列表，初始为 ['meal', 'others']
+  arbitration_config?: ArbitrationConfig; // 仲裁配置
   records: Record<string, FullTransactionRecord>; // ID -> Full Record
 }
