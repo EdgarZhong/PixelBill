@@ -18,10 +18,13 @@ import type { LedgerMemory, FullTransactionRecord, TransactionMeta } from './typ
 import { startOfDay, endOfDay, isWithinInterval, format } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
 import { globalArbiter } from './core/arbiter/Arbiter';
-import { RegexRulePlugin } from './core/plugin';
+// import { RegexRulePlugin } from './core/plugin';
+import { LocalAIMetaPlugin } from './core/plugin';
+import { useFileWatcher } from './hooks/useFileWatcher';
 
 // Register default plugins once
-globalArbiter.registerPlugin(new RegexRulePlugin());
+// globalArbiter.registerPlugin(new RegexRulePlugin());
+globalArbiter.registerPlugin(new LocalAIMetaPlugin());
 
 function App() {
   const [rawTransactions, setRawTransactions] = useState<Transaction[]>([]);
@@ -68,6 +71,7 @@ function App() {
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const memoryFileHandleRef = useRef<FileSystemFileHandle | null>(null);
+  const lastSaveTimeRef = useRef(0); // 记录最后一次自身写入的时间，防止 Watcher 回环触发
 
   // 性能优化：缓存上一次的合并结果
   // Key: Transaction ID
@@ -126,7 +130,9 @@ function App() {
         user_note: safeMeta.user_note || "",
         is_verified: safeMeta.is_verified || false,
         updated_at: safeMeta.updated_at || "",
-        category: t.category 
+        // 核心修复：优先使用 meta 中的历史分类（即上一次的仲裁结果）作为基准
+        // 当所有信源（User/Rule/AI）都失效时，Arbiter 将回退到这个值，而不是盲目重置为 'others'
+        category: (meta && meta.category) || t.category || 'others'
       };
 
       // --- Arbitration Logic ---
@@ -171,6 +177,58 @@ function App() {
       });
     }
   }, [transactions]);
+
+  // --- Sync Arbitration Result to Persistence ---
+  // 当仲裁结果(transactions)与存储状态(ledgerMemory)不一致时，
+  // 触发反向同步，将最新的 category 写入 JSON。
+  useEffect(() => {
+    if (!ledgerMemory || transactions.length === 0) return;
+
+    const updates: Record<string, FullTransactionRecord> = {};
+    let hasChanges = false;
+
+    transactions.forEach(tx => {
+      const stored = ledgerMemory.records[tx.id];
+      // 如果存储中不存在（新记录）或者 category 不一致
+      // 注意：这里只关注 category 的变化。
+      if (stored && stored.category !== tx.category) {
+        // 发现不一致！
+        updates[tx.id] = {
+          ...stored,
+          category: tx.category,
+          updated_at: format(new Date(), 'yyyy-MM-dd HH:mm:ss')
+        } as FullTransactionRecord;
+        hasChanges = true;
+      }
+    });
+
+    if (hasChanges) {
+      console.log(`[Sync] Detected ${Object.keys(updates).length} category changes. Persisting...`);
+      
+      // 构造新内存对象
+      const newMemory = {
+        ...ledgerMemory,
+        records: {
+          ...ledgerMemory.records,
+          ...updates
+        }
+      };
+
+      // 1. Update State (这将触发新一轮 render，但因为 category 已一致，不会再进此分支)
+      setLedgerMemory(newMemory);
+
+      // 2. Persist to Disk
+      if (memoryFileHandleRef.current) {
+        writeMemoryFile(memoryFileHandleRef.current, newMemory)
+          .then(() => {
+            lastSaveTimeRef.current = Date.now();
+          })
+          .catch(err => 
+            console.error('[Sync] Save failed:', err)
+          );
+      }
+    }
+  }, [transactions, ledgerMemory]);
 
   const handleLoadData = async () => {
     if (isFileSystemSupported()) {
@@ -323,7 +381,6 @@ function App() {
    * 核心元数据更新函数
    * 负责更新内存状态并同步持久化到 JSON 文件
    */
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const updateTransactionMetadata = async (id: string, newMeta: Partial<TransactionMeta>) => {
     if (!ledgerMemory) return;
 
@@ -369,6 +426,34 @@ function App() {
       console.warn('System: No file handle available for persistence.');
     }
   };
+
+
+  // --- Hot Reload: Watch for external changes ---
+  const handleExternalFileChange = async (file: File) => {
+    if (!memoryFileHandleRef.current) return;
+    
+    // Loopback Detection: Ignore if modification is caused by our own recent write
+    const timeDiff = file.lastModified - lastSaveTimeRef.current;
+    if (Math.abs(timeDiff) < 2000) {
+      console.log(`[HotReload] Ignored self-update loopback (Diff: ${timeDiff}ms)`);
+      return;
+    }
+
+    console.log('System: ♻️ External change detected, reloading metadata...');
+    try {
+      // Re-read from disk
+      const newMemory = await readMemoryFile(memoryFileHandleRef.current);
+      
+      // Update state (this will trigger arbitration via useMemo)
+      setLedgerMemory(newMemory);
+      
+      // Optional: Flash UI or notification could be added here
+    } catch (err) {
+      console.error('System: Failed to hot-reload memory file', err);
+    }
+  };
+
+  useFileWatcher(memoryFileHandleRef.current, handleExternalFileChange);
 
   /**
    * 确认/锁定交易分类

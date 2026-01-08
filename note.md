@@ -78,3 +78,159 @@
     *   **架构统一**: 保持了 Arbiter 纯粹的 Pull 接口设计，无需为 User 插件开后门。
     *   **数据一致性**: 只要 React State 是最新的，Arbiter 看到的永远是最新的数据，避免了时序同步问题。
     *   **开发简便**: 复用了 React 现有的渲染循环，零额外成本。
+
+### 什么是 useMemo 及其在业务架构中的作用
+
+**场景记录**
+用户在审查代码时询问 `useMemo` 的具体含义及其在当前分层架构中的角色，特别是如何利用它来优化性能并充当逻辑层（Logic Layer）与视图层（View Layer）的连接器。
+
+**知识总结**
+`useMemo` 是 React 的“智能缓存计算器”，遵循 **“输入不变，结果不变”** 的原则。
+
+1.  **核心机制**:
+    ```typescript
+    const result = useMemo(() => expensiveCalculation(a, b), [a, b]);
+    ```
+    只有当依赖项 `[a, b]` 发生变化（引用变更）时，才会重新执行 `expensiveCalculation`；否则直接返回上次缓存的结果。
+
+2.  **在 PixelBill 中的战略地位**:
+    在本项目中，`useMemo` 不仅仅是一个性能优化工具，它实际上**承载了业务逻辑层 (L3) 的核心生命周期**。
+    *   **防波堤作用**: 原始账单 (`raw`) 和用户元数据 (`meta`) 是两个独立变化的数据源。`useMemo` 将它们合并，并调用昂贵的 `Arbiter` 仲裁逻辑。它确保了只有当数据真正变化时，才支付昂贵的 CPU 计算成本（正则匹配、插件轮询）。
+    *   **视图层的数据源**: 对于 UI 组件（列表、图表）而言，它们不关心数据来自文件还是内存，它们只消费 `useMemo` 产出的 `Final Transactions`。这使得 UI 渲染逻辑与复杂的业务仲裁逻辑彻底解耦。
+
+### useMemo 是什么？
+
+用最通俗的话说，`useMemo` 是 React 组件里的**“智能缓存计算器”**。
+
+#### 核心作用
+它的任务是：**“只要输入没变，就直接给我上次算好的结果，别重新算。”**
+
+在 React 中，只要组件的状态（State）发生任何变化（比如你切换了一个 Tab，或者鼠标悬停显示了一个提示框），整个组件函数就会**重新运行一遍**。如果没有 `useMemo`，所有的代码都会从头执行一次。
+
+#### 语法结构
+```typescript
+const 缓存结果 = useMemo(() => {
+  // 这里放昂贵的计算逻辑
+  return 计算结果;
+}, [依赖变量1, 依赖变量2]); // 只有当这些变量变了，才会重新计算
+```
+
+### 3. 在本项目 (pixel_bill) 中的关键作用
+
+请看 [App.tsx](file:///d:/Code/VibeCodingWork/pixel_bill/src/App.tsx#L91-L160) 的第 91 行：
+
+```typescript
+// 合并逻辑: Raw + Meta -> Final Transactions
+const transactions = useMemo(() => {
+  // ... 这里有一个巨大的循环 ...
+  return rawTransactions.map(t => {
+     // 1. 在几千条数据中查找对应的元数据
+     // 2. 运行 Arbiter 仲裁逻辑 (可能包含复杂的正则匹配)
+     // 3. 生成最终对象
+  });
+}, [rawTransactions, ledgerMemory]); // <--- 依赖数组
+```
+
+#### 为什么要在这里用它？
+
+在这个应用中，计算 `transactions` 是非常**昂贵**的：
+1.  它要遍历所有的原始账单（可能有几千条）。
+2.  每一条都要去 `ledgerMemory` 里查找有没有对应的记录。
+3.  每一条都要跑一遍 `globalArbiter.decide`，这里面包含了正则匹配、插件调用等逻辑。
+
+#### 如果没有 useMemo 会发生什么？
+
+假设你点击了界面上的“只看餐饮 (MEAL)”按钮：
+1.  `setFilter('MEAL')` 被调用，React 状态改变。
+2.  App 组件重新渲染。
+3.  **灾难发生**：如果没有 `useMemo`，CPU 会被迫再次遍历那几千条数据，再次跑一遍正则匹配……尽管原始数据 (`rawTransactions`) 和用户分类 (`ledgerMemory`) 根本没变！
+4.  **用户体验**：你会感觉到点击按钮后有明显的**卡顿**。
+
+#### 有了 useMemo 之后：
+
+当你点击“只看餐饮”：
+1.  App 组件重新渲染。
+2.  `useMemo` 检查依赖：它发现 `rawTransactions` 没变，`ledgerMemory` 也没变。
+3.  **瞬间返回**：它直接把**上一次**算好的那个数组给你。
+4.  **用户体验**：界面切换如丝般顺滑。
+
+### 总结
+在 `pixel_bill` 中，`useMemo` 是连接**数据层**和**视图层**的防波堤。它确保了只有在数据源真正发生变化时，才消耗 CPU 去进行复杂的业务逻辑计算（仲裁），从而保护了 UI 的响应速度。
+
+
+## 系统稳定性与状态同步
+
+### 幂等性 (Idempotency) 与值收敛策略 (Value Convergence)
+
+**场景记录**
+在实现 `App.tsx` 中的“反向同步”逻辑（将 Arbiter 实时计算的分类结果写回 JSON 持久层）时，面临严重的**死循环风险**：
+1.  Arbiter 计算新分类。
+2.  Effect 发现不一致，触发 State 更新。
+3.  State 更新导致组件重绘，再次触发 Arbiter 计算。
+4.  Effect 再次运行……
+如果不加控制，系统将陷入无限震荡。
+
+**知识总结**
+
+1.  **幂等性 (Idempotency)**:
+    *   **定义**: “操作一次和操作多次，对系统状态产生的结果是相同的。” (f(x) = f(f(x)))。
+    *   **生活类比**: 
+        *   *非幂等*: 抽屉拉绳灯（拉一下亮，拉一下灭，状态随次数震荡）。
+        *   *幂等*: 电梯楼层按钮（按一下去1楼，按一百下还是去1楼，状态最终稳定）。
+    *   **架构价值**: 幂等性是消除副作用震荡的终极武器。在 React 的 `useEffect` 中，必须确保同步操作是幂等的。
+
+2.  **值收敛策略 (Value Convergence)**:
+    这是实现幂等性的具体技术手段。在本项目 [App.tsx](file:///d:/Code/VibeCodingWork/pixel_bill/src/App.tsx#L189) 中，我们实施了严格的“刹车”逻辑：
+    ```typescript
+    if (stored && stored.category !== tx.category) {
+        // 核心防御：仅当逻辑值（Value）真正不一致时才触发更新
+        updates[tx.id] = { ... };
+        hasChanges = true;
+    }
+    ```
+    *   **原理**: 虽然 React 的 State 更新通常基于引用（Reference）变化，但业务逻辑的同步必须基于**值（Value）**变化。
+    *   **过程**: 
+        *   第一轮循环：值不相等 -> 触发更新。
+        *   第二轮循环：由于上一轮已更新，此时 `stored.value === calculated.value` -> 条件不成立 -> 停止更新。
+    *   **结论**: 系统从“不稳定态”经过一次修正后，迅速回归“稳定态”。这种通过对比核心值来终止递归更新的方法，称为值收敛。
+
+### 文件系统同步与回环检测 (Loopback Detection)
+
+**场景记录**
+在实现了“文件热重载”功能（当外部修改 JSON 时 App 自动刷新）后，我们遭遇了第二个致命的死循环——**IO 回环风暴**：
+1.  **App 写入**: 用户在 App 操作 -> App 写入文件。
+2.  **Watcher 触发**: 文件时间戳变更 -> `useFileWatcher` 触发重载。
+3.  **App 重读**: App 重新读取文件 -> 更新 State。
+4.  **App 重写**: State 更新触发副作用，再次写入文件（可能因微小的格式化差异）。
+5.  **Watcher 再次触发** -> 死循环，导致编辑器卡死，系统 IO 飙升。
+
+**知识总结**
+在无法完全控制文件系统事件来源（无法区分是谁改的文件）的情况下，必须在应用层实施**回环检测机制**。
+
+1.  **标记自身操作 (Self-Tagging)**:
+    我们引入了一个 `lastSaveTimeRef` 变量。每当 App 成功执行写入操作时，记录当前时间戳：
+    ```typescript
+    await writeMemoryFile(...);
+    lastSaveTimeRef.current = Date.now(); // 标记：这是我刚刚干的
+    ```
+
+2.  **回环抑制 (Loopback Suppression)**:
+    在文件变更回调中，比对文件时间戳与最后一次写入时间。
+    ```typescript
+    const handleExternalFileChange = (file: File) => {
+      const timeDiff = file.lastModified - lastSaveTimeRef.current;
+      
+      // 核心判据：如果文件变化发生在 App 写入后的极短时间内（如 2秒内）
+      // 我们可以安全地认为这次变化是 App 自身写入引起的“回声”
+      if (Math.abs(timeDiff) < 2000) {
+        console.log('Ignored self-update loopback');
+        return; // 直接忽略，切断循环
+      }
+      
+      // 只有真正来自外部（如 VSCode）的修改才会通过
+      reloadMetadata();
+    };
+    ```
+
+3.  **结论**:
+    在双向同步系统中，必须有一个机制来区分“外部输入”和“内部回声”。基于时间戳的“不应期（Refractory Period）”是一个简单而高效的解决方案。

@@ -96,10 +96,11 @@ export class Arbiter {
     }
 
     // Fallback
+    // 当没有任何有效信源时，倾向于保留原来的 category 不做修改
     return {
-      category: 'Uncategorized',
+      category: transaction.category || 'Uncategorized',
       source: 'FALLBACK',
-      reasoning: 'No valid category found from any source',
+      reasoning: 'No valid category found from any source, keeping original',
       confidence: 0
     };
   }

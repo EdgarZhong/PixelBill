@@ -332,7 +332,7 @@ export interface LedgerMemory {
         *   **Advanced (Manual Override)**: 允许高级用户通过 **Memory Capsule** 指定其他 JSON 文件（如 `family_ledger.json`）或创建新文件。
     *   **Implicit Sync (隐式同步)**: 所有的分类调整与备注，均自动同步至当前激活的 JSON 文件。
 
-### 4.5 记忆胶囊 (Memory Capsule)
+### 4.5 记忆胶囊 (Memory Capsule)**（尚未实现）**
 
 作为伴生元数据系统的核心组件，它不仅是状态指示器，更是高级数据管理的**隐式入口**。
 
@@ -398,6 +398,8 @@ graph TD
     *   **触发**: LLM 推理结果。
     *   **行为**: 兜底建议。
 
+在多信源（User/Rule/AI）仲裁体系中，若所有有效信源均静默（如用户清空分类且无规则命中），系统将不再重置为默认值，而是实施‘状态惯性’策略——保留该交易上一次的历史分类；仅当连历史状态也不存在或非法时，才兜底归为 others 。
+
 #### C. 插件接口规范 (Plugin Interface)
 
 ```typescript
@@ -421,16 +423,18 @@ export interface ICategoryPlugin {
 }
 ```
 
-#### D. 批量分类工作流 (Batch Categorization Workflow)
+#### D. JSON 热重载与外部数据治理 (JSON Hot-Reload & Data Governance)
 
-为应对大量历史数据的初始化分类，系统支持通过脚本批量导入外部决策。
+为了提供极致的数据掌控力，系统将 **本地 JSON 文件** 视为唯一的、开放的数据库接口。
 
-1.  **工作流**:
-    *   用户/AI 编辑外部文本文件（格式：`ID | Category | Reasoning`）。
-    *   脚本读取文件，批量调用仲裁层 API。
-    *   **User File**: 映射为 `source: USER`，自动标记 `is_verified: true`。
-    *   **AI File**: 映射为 `source: AI_AGENT`，等待人工确认或被规则覆盖。
-2.  **优势**: 允许在 AI 插件未完善前，利用本地 LLM 能力快速处理数据。
+1.  **机制**:
+    *   **双向同步**: App 启动后，将持续监听（Smart Polling）JSON 文件的 `lastModified` 属性。
+    *   **热重载 (Hot Reload)**: 一旦检测到外部修改（如 VSCode 编辑、脚本批处理），App 将立即重新加载数据，触发完整的仲裁循环，并实时刷新 UI。
+    
+2.  **批量处理场景**:
+    *   无需专用的“导入 API”。
+    *   用户可编写 Python/Node 脚本直接修改 JSON 文件的 `user_category` 或 `ai_category` 字段。
+    *   App 将自动感知这些变更，并将其应用到视图中。这使得利用本地 LLM 进行大规模离线数据清洗成为可能。
 
 #### E. 触发机制与生命周期 (Trigger & Lifecycle)
 
@@ -485,8 +489,74 @@ async function arbitrate(tx: Transaction, trigger: TriggerType) {
   return 'Uncategorized';
 }
 ```
+## 5. 系统架构 (System Architecture)
 
-## 5. 开发守则 (User Rules)
+### 5.1 分层架构图 (Layered Architecture)
+
+本系统遵循 **M-V-VM (Model-View-ViewModel)** 变体架构，结合 React 单向数据流与 File System Access API，实现“本地文件即数据库”的闭环设计。
+
+```mermaid
+graph TD
+    subgraph Persistence ["数据持久层 (Disk)"]
+        JSON["JSON文件 (default.pixcelbill.json)"]
+        CSV["CSV文件 (原始账单)"]
+    end
+
+    subgraph MemoryState ["内存状态层 (React State)"]
+        RawState["rawTransactions (只读)"]
+        MetaState["ledgerMemory (读写)"]
+    end
+
+    subgraph Logic ["业务逻辑层 (Arbiter)"]
+        Arbiter["Global Arbiter (仲裁者)"]
+        Plugin1["Regex Plugin"]
+        Plugin2["UserMeta Plugin"]
+        Arbiter -->|调用| Plugin1
+        Arbiter -->|调用| Plugin2
+    end
+
+    subgraph View ["视图层 (UI)"]
+        Memo["useMemo (合并与仲裁)"]
+        Components["组件: Matrix, List, Charts"]
+        Effect["useEffect (反向同步)"]
+    end
+
+    %% Data Flow
+    CSV -->|解析| RawState
+    JSON -->|加载| MetaState
+    
+    RawState --> Memo
+    MetaState --> Memo
+    
+    Memo -->|发送数据| Arbiter
+    Arbiter -->|返回 Category| Memo
+    
+    Memo -->|渲染| Components
+    
+    %% The Critical Loop
+    Memo -->|依赖| Effect
+    Effect -->|发现不一致更新| MetaState
+    MetaState -->|自动保存| JSON
+```
+
+### 5.2 核心层级职责
+
+| 层级 | 核心对象 | 职责 | 存储方式 |
+| :--- | :--- | :--- | :--- |
+| **L1: Persistence** | `CSV`, `JSON` | 数据的物理载体。JSON 是唯一的“数据库”。 | 硬盘文件 |
+| **L2: State** | `rawTransactions`<br>`ledgerMemory` | React State，应用眼中的“事实”。<br>- `Raw`: 绝对不可变，仅从 CSV 读取。<br>- `Meta`: 可变，存储用户标注、分类结果。 | 内存 (RAM) |
+| **L3: Logic** | `Arbiter`<br>`useMemo` | **纯函数式计算**。输入 Raw + Meta，输出最终 Transaction 列表。不存储数据，只负责即时计算。 | 瞬时计算 (CPU) |
+| **L4: View** | `UI Components` | 负责将 L3 计算出的结果渲染到屏幕。 | DOM 节点 |
+
+### 5.3 数据流向与死循环防御
+
+1.  **正向流 (Render)**: `[Raw, Meta]` -> `useMemo (Arbiter)` -> `Final Transactions` -> `UI Rendering`
+2.  **反向流 (Sync)**: `UI Rendering` -> `useEffect` -> `Update Meta` -> `Write JSON`
+3.  **死循环防御**:
+    *   **风险**: `Update Meta` 触发重绘，重绘触发 `useEffect`，`useEffect` 再次 `Update Meta`。
+    *   **策略**: **值收敛 (Value Convergence)**。在 `useEffect` 中严格对比当前 `Storage` 中的值与 `Arbiter` 计算出的值，仅当 **逻辑值 (Category)** 真正不一致时才触发更新，确保一次更新后系统立即达到稳态。
+
+## 6. 开发守则 (User Rules)
 
 为确保项目始终符合设计哲学并维护代码质量，所有开发行为必须遵循以下规则：
 
