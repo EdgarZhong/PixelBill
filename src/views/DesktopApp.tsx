@@ -1,4 +1,3 @@
-import React from 'react';
 import { Header } from '../components/Header';
 import { ActivityMatrix } from '../components/ActivityMatrix';
 import { TransactionList } from '../components/TransactionList';
@@ -148,7 +147,6 @@ export function DesktopApp() {
             {/* Footer */}
             <footer className="mt-16 mb-8 text-center text-dim text-[10px] font-mono opacity-40">
               <p>DESIGNED & ENGINEERED BY <span className="font-bold text-gray-400">CYBERZEN STUDIO</span></p>
-              <p className="mt-1 tracking-widest">ORDER IN CHAOS</p>
             </footer>
           </main>
         </div>

@@ -51,13 +51,13 @@ export const ActivityMatrix: React.FC<ActivityMatrixProps> = ({ transactions }) 
   const { data, maxVolume } = matrixData;
 
   return (
-    <div className="mb-12 relative z-0">
-      <div className="flex justify-between items-end gap-2 mb-8 font-mono text-xs text-dim">
-        <span className="tracking-wider">ACTIVITY_MATRIX_14D</span>
+    <div className="mb-8 relative z-0">
+      <div className="flex justify-between items-end gap-2 mb-6 font-mono text-[10px] text-dim">
+        <span className="tracking-wider">ACTIVITY_MATRIX_7D</span>
         <span className="text-dim/70">MAX_VOL: ¥{maxVolume.toFixed(0)}</span>
       </div>
       
-      <div className="flex justify-between items-end h-[160px] gap-1 md:gap-2">
+      <div className="flex justify-between items-end h-[120px] gap-2">
         {data.map((day, index) => {
           // 计算高度 (0-20格)
           const intensity = maxVolume > 0 

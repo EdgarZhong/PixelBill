@@ -1,4 +1,3 @@
-import React from 'react';
 import { DesktopApp } from './views/DesktopApp';
 import { MobileApp } from './views/MobileApp';
 import { IS_MOBILE } from './config/ui-mode';

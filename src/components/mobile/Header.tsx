@@ -8,38 +8,39 @@ interface HeaderProps {
 
 export const Header: React.FC<HeaderProps> = ({ onLoadData, isLoading }) => {
   return (
-    <header className="flex justify-between items-start py-8 border-b border-gray-800 mb-8 select-none">
-      <div className="flex flex-col gap-2">
-        <div className="flex items-center gap-6 group cursor-default">
+    <header className="flex flex-col gap-6 py-6 border-b border-gray-800 mb-8 select-none">
+      <div className="flex justify-between items-center w-full">
+        <div className="flex items-center gap-4 group cursor-default">
           {/* Logo Icon */}
           <div className="relative">
             <div className="w-8 h-8 bg-pixel-green animate-box-glow" />
           </div>
 
           {/* Custom Dot Matrix "PIXEL BILL" */}
-          <div className="flex gap-5 items-center leading-none h-[44px]">
-            <h1 className="text-4xl font-pixel tracking-tighter text-gray-100 pt-[4px]">
+          <div className="flex gap-3 items-center leading-none h-[32px]">
+            <h1 className="text-3xl font-pixel tracking-tighter text-gray-100 pt-[4px]">
               PIXEL
             </h1>
-            <div className="text-pixel-green animate-text-glow cursor-default -translate-y-[2px]">
+            <div className="text-pixel-green animate-text-glow cursor-default -translate-y-[1px]">
               <DotMatrixText text="BILL" size="lg" />
             </div>
           </div>
         </div>
-
-        {/* Subtitle Decoration - Aligned with text (Logo width 32px + gap 24px = 56px) */}
-        <div className="pl-[56px] text-xs text-dim tracking-[0.2em] font-mono opacity-60">
-          GENERATIVE FINANCIAL TRACKER
-        </div>
       </div>
       
+      {/* Subtitle Decoration */}
+      <div className="text-[10px] text-dim tracking-[0.2em] font-mono opacity-60">
+        GENERATIVE FINANCIAL TRACKER
+      </div>
+
       <button 
         onClick={onLoadData}
         disabled={isLoading}
         className="
+          w-full
           relative overflow-hidden group
-          flex items-center gap-3 px-5 py-2.5 
-          font-pixel text-[10px] tracking-tight
+          flex justify-center items-center gap-3 px-5 py-3
+          font-pixel text-xs tracking-tight
           border border-gray-800
           bg-card 
           transition-all duration-300

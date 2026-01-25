@@ -1,1 +1,1 @@
-export const IS_MOBILE = false;
+export const IS_MOBILE = true;

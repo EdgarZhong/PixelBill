@@ -1,4 +1,3 @@
-import React from 'react';
 import { Header } from '../components/mobile/Header';
 import { ActivityMatrix } from '../components/mobile/ActivityMatrix';
 import { TransactionList } from '../components/TransactionList';
@@ -66,38 +65,40 @@ export function MobileApp() {
           <Header onLoadData={handleLoadData} isLoading={isLoading} />
 
           <main className="animate-fade-in">
-            {/* Stats Bar */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-12 border-b border-gray-800 pb-8">
-              <div>
-                <div className="text-dim text-xs mb-1">TOTAL_EXPENSE</div>
-                <div className="text-2xl md:text-3xl font-bold text-expense-red">
-                  -¥{totalExpense.toFixed(2)}
+            {/* Stats Bar - Mobile Grid Layout */}
+            <div className="grid grid-cols-2 gap-4 mb-8 border-b border-gray-800 pb-8">
+              <div className="text-center p-2 bg-card/30 border border-white/5 rounded-sm">
+                <div className="text-dim text-[10px] mb-1">TOTAL_EXPENSE</div>
+                <div className="text-xl font-bold text-expense-red truncate">
+                  -¥{totalExpense.toFixed(0)}
                 </div>
               </div>
-              <div>
-                <div className="text-dim text-xs mb-1">TOTAL_INCOME</div>
-                <div className="text-2xl md:text-3xl font-bold text-income-yellow">
-                  +¥{totalIncome.toFixed(2)}
+              <div className="text-center p-2 bg-card/30 border border-white/5 rounded-sm">
+                <div className="text-dim text-[10px] mb-1">TOTAL_INCOME</div>
+                <div className="text-xl font-bold text-income-yellow truncate">
+                  +¥{totalIncome.toFixed(0)}
                 </div>
               </div>
-              <div>
-                <div className="text-dim text-xs mb-1">TXN_COUNT</div>
-                <div className="text-2xl md:text-3xl font-bold">
+              <div className="text-center p-2 bg-card/30 border border-white/5 rounded-sm">
+                <div className="text-dim text-[10px] mb-1">TXN_COUNT</div>
+                <div className="text-xl font-bold text-gray-200">
                   {filteredTransactions.length}
                 </div>
               </div>
-              <div className="md:-ml-12">
-                <div className="text-dim text-xs mb-1 font-mono tracking-wider">DATA_RANGE</div>
+              <div className="text-center p-2 bg-card/30 border border-white/5 rounded-sm flex flex-col justify-center items-center">
+                <div className="text-dim text-[10px] mb-1 font-mono tracking-wider">DATA_RANGE</div>
                 {transactions.length > 0 ? (
-                  <DateRangePicker
-                    minDate={transactions[transactions.length - 1]?.originalDate || new Date()}
-                    maxDate={transactions[0]?.originalDate || new Date()}
-                    startDate={dateRange.start || transactions[transactions.length - 1]?.originalDate || new Date()}
-                    endDate={dateRange.end || transactions[0]?.originalDate || new Date()}
-                    onChange={(start, end) => setDateRange({ start, end })}
-                  />
+                  <div className="scale-75 origin-center">
+                    <DateRangePicker
+                      minDate={transactions[transactions.length - 1]?.originalDate || new Date()}
+                      maxDate={transactions[0]?.originalDate || new Date()}
+                      startDate={dateRange.start || transactions[transactions.length - 1]?.originalDate || new Date()}
+                      endDate={dateRange.end || transactions[0]?.originalDate || new Date()}
+                      onChange={(start, end) => setDateRange({ start, end })}
+                    />
+                  </div>
                 ) : (
-                  <div className="h-10 w-64 flex items-center text-dim opacity-50 text-sm font-mono">
+                  <div className="text-dim opacity-50 text-[10px] font-mono">
                     NO DATA
                   </div>
                 )}
@@ -148,7 +149,6 @@ export function MobileApp() {
             {/* Footer */}
             <footer className="mt-16 mb-8 text-center text-dim text-[10px] font-mono opacity-40">
               <p>DESIGNED & ENGINEERED BY <span className="font-bold text-gray-400">CYBERZEN STUDIO</span></p>
-              <p className="mt-1 tracking-widest">ORDER IN CHAOS</p>
             </footer>
           </main>
         </div>

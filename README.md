@@ -80,7 +80,43 @@
 
 ## 🏗️ 架构概览
 
-### 数据流与仲裁器 (The Arbiter)
+### 架构设计：双端共存与 Core-UI 分离 (Architecture: Core-UI Separation)
+
+为了兼顾比赛（移动端优先）与发布（桌面端实用性）需求，采用 **Monorepo-lite Style** 的 **"Wrapper + Strategy Pattern"** 架构。
+
+#### 核心原则 (Core Principles)
+1.  **UI/Logic 物理隔离**: 
+    *   桌面端与移动端拥有完全独立的视图文件（View）和差异化组件（Components）。
+    *   严禁在单一组件内部通过大量 `if (isMobile)` 进行面条式渲染。
+2.  **Logic 共享**:
+    *   底层状态管理、数据处理（Parser/Arbiter）、Hooks 逻辑保持单例共享。
+3.  **Conditional Entry (条件入口)**:
+    *   通过环境变量或运行时检测，在根节点 (`App.tsx`) 决定加载哪套视图系统。
+
+#### 目录结构 (Directory Structure)
+```
+src/
+  ├── core/              # [SHARED] 核心逻辑 (Arbiter, Plugin, Types)
+  ├── hooks/             # [SHARED] 通用 Hooks
+  ├── utils/             # [SHARED] 工具函数
+  ├── components/
+  │    ├── common/       # [SHARED] 通用原子组件 (DotMatrixText, PixelSlider)
+  │    ├── desktop/      # [DESKTOP] 桌面端特有组件 (Header, ActivityMatrix)
+  │    └── mobile/       # [MOBILE] 移动端特有组件 (Header, ActivityMatrix)
+  ├── views/
+  │    ├── DesktopApp.tsx  # [DESKTOP] 桌面端主视图容器
+  │    └── MobileApp.tsx   # [MOBILE] 移动端主视图容器
+  └── App.tsx            # [ENTRY] 路由分发器 (Router/Dispatcher)
+```
+
+#### 分支策略 (Branching Strategy)
+*   **Single Branch (main)**: 
+    *   不再维护长期的 `desktop` 或 `mobile` 分支。
+    *   通过代码物理隔离实现两条业务线的并行开发。
+    *   `main` 分支始终保持可编译、可运行的双模状态。
+
+
+### 数据流与仲裁器设计 (The Arbiter)
 
 PixelBill 的核心是一个基于优先级的仲裁系统，用于决定每一笔交易最终展示的分类。
 
@@ -179,8 +215,8 @@ PixelBill 的核心是一个基于优先级的仲裁系统，用于决定每一�
     *   Capacitor 环境已初始化，Android 平台已添加。
     *   为了通过构建，暂时注释了 `App.tsx` 中的部分未使用函数 (`verifyTransaction`, `unverifyTransaction`)，后续开发需根据需要恢复。
 *   **下一步立即行动**:
-    *   执行 `npx cap sync` 确保 Web 资产同步到 Android 项目。
-    *   在 Android Studio 中打开 `android` 目录，尝试首次真机运行。
+    *   细致打磨移动端 UI (Refining Mobile UI)。
+    *   **严格约束**: 严禁擅自改动设计。任何交互逻辑与视觉变更必须先获得用户明确“确认”指令授权后方可实施。
 *   **注意事项**:
     *   Android 文件读写权限是最大的技术风险点，需优先攻克。
     *   **AI 准备**: 需提前准备好 LLM API Key，并考虑在移动端不稳定的网络环境下 AI 请求的超时与重试机制。
