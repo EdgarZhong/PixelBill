@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">PixelBill</string>
+    <string name="title_activity_main">PixelBill</string>
+    <string name="package_name">com.pixelbill.app</string>
+    <string name="custom_url_scheme">com.pixelbill.app</string>
+</resources>

@@ -1,5 +1,7 @@
 # 极简像素风账单整合器设计文档 (PixelBill)
 
+**Designed by CyberZen Studio**
+
 ## 1. 项目概述
 本项目是一个运行在本地的纯前端单页应用（SPA）个人记账应用，旨在安全、高效地整合微信和支付宝的账单流水 CSV 文件。项目采用 **"当代生成式点阵" (Contemporary Generative Dot Matrix)** 风格，去除多余装饰，强调数据的纯粹与美感。
 

@@ -14,7 +14,7 @@ import {
   isFileSystemSupported 
 } from './utils/fs-storage';
 import type { Transaction } from './types';
-import type { LedgerMemory, FullTransactionRecord, TransactionMeta } from './types/metadata';
+import type { LedgerMemory, FullTransactionRecord } from './types/metadata';
 import { startOfDay, endOfDay, isWithinInterval, format } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
 import { globalArbiter } from './core/arbiter/Arbiter';
@@ -381,51 +381,51 @@ function App() {
    * 核心元数据更新函数
    * 负责更新内存状态并同步持久化到 JSON 文件
    */
-  const updateTransactionMetadata = async (id: string, newMeta: Partial<TransactionMeta>) => {
-    if (!ledgerMemory) return;
+  // const updateTransactionMetadata = async (id: string, newMeta: Partial<TransactionMeta>) => {
+  //   if (!ledgerMemory) return;
 
-    // 1. Update State (Optimistic UI Update)
-    // 查找目标记录
-    const currentRecord = ledgerMemory.records[id];
-    if (!currentRecord) {
-      console.warn(`Transaction ${id} not found in memory`);
-      return;
-    }
+  //   // 1. Update State (Optimistic UI Update)
+  //   // 查找目标记录
+  //   const currentRecord = ledgerMemory.records[id];
+  //   if (!currentRecord) {
+  //     console.warn(`Transaction ${id} not found in memory`);
+  //     return;
+  //   }
 
-    // 构造新记录 (Immutable)
-    const updatedRecord = {
-      ...currentRecord,
-      ...newMeta,
-      updated_at: format(new Date(), 'yyyy-MM-dd HH:mm:ss')
-    } as FullTransactionRecord;
+  //   // 构造新记录 (Immutable)
+  //   const updatedRecord = {
+  //     ...currentRecord,
+  //     ...newMeta,
+  //     updated_at: format(new Date(), 'yyyy-MM-dd HH:mm:ss')
+  //   } as FullTransactionRecord;
 
-    // 构造新内存状态
-    const newMemory = {
-      ...ledgerMemory,
-      records: {
-        ...ledgerMemory.records,
-        [id]: updatedRecord
-      },
-      last_sync: format(new Date(), 'yyyy-MM-dd HH:mm:ss')
-    };
+  //   // 构造新内存状态
+  //   const newMemory = {
+  //     ...ledgerMemory,
+  //     records: {
+  //       ...ledgerMemory.records,
+  //       [id]: updatedRecord
+  //     },
+  //     last_sync: format(new Date(), 'yyyy-MM-dd HH:mm:ss')
+  //   };
 
-    // 触发 React 更新 (会激活 useMemo 的缓存机制)
-    setLedgerMemory(newMemory);
+  //   // 触发 React 更新 (会激活 useMemo 的缓存机制)
+  //   setLedgerMemory(newMemory);
 
-    // 2. Persist to File
-    if (memoryFileHandleRef.current) {
-      try {
-        console.log(`System: Persisting metadata for ${id}...`);
-        await writeMemoryFile(memoryFileHandleRef.current, newMemory);
-      } catch (error) {
-        console.error('Failed to save metadata:', error);
-        // 生产环境可能需要回滚 State，或者提示用户保存失败
-        alert('Warning: Failed to save changes to disk.');
-      }
-    } else {
-      console.warn('System: No file handle available for persistence.');
-    }
-  };
+  //   // 2. Persist to File
+  //   if (memoryFileHandleRef.current) {
+  //     try {
+  //       console.log(`System: Persisting metadata for ${id}...`);
+  //       await writeMemoryFile(memoryFileHandleRef.current, newMemory);
+  //     } catch (error) {
+  //       console.error('Failed to save metadata:', error);
+  //       // 生产环境可能需要回滚 State，或者提示用户保存失败
+  //       alert('Warning: Failed to save changes to disk.');
+  //     }
+  //   } else {
+  //     console.warn('System: No file handle available for persistence.');
+  //   }
+  // };
 
 
   // --- Hot Reload: Watch for external changes ---
@@ -459,19 +459,17 @@ function App() {
    * 确认/锁定交易分类
    * 用户手动确认后，该交易的分类将被锁定，不会被 AI 或规则引擎覆盖
    */
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const verifyTransaction = async (id: string) => {
-    await updateTransactionMetadata(id, { is_verified: true });
-  };
+  // const verifyTransaction = async (id: string) => {
+  //   await updateTransactionMetadata(id, { is_verified: true });
+  // };
 
   /**
    * 解除交易分类锁定
    * 解除后，该交易将重新参与仲裁流程 (User > Rule > AI)
    */
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const unverifyTransaction = async (id: string) => {
-    await updateTransactionMetadata(id, { is_verified: false });
-  };
+  // const unverifyTransaction = async (id: string) => {
+  //   await updateTransactionMetadata(id, { is_verified: false });
+  // };
 
   const filteredTransactions = useMemo(() => {
     let result = transactions;
@@ -605,6 +603,12 @@ function App() {
                 />
               </motion.div>
             </AnimatePresence>
+
+            {/* Footer */}
+            <footer className="mt-16 mb-8 text-center text-dim text-[10px] font-mono opacity-40">
+              <p>DESIGNED & ENGINEERED BY <span className="font-bold text-gray-400">CYBERZEN STUDIO</span></p>
+              <p className="mt-1 tracking-widest">ORDER IN CHAOS</p>
+            </footer>
           </main>
         </div>
 

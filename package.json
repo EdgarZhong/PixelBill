@@ -2,6 +2,7 @@
   "name": "pixel_bill",
   "private": true,
   "version": "0.0.0",
+  "author": "CyberZen Studio",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -10,6 +11,9 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@capacitor/android": "^8.0.1",
+    "@capacitor/cli": "^8.0.1",
+    "@capacitor/core": "^8.0.1",
     "@types/papaparse": "^5.5.2",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",

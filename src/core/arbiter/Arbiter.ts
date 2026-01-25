@@ -1,6 +1,5 @@
 import type { ICategoryPlugin, Proposal, ProposalSource } from '../plugin/types';
 import type { FullTransactionRecord, LedgerMemory, TransactionBase } from '../../types/metadata';
-import { UserMetaPlugin } from '../plugin/UserMetaPlugin';
 
 export interface FinalDecision {
   category: string;
