@@ -13,6 +13,7 @@ import {
   DEFAULT_MEMORY, 
   isFileSystemSupported 
 } from './utils/fs-storage';
+import type { StorageHandle } from './utils/fs-storage';
 import type { Transaction } from './types';
 import type { LedgerMemory, FullTransactionRecord } from './types/metadata';
 import { startOfDay, endOfDay, isWithinInterval, format } from 'date-fns';
@@ -20,7 +21,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { globalArbiter } from './core/arbiter/Arbiter';
 // import { RegexRulePlugin } from './core/plugin';
 import { LocalAIMetaPlugin } from './core/plugin';
-import { useFileWatcher } from './hooks/useFileWatcher';
+import { useFileWatcher, type FileChangeInfo } from './hooks/useFileWatcher';
 
 // Register default plugins once
 // globalArbiter.registerPlugin(new RegexRulePlugin());
@@ -70,7 +71,7 @@ function App() {
   });
   
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const memoryFileHandleRef = useRef<FileSystemFileHandle | null>(null);
+  const memoryFileHandleRef = useRef<StorageHandle | null>(null);
   const lastSaveTimeRef = useRef(0); // 记录最后一次自身写入的时间，防止 Watcher 回环触发
 
   // 性能优化：缓存上一次的合并结果
@@ -429,11 +430,11 @@ function App() {
 
 
   // --- Hot Reload: Watch for external changes ---
-  const handleExternalFileChange = async (file: File) => {
+  const handleExternalFileChange = async (info: FileChangeInfo) => {
     if (!memoryFileHandleRef.current) return;
     
     // Loopback Detection: Ignore if modification is caused by our own recent write
-    const timeDiff = file.lastModified - lastSaveTimeRef.current;
+    const timeDiff = info.lastModified - lastSaveTimeRef.current;
     if (Math.abs(timeDiff) < 2000) {
       console.log(`[HotReload] Ignored self-update loopback (Diff: ${timeDiff}ms)`);
       return;

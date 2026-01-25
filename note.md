@@ -234,3 +234,26 @@ const transactions = useMemo(() => {
 
 3.  **结论**:
     在双向同步系统中，必须有一个机制来区分“外部输入”和“内部回声”。基于时间戳的“不应期（Refractory Period）”是一个简单而高效的解决方案。
+
+## 移动端开发环境调试
+
+### ADB 进程泄漏与连接超时解决方案
+
+**场景记录**
+在进行 Android 真机或模拟器调试时，经常遇到 IDE 提示连接超时、无法识别设备，或者后台存在大量僵尸 `adb.exe` 和 `qemu` 进程，导致开发环境瘫痪。
+
+**知识总结**
+这是 Android 开发中常见的“ADB 进程泄漏”现象。当 Android Studio、模拟器（QEMU）和构建工具（Gradle/Capacitor）同时尝试抢夺 ADB 服务（Android Debug Bridge）的控制权时，会产生孤儿进程并导致端口冲突。
+
+**解决方案**
+1.  **核打击（强制清理）**：
+    当环境异常时，不要尝试温和重启，直接在终端执行以下命令清理所有相关进程：
+    ```powershell
+    taskkill /F /IM adb.exe ; taskkill /F /IM qemu-system-x86_64.exe
+    ```
+
+2.  **正确的冷启动顺序**：
+    为了避免竞争条件，应遵循严格的启动时序：
+    *   **Step 1**: 在 Android Studio 的 Device Manager 中选择 `Cold Boot Now`（冷启动），清除模拟器缓存状态。
+    *   **Step 2**: **必须等待**模拟器完全启动进入桌面（Google Logo 消失）。
+    *   **Step 3**: 点击 IDE 的 Run 按钮。
