@@ -5,12 +5,24 @@ import { triggerHaptic, HapticFeedbackLevel } from '../../utils/haptics';
 interface HeaderProps {
   onLoadData: () => void;
   isLoading: boolean;
+  onInitLedger?: () => void;
+  onImportData?: () => void;
 }
 
-export const Header: React.FC<HeaderProps> = ({ onLoadData, isLoading }) => {
+export const Header: React.FC<HeaderProps> = ({ onLoadData, isLoading, onInitLedger, onImportData }) => {
   const handleLoadClick = async () => {
     await triggerHaptic(HapticFeedbackLevel.MEDIUM);
     onLoadData();
+  };
+
+  const handleInitLedger = async () => {
+    await triggerHaptic(HapticFeedbackLevel.LIGHT);
+    onInitLedger?.();
+  };
+
+  const handleImportData = async () => {
+    await triggerHaptic(HapticFeedbackLevel.LIGHT);
+    onImportData?.();
   };
 
   return (
@@ -39,24 +51,67 @@ export const Header: React.FC<HeaderProps> = ({ onLoadData, isLoading }) => {
         GENERATIVE FINANCIAL TRACKER
       </div>
 
-      <button 
-        onClick={handleLoadClick}
-        disabled={isLoading}
-        className="
-          w-full
-          relative overflow-hidden group
-          flex justify-center items-center gap-3 px-5 py-3
-          font-pixel text-xs tracking-tight
-          border border-gray-800
-          bg-card 
-          transition-all duration-300
-          disabled:opacity-50 disabled:cursor-default
-          enabled:hover:border-gray-600 enabled:hover:bg-white/5 enabled:hover:text-pixel-green
-        "
-      >
-        <div className={`w-1.5 h-1.5 ${isLoading ? 'bg-income-yellow animate-spin' : 'bg-pixel-green group-hover:shadow-[0_0_8px_rgba(16,185,129,0.8)]'}`}></div>
-        <span className="relative z-10">{isLoading ? 'PROCESSING_STREAM...' : '[LOAD_DATA_SOURCE]'}</span>
-      </button>
+      {onInitLedger && onImportData ? (
+        <div className="flex gap-3 w-full">
+          {/* Ledger Button */}
+          <button 
+            onClick={handleInitLedger}
+            disabled={isLoading}
+            className="
+              flex-1
+              relative overflow-hidden group
+              flex justify-center items-center gap-2 px-3 py-3
+              font-pixel text-[10px] tracking-tight
+              border border-gray-800
+              bg-card 
+              transition-all duration-300
+              disabled:opacity-50 disabled:cursor-default
+              enabled:hover:border-gray-600 enabled:hover:bg-white/5 enabled:hover:text-pixel-green
+            "
+          >
+            <span className="relative z-10">[CHOOSE_LEDGER]</span>
+          </button>
+
+          {/* Import Button */}
+          <button 
+            onClick={handleImportData}
+            disabled={isLoading}
+            className="
+              flex-1
+              relative overflow-hidden group
+              flex justify-center items-center gap-2 px-3 py-3
+              font-pixel text-[10px] tracking-tight
+              border border-gray-800
+              bg-card 
+              transition-all duration-300
+              disabled:opacity-50 disabled:cursor-default
+              enabled:hover:border-gray-600 enabled:hover:bg-white/5 enabled:hover:text-pixel-green
+            "
+          >
+             <div className={`w-1.5 h-1.5 ${isLoading ? 'bg-income-yellow animate-spin' : 'bg-pixel-green group-hover:shadow-[0_0_8px_rgba(16,185,129,0.8)]'}`}></div>
+            <span className="relative z-10">{isLoading ? 'LOADING...' : '[ADD_SOURCE]'}</span>
+          </button>
+        </div>
+      ) : (
+        <button 
+          onClick={handleLoadClick}
+          disabled={isLoading}
+          className="
+            w-full
+            relative overflow-hidden group
+            flex justify-center items-center gap-3 px-5 py-3
+            font-pixel text-xs tracking-tight
+            border border-gray-800
+            bg-card 
+            transition-all duration-300
+            disabled:opacity-50 disabled:cursor-default
+            enabled:hover:border-gray-600 enabled:hover:bg-white/5 enabled:hover:text-pixel-green
+          "
+        >
+          <div className={`w-1.5 h-1.5 ${isLoading ? 'bg-income-yellow animate-spin' : 'bg-pixel-green group-hover:shadow-[0_0_8px_rgba(16,185,129,0.8)]'}`}></div>
+          <span className="relative z-10">{isLoading ? 'PROCESSING_STREAM...' : '[LOAD_DATA_SOURCE]'}</span>
+        </button>
+      )}
     </header>
   );
 };

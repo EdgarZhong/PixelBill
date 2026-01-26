@@ -40,6 +40,32 @@
     *   Java JDK 17
     *   Android SDK Platform 34 (或更高)
 
+### 🧪 Mock 文件系统测试环境 (已验证与安卓模拟器的一致性)
+
+为了在 PC 开发阶段完美复刻 Android 的文件读写行为，文件读写不依赖笨重的安卓模拟器，本项目内置了一套 **API 级劫持 (API Hijacking)** 的测试环境。
+
+#### 目标
+*   在 Web 浏览器中开发时，无需连接真机，即可测试 `fs-storage.ts` 中针对 Android 编写的复杂文件逻辑。
+*   保持业务代码的纯净性：业务代码中不包含任何测试逻辑 (`if (DEV) ...`)，完全按照“我在运行安卓”的假设编写。
+
+#### 设计原理
+*   **API 劫持**: 利用 Vite Alias 在开发模式下将 `@capacitor/filesystem` 和 `@capacitor/core` 重定向到 `src/mocks/*`。
+*   **后端代理**: Mock 模块将文件操作转发给 Vite 中间件 (`mock-fs-middleware.ts`)，由 Node.js 直接读写本地磁盘。
+*   **双根目录沙箱**:
+    *   `Directory.Documents` -> 映射至项目根目录 `virtual_android_filesys/Documents_path` (模拟公共存储)
+    *   `Directory.Data` -> 映射至项目根目录 `virtual_android_filesys/sandbox_path` (模拟 App 私有沙箱)
+
+#### 功能支持程度
+| 特性 | 状态 | 说明 |
+| :--- | :--- | :--- |
+| **基础读写** | ✅ | `readFile`, `writeFile` (覆盖), `appendFile` (追加) |
+| **目录管理** | ✅ | `mkdir` (递归), `rmdir`, `readdir` |
+| **元数据** | ✅ | `stat` (支持 size, mtime, ctime) |
+| **文件操作** | ✅ | `deleteFile`, `rename` (支持跨目录移动) |
+| **权限模拟** | ⚠️ | 默认全通过 (Auto-granted)，不支持拒绝场景 |
+| **错误码** | ⚠️ | 返回 Node.js 风格错误，与 Android 系统错误码不完全一致 |
+| **二进制** | ❌ | 目前仅支持 UTF-8 文本读写，二进制/Base64 暂不支持 |
+
 ### 安装与运行
 
 1.  **克隆仓库**
@@ -168,9 +194,9 @@ PixelBill 的核心是一个基于优先级的仲裁系统，用于决定每一�
 
 *   **Day 1: Android 文件系统适配 (File System Adapter)**
     *   **目标**: 彻底打通移动端读写本地文件的能力。
-    *   [ ] **核心重构**: 重构 `src/utils/fs-storage.ts`，区分 Web 环境 (File System Access API) 与 Native 环境 (Capacitor Filesystem)。
-    *   [ ] **权限逻辑**: 实现 Android 运行时权限申请 (Runtime Permission Request)，处理存储权限拒绝的边界情况。
-    *   [ ] **数据验证**: 在 Android 真机上验证 CSV 文件的读取、解析与元数据写入稳定性。
+    *   [x] **核心重构**: 重构 `src/utils/fs-storage.ts`，区分 Web 环境 (File System Access API) 与 Native 环境 (Capacitor Filesystem)。
+    *   [x] **权限逻辑**: 实现 Android 运行时权限申请 (Runtime Permission Request)，处理存储权限拒绝的边界情况。
+    *   [x] **数据验证**: 在 Android 真机上验证 CSV 文件的读取、解析与元数据写入稳定性。(通过 Mock 环境完成验证)
 
 *   **Day 2: 移动端交互重构 (Mobile UX/UI)**
     *   **目标**: 让应用拥有原生 App 的触感与视觉体验。

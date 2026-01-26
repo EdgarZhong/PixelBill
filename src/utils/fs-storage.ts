@@ -41,6 +41,40 @@ export const isFileSystemSupported = () => {
 
 // --- Main Functions ---
 
+export const getAutoDirectoryHandle = async (): Promise<StorageDirHandle> => {
+  if (isNative) {
+    try {
+      const status = await Filesystem.requestPermissions();
+      if (status.publicStorage !== 'granted') {
+        console.warn('Storage permission might be denied:', status);
+      }
+
+      // Ensure PixelBill directory exists in Documents
+      const pixelBillDir = 'PixelBill';
+      try {
+        await Filesystem.mkdir({
+          path: pixelBillDir,
+          directory: Directory.Documents,
+          recursive: true
+        });
+      } catch (e) {
+        // Ignore if exists
+        console.log('PixelBill directory might already exist or failed to create:', e);
+      }
+
+      return {
+        kind: 'directory',
+        path: pixelBillDir,
+        name: 'PixelBill'
+      };
+    } catch (e) {
+      console.error('Failed to init auto directory:', e);
+      throw e;
+    }
+  }
+  throw new Error('Auto directory handle only supported on Native');
+};
+
 export const requestDirectoryHandle = async (): Promise<StorageDirHandle> => {
   if (isNative) {
     // On Android, we default to the Documents directory.

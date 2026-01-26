@@ -136,7 +136,7 @@ PixelBill 奉行“生成式极简主义”与“赛博禅意”的设计哲学�
 
 ### 3.2 交互设计 (Interaction Design)
 
-*   **I1. 数据加载流 (Data Loading Flow)**:
+*   **I1. 数据加载流 (桌面端)**:
     *   `[Action]`: 用户点击 `[LOAD DATA]` 按钮。
     *   `[System]`: 唤起操作系统原生文件选择器（支持多选/文件夹）。
     *   `[Feedback]`: 界面进入 `PROCESSING DATA STREAMS...` 状态，显示像素加载动画。
@@ -157,6 +157,13 @@ PixelBill 奉行“生成式极简主义”与“赛博禅意”的设计哲学�
             *   **常态**: 紧凑的日期显示，下方仅有一条细微的进度条。
             *   **展开**: 也就是“生长”。面板从常态位置原位扩大，托举起日期数据，并平滑过渡到可编辑状态。
             *   **操作**: 支持拖拽滑块快速选择，也支持点击日期文字进行精确输入。
+
+*   **I4. 数据流加载 (移动端)**:
+    *   **System Picker**: Android 端不使用自定义文件选择器，而是直接唤起系统原生 Files App (`Intent.ACTION_GET_CONTENT`)。
+    *   **MIME Relax**: 为规避不同 Android 厂商对 CSV MIME 类型定义的碎片化（如部分厂商将其识别为 `application/octet-stream`），文件过滤器放宽至 `*/*`，依靠后端的“后缀名+内容编码”双重校验机制保证安全性。
+    *   **Append Mode (追加模式)**:
+        *   **Context**: 移动端系统选择器通常限制单次只能选择一个文件（或操作繁琐）。
+        *   **Flow**: 用户多次点击 `[ADD SOURCE]` -> 每次选择一个新文件 -> 系统执行 **"Load & Merge"** -> 新旧数据在内存中去重合并 -> 这种“增量搬运”的体验优于桌面端的“全量重载”。
 
 ### 3.3 交互设计案例分析：二级面板 (Case Study: Secondary Panel)
 
@@ -331,8 +338,14 @@ export interface LedgerMemory {
     *   **Auto-Discovery (自动发现)**: 系统自动扫描目录下的所有 `.csv` 文件进行聚合。
     *   **Hybrid Mode (混合模式)**:
         *   **Default (Zero-Config)**: 系统优先寻找 `pixel_bill_memory.json`。若不存在，则在首次需要写入时自动创建。
-        *   **Advanced (Manual Override)**: 允许高级用户通过 **Memory Capsule** 指定其他 JSON 文件（如 `family_ledger.json`）或创建新文件。
     *   **Implicit Sync (隐式同步)**: 所有的分类调整与备注，均自动同步至当前激活的 JSON 文件。
+    *   **Mobile Specific Strategy (移动端差异化策略)**:
+        *   **Scoped Storage 适配**: 针对 Android 现代存储沙箱，不申请宽泛的 `READ_EXTERNAL_STORAGE` 权限。
+        *   **Transient Access (临时访问)**: 通过系统选择器 (System Picker) 获取的 CSV 文件 URI 仅具有**临时读取权限**，应用不持久化源文件 URI。
+        *   **In-Memory Merge (内存合并)**: 每次导入新文件时，解析出的 `Transaction[]` 会与当前内存中的 Ledger 数据进行 **ID 去重合并 (Upsert)**。`New Data` 覆盖 `Old Data` (基于 SHA-256 ID)。
+        *   **Public Storage Persistence (公共存储持久化)**:
+            *   **Path**: 合并后的完整账本数据存储在公共 `Documents/PixelBill/default.pixelbill.json`。
+            *   **Permission Logic**: 利用 Android Scoped Storage 机制，App 拥有**对自己创建的文件**的完全读写权限，因此无需申请宽泛的 `READ_EXTERNAL_STORAGE` 权限即可正常工作。
 
 ### 4.5 记忆胶囊 (Memory Capsule)**（尚未实现）**
 
@@ -578,6 +591,3 @@ graph TD
     *   增加功能 $\neq$ 增加按钮。
     *   优先考虑自动化、上下文感知的设计。能自动推断的，绝不让用户点击。
     *   **非侵入式**: 所有的状态提示应当是环境化的 (Ambient)，而非阻断式的 (Modal)。
-
-## 6. 版权信息
-Footer 显示: `@edgarzhong 2026`
