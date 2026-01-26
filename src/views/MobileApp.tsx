@@ -4,6 +4,8 @@ import { TransactionList } from '../components/TransactionList';
 import { DateRangePicker } from '../components/DateRangePicker';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAppLogic } from '../hooks/useAppLogic';
+import { useSafeArea, injectSafeAreaCSS } from '../hooks/useSafeArea';
+import { useEffect } from 'react';
 
 export function MobileApp() {
   const {
@@ -22,6 +24,13 @@ export function MobileApp() {
     totalIncome,
     TABS
   } = useAppLogic();
+
+  const safeArea = useSafeArea();
+
+  // Inject SafeArea CSS variables on mount and update
+  useEffect(() => {
+    injectSafeAreaCSS(safeArea);
+  }, [safeArea]);
 
   const variants = {
     enter: (direction: number) => ({
@@ -48,7 +57,15 @@ export function MobileApp() {
       {/* Fixed Background Layer */}
       <div className="fixed inset-0 z-[-1] bg-background bg-dot-matrix pointer-events-none" />
       
-      <div className="min-h-screen text-primary p-4 md:p-8 font-mono overflow-x-hidden">
+      <div 
+        className="min-h-screen text-primary p-4 md:p-8 font-mono overflow-x-hidden"
+        style={{
+          paddingTop: `max(1rem, ${safeArea.top}px)`,
+          paddingBottom: `max(1rem, ${safeArea.bottom}px)`,
+          paddingLeft: `max(1rem, ${safeArea.left}px)`,
+          paddingRight: `max(1rem, ${safeArea.right}px)`
+        }}
+      >
         <div className="max-w-5xl mx-auto">
           {/* Hidden Input for Directory Selection */}
           <input

@@ -1,5 +1,6 @@
 import React from 'react';
 import { DotMatrixText } from '../DotMatrixText';
+import { triggerHaptic, HapticFeedbackLevel } from '../../utils/haptics';
 
 interface HeaderProps {
   onLoadData: () => void;
@@ -7,6 +8,11 @@ interface HeaderProps {
 }
 
 export const Header: React.FC<HeaderProps> = ({ onLoadData, isLoading }) => {
+  const handleLoadClick = async () => {
+    await triggerHaptic(HapticFeedbackLevel.MEDIUM);
+    onLoadData();
+  };
+
   return (
     <header className="flex flex-col gap-6 py-6 border-b border-gray-800 mb-8 select-none">
       <div className="flex justify-between items-center w-full">
@@ -34,7 +40,7 @@ export const Header: React.FC<HeaderProps> = ({ onLoadData, isLoading }) => {
       </div>
 
       <button 
-        onClick={onLoadData}
+        onClick={handleLoadClick}
         disabled={isLoading}
         className="
           w-full
