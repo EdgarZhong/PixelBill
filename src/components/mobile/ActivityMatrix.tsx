@@ -1,13 +1,16 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import type { Transaction } from '../../types';
 import { format, subDays, isSameDay } from 'date-fns';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface ActivityMatrixProps {
   transactions: Transaction[];
 }
 
 export const ActivityMatrix: React.FC<ActivityMatrixProps> = ({ transactions }) => {
+  const [page, setPage] = useState(0);
+  const daysPerPage = 7;
+  
   // 计算最近14天的数据
   const matrixData = useMemo(() => {
     // 如果没有数据，默认显示以今天为结束的14天
@@ -48,17 +51,49 @@ export const ActivityMatrix: React.FC<ActivityMatrixProps> = ({ transactions }) 
     return { data, maxVolume };
   }, [transactions]);
 
-  const { data, maxVolume } = matrixData;
+  // 分页显示7天数据
+  const paginatedData = useMemo(() => {
+    const start = page * daysPerPage;
+    const end = start + daysPerPage;
+    return matrixData.data.slice(start, end);
+  }, [matrixData.data, page]);
+
+  const maxPage = Math.ceil(matrixData.data.length / daysPerPage) - 1;
+  
+  const handleSwipeLeft = () => {
+    if (page < maxPage) setPage(page + 1);
+  };
+  
+  const handleSwipeRight = () => {
+    if (page > 0) setPage(page - 1);
+  };
+
+  const { maxVolume } = matrixData;
 
   return (
-    <div className="mb-8 relative z-0">
-      <div className="flex justify-between items-end gap-2 mb-6 font-mono text-[10px] text-dim">
-        <span className="tracking-wider">ACTIVITY_MATRIX_7D</span>
-        <span className="text-dim/70">MAX_VOL: ¥{maxVolume.toFixed(0)}</span>
+    <div className="mb-8 relative z-0 select-none">
+      <div className="flex justify-between items-center gap-2 mb-6 font-mono text-[10px] text-dim">
+        <button
+          onClick={handleSwipeRight}
+          disabled={page === 0}
+          className="px-2 py-1 text-dim hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+        >
+          ◀
+        </button>
+        <span className="flex-1 text-center tracking-wider">ACTIVITY_MATRIX_7D</span>
+        <span className="text-dim/70 flex-1 text-right">MAX_VOL: ¥{maxVolume.toFixed(0)}</span>
+        <button
+          onClick={handleSwipeLeft}
+          disabled={page === maxPage}
+          className="px-2 py-1 text-dim hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+        >
+          ▶
+        </button>
       </div>
       
-      <div className="flex justify-between items-end h-[120px] gap-2">
-        {data.map((day, index) => {
+      <AnimatePresence mode="wait">
+        <div key={page} className="flex justify-between items-end h-[120px] gap-2">
+          {paginatedData.map((day, index) => {
           // 计算高度 (0-20格)
           const intensity = maxVolume > 0 
             ? Math.ceil((day.totalVolume / maxVolume) * 20) 
@@ -70,7 +105,14 @@ export const ActivityMatrix: React.FC<ActivityMatrixProps> = ({ transactions }) 
           const expensePixels = Math.round(intensity * expenseRatio);
 
           return (
-            <div key={index} className="flex flex-col gap-[2px] items-center group relative w-full h-full justify-end">
+            <motion.div
+              key={index}
+              initial={{ opacity: 0, x: page > 0 ? 50 : -50 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: page > 0 ? -50 : 50 }}
+              transition={{ duration: 0.2 }}
+              className="flex flex-col gap-[2px] items-center group relative w-full h-full justify-end"
+            >
               {/* Tooltip */}
               <div className="absolute bottom-full mb-2 hidden group-hover:block z-20 bg-card border border-gray-800 p-2 text-xs font-mono whitespace-nowrap shadow-xl pointer-events-none">
                 <div className="text-gray-400">{format(day.date, 'yyyy-MM-dd')}</div>
@@ -114,9 +156,22 @@ export const ActivityMatrix: React.FC<ActivityMatrixProps> = ({ transactions }) 
               <div className="mt-2 text-[10px] font-mono text-dim rotate-90 md:rotate-0 origin-left translate-x-1 md:translate-x-0 opacity-50 group-hover:opacity-100 transition-opacity">
                 {format(day.date, 'MM/dd')}
               </div>
-            </div>
+            </motion.div>
           );
         })}
+        </div>
+      </AnimatePresence>
+      
+      {/* Page Indicator */}
+      <div className="flex justify-center gap-1 mt-4">
+        {Array.from({ length: Math.ceil(matrixData.data.length / daysPerPage) }).map((_, i) => (
+          <div
+            key={i}
+            className={`w-1 h-1 rounded-full transition-colors ${
+              i === page ? 'bg-pixel-green' : 'bg-gray-600'
+            }`}
+          />
+        ))}
       </div>
     </div>
   );

@@ -48,7 +48,7 @@ export function MobileApp() {
       {/* Fixed Background Layer */}
       <div className="fixed inset-0 z-[-1] bg-background bg-dot-matrix pointer-events-none" />
       
-      <div className="min-h-screen text-primary p-4 md:p-8 font-mono">
+      <div className="min-h-screen text-primary p-4 md:p-8 font-mono overflow-x-hidden">
         <div className="max-w-5xl mx-auto">
           {/* Hidden Input for Directory Selection */}
           <input
