@@ -9,7 +9,10 @@ interface ActivityMatrixProps {
 
 export const ActivityMatrix: React.FC<ActivityMatrixProps> = ({ transactions }) => {
   const [page, setPage] = useState(0);
+  const [touchStart, setTouchStart] = useState<number | null>(null);
+  const [touchEnd, setTouchEnd] = useState<number | null>(null);
   const daysPerPage = 7;
+  const swipeThreshold = 50; // 最小滑动距离
   
   // 计算最近14天的数据
   const matrixData = useMemo(() => {
@@ -68,10 +71,37 @@ export const ActivityMatrix: React.FC<ActivityMatrixProps> = ({ transactions }) 
     if (page > 0) setPage(page - 1);
   };
 
+  // 处理触摸滑动
+  const handleTouchStart = (e: React.TouchEvent) => {
+    setTouchStart(e.targetTouches[0].clientX);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    setTouchEnd(e.targetTouches[0].clientX);
+  };
+
+  const handleTouchEnd = () => {
+    if (!touchStart || !touchEnd) return;
+    const distance = touchStart - touchEnd;
+    const isLeftSwipe = distance > swipeThreshold;
+    const isRightSwipe = distance < -swipeThreshold;
+
+    if (isLeftSwipe) {
+      handleSwipeLeft();
+    } else if (isRightSwipe) {
+      handleSwipeRight();
+    }
+  };
+
   const { maxVolume } = matrixData;
 
   return (
-    <div className="mb-8 relative z-0 select-none">
+    <div 
+      className="mb-8 relative z-0 select-none"
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+    >
       <div className="flex justify-between items-center gap-2 mb-6 font-mono text-[10px] text-dim">
         <button
           onClick={handleSwipeRight}
