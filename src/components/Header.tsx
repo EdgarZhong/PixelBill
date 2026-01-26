@@ -36,7 +36,7 @@ export const Header: React.FC<HeaderProps> = ({ onLoadData, isLoading }) => {
       <button 
         onClick={onLoadData}
         disabled={isLoading}
-        className="
+        className={`
           relative overflow-hidden group
           flex items-center gap-3 px-5 py-2.5 
           font-pixel text-[10px] tracking-tight
@@ -45,10 +45,12 @@ export const Header: React.FC<HeaderProps> = ({ onLoadData, isLoading }) => {
           transition-all duration-300
           disabled:opacity-50 disabled:cursor-default
           enabled:hover:border-gray-600 enabled:hover:bg-white/5 enabled:hover:text-pixel-green
-        "
+        `}
       >
         <div className={`w-1.5 h-1.5 ${isLoading ? 'bg-income-yellow animate-spin' : 'bg-pixel-green group-hover:shadow-[0_0_8px_rgba(16,185,129,0.8)]'}`}></div>
-        <span className="relative z-10">{isLoading ? 'PROCESSING_STREAM...' : '[LOAD_DATA_SOURCE]'}</span>
+        <span className="relative z-10">
+          {isLoading ? 'PROCESSING_STREAM...' : '[LOAD_DATA_SOURCE]'}
+        </span>
       </button>
     </header>
   );

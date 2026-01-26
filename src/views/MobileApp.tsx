@@ -18,6 +18,8 @@ export function MobileApp() {
     fileInputRef,
     handleFileChange,
     handleLoadData,
+    handleInitLedger,
+    handleImportData,
     totalExpense,
     totalIncome,
     TABS
@@ -50,19 +52,23 @@ export function MobileApp() {
       
       <div className="min-h-screen text-primary p-4 md:p-8 font-mono">
         <div className="max-w-5xl mx-auto">
-          {/* Hidden Input for Directory Selection */}
+          {/* Hidden Input for CSV Selection (Mobile: File Picker) */}
+          {/* Android File Picker is picky about MIME types. Using wildcard is safest to ensure file is selectable. Validation happens in parser. */}
           <input
             type="file"
             ref={fileInputRef}
             onChange={handleFileChange}
             className="hidden"
-            // @ts-expect-error - webkitdirectory is non-standard but supported
-            webkitdirectory="" 
-            directory=""
+            accept="*/*" 
             multiple
           />
 
-          <Header onLoadData={handleLoadData} isLoading={isLoading} />
+          <Header 
+            onLoadData={handleLoadData} 
+            isLoading={isLoading} 
+            onInitLedger={handleInitLedger}
+            onImportData={handleImportData}
+          />
 
           <main className="animate-fade-in">
             {/* Stats Bar - Mobile Grid Layout */}

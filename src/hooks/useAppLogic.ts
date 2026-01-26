@@ -2,17 +2,19 @@ import { useState, useRef, useMemo, useEffect } from 'react';
 import { parseFiles } from '../utils/parser';
 import { 
   requestDirectoryHandle, 
+  getAutoDirectoryHandle,
   scanForCSVFiles, 
   getMemoryFileHandle, 
   readMemoryFile, 
   writeMemoryFile, 
   DEFAULT_MEMORY, 
-  isFileSystemSupported 
+  isFileSystemSupported,
+  isNative
 } from '../utils/fs-storage';
-import type { StorageHandle } from '../utils/fs-storage';
+import type { StorageHandle, StorageDirHandle } from '../utils/fs-storage';
 import type { Transaction } from '../types';
 import type { LedgerMemory, FullTransactionRecord } from '../types/metadata';
-import { startOfDay, endOfDay, isWithinInterval, format } from 'date-fns';
+import { startOfDay, endOfDay, isWithinInterval, format, parse } from 'date-fns';
 import { globalArbiter } from '../core/arbiter/Arbiter';
 import { LocalAIMetaPlugin } from '../core/plugin';
 import { useFileWatcher, type FileChangeInfo } from './useFileWatcher';
@@ -205,10 +207,149 @@ export function useAppLogic() {
     }
   }, [transactions, ledgerMemory]);
 
-  const handleLoadData = async () => {
+  // --- Helper: Sync Parsed Data with Ledger ---
+  const syncWithLedger = async (
+    parsedData: Transaction[], 
+    memoryHandle: StorageHandle | null, 
+    currentMemory: LedgerMemory
+  ) => {
+    if (!memoryHandle) return currentMemory;
+
+    let hasUpdates = false;
+    const updatedRecords = { ...currentMemory.records };
+
+    parsedData.forEach(t => {
+      // Extract data to save (exclude runtime-only objects like Date)
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { originalDate, ...tData } = t;
+
+      const existing = updatedRecords[t.id];
+
+      if (!existing) {
+        // New record: Create full record
+        updatedRecords[t.id] = {
+          ...tData,
+          // Initialize all meta fields explicitly for JSON completeness
+          ai_category: "",
+          ai_reasoning: "",
+          user_category: "",
+          user_note: "",
+          is_verified: false,
+          updated_at: format(new Date(), 'yyyy-MM-dd HH:mm:ss')
+        } as FullTransactionRecord;
+        hasUpdates = true;
+      } else {
+        // Existing record: Smart Sync
+        // 1. Extract core fields from CSV (excluding 'category' which is derived/cached in storage)
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { category: _ignored, ...coreData } = tData;
+        
+        // 2. Detect changes (Dirty Check)
+        const hasNullMeta = existing.ai_category === null || existing.ai_reasoning === null || existing.user_category === null || existing.user_note === null;
+        
+        const isChanged = Object.keys(coreData).some(key => {
+          const k = key as keyof typeof coreData;
+          return existing[k] !== coreData[k];
+        }) || typeof existing.updated_at === 'number' || hasNullMeta;
+
+        if (isChanged) {
+          updatedRecords[t.id] = {
+            ...(existing as Partial<FullTransactionRecord>),
+            ...coreData, // Overwrite only core fields (source of truth), preserve category
+            // Sanitize meta fields (convert legacy nulls to empty strings)
+            ai_category: existing.ai_category ?? "",
+            ai_reasoning: existing.ai_reasoning ?? "",
+            user_category: existing.user_category ?? "",
+            user_note: existing.user_note ?? "",
+            updated_at: format(new Date(), 'yyyy-MM-dd HH:mm:ss')
+          } as FullTransactionRecord;
+          hasUpdates = true;
+        }
+      }
+    });
+
+    if (hasUpdates) {
+      console.log('System: Syncing records to memory file...', { count: parsedData.length });
+      const newMemory = {
+        ...currentMemory,
+        records: updatedRecords,
+        last_sync: format(new Date(), 'yyyy-MM-dd HH:mm:ss')
+      };
+      await writeMemoryFile(memoryHandle, newMemory);
+      return newMemory;
+    }
+
+    return currentMemory;
+  };
+
+  // --- Android Logic Split ---
+
+  const handleInitLedger = async () => {
+    if (!isNative) return;
+    
+    try {
+      console.log('System: Auto-initializing ledger...');
+      const dirHandle = await getAutoDirectoryHandle();
+      
+      // Try to get existing file, or create if not exists
+      let memoryHandle = await getMemoryFileHandle(dirHandle, false);
+      let currentMemory: LedgerMemory = DEFAULT_MEMORY;
+
+      if (memoryHandle) {
+        console.log('System: Found existing memory.');
+        currentMemory = await readMemoryFile(memoryHandle);
+      } else {
+        console.log('System: Creating default memory...');
+        memoryHandle = await getMemoryFileHandle(dirHandle, true);
+      }
+
+      if (memoryHandle) {
+        memoryFileHandleRef.current = memoryHandle;
+        setLedgerMemory(currentMemory);
+
+        // Hydrate transactions from memory if available
+        const restoredTransactions: Transaction[] = Object.values(currentMemory.records).map(record => ({
+          ...record,
+          originalDate: parse(record.time, 'yyyy-MM-dd HH:mm:ss', new Date())
+        }));
+
+        if (restoredTransactions.length > 0) {
+          // Sort by date desc (latest first)
+          restoredTransactions.sort((a, b) => b.originalDate.getTime() - a.originalDate.getTime());
+          
+          // Ingest into arbiter for rule learning
+          await globalArbiter.ingest(restoredTransactions);
+          
+          setRawTransactions(restoredTransactions);
+          console.log(`System: Hydrated ${restoredTransactions.length} transactions from memory.`);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to init ledger:', error);
+      // Fallback: Alert user about permission issue (Primitive Strategy)
+      if (isNative) {
+        alert("无法访问文件系统。请确保已授予应用“文件和媒体”读写权限，然后重启应用。");
+      }
+    }
+  };
+
+  const handleImportData = async () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
+    }
+  };
+
+  // Auto-init on Android
+  useEffect(() => {
+    if (isNative) {
+      handleInitLedger();
+    }
+  }, []);
+
+  const handleLoadData = async (externalHandle?: StorageDirHandle) => {
     if (isFileSystemSupported()) {
       try {
-        const dirHandle = await requestDirectoryHandle();
+        const dirHandle = externalHandle || await requestDirectoryHandle();
         setIsLoading(true);
         
         // 1. Scan for CSVs
@@ -244,71 +385,16 @@ export function useAppLogic() {
 
           if (memoryHandle) {
             memoryFileHandleRef.current = memoryHandle;
-            // --- Sync Logic: Ensure all transactions have a record ---
-            let hasUpdates = false;
-            const updatedRecords = { ...currentMemory.records };
-
-            parsedData.forEach(t => {
-              // Extract data to save (exclude runtime-only objects like Date)
-              // eslint-disable-next-line @typescript-eslint/no-unused-vars
-              const { originalDate, ...tData } = t;
-
-              const existing = updatedRecords[t.id];
-
-              if (!existing) {
-                // New record: Create full record
-                updatedRecords[t.id] = {
-                  ...tData,
-                  // Initialize all meta fields explicitly for JSON completeness
-                  ai_category: "",
-                  ai_reasoning: "",
-                  user_category: "",
-                  user_note: "",
-                  is_verified: false,
-                  updated_at: format(new Date(), 'yyyy-MM-dd HH:mm:ss')
-                } as FullTransactionRecord;
-                hasUpdates = true;
-              } else {
-                // Existing record: Smart Sync
-                // 1. Extract core fields from CSV (excluding 'category' which is derived/cached in storage)
-                // eslint-disable-next-line @typescript-eslint/no-unused-vars
-                const { category: _ignored, ...coreData } = tData;
-                
-                // 2. Detect changes (Dirty Check)
-                const hasNullMeta = existing.ai_category === null || existing.ai_reasoning === null || existing.user_category === null || existing.user_note === null;
-                
-                const isChanged = Object.keys(coreData).some(key => {
-                  const k = key as keyof typeof coreData;
-                  return existing[k] !== coreData[k];
-                }) || typeof existing.updated_at === 'number' || hasNullMeta;
-
-                if (isChanged) {
-                  updatedRecords[t.id] = {
-                    ...(existing as Partial<FullTransactionRecord>),
-                    ...coreData, // Overwrite only core fields (source of truth), preserve category
-                    // Sanitize meta fields (convert legacy nulls to empty strings)
-                    ai_category: existing.ai_category ?? "",
-                    ai_reasoning: existing.ai_reasoning ?? "",
-                    user_category: existing.user_category ?? "",
-                    user_note: existing.user_note ?? "",
-                    updated_at: format(new Date(), 'yyyy-MM-dd HH:mm:ss')
-                  } as FullTransactionRecord;
-                  hasUpdates = true;
-                }
-              }
-            });
-
-            if (hasUpdates || isNewFile) {
-              console.log('System: Syncing records to memory file...', { count: parsedData.length });
-              currentMemory = {
-                ...currentMemory,
-                records: updatedRecords,
-                last_sync: format(new Date(), 'yyyy-MM-dd HH:mm:ss')
-              };
-              await writeMemoryFile(memoryHandle, currentMemory);
+            
+            // Sync
+            const newMemory = await syncWithLedger(parsedData, memoryHandle, currentMemory);
+            
+            // If new file created, ensure we save it
+            if (isNewFile && newMemory === currentMemory) {
+                 await writeMemoryFile(memoryHandle, newMemory);
             }
-
-            setLedgerMemory(currentMemory);
+            
+            setLedgerMemory(newMemory);
           }
         } catch (metaError) {
           console.warn('System: Metadata init failed', metaError);
@@ -339,7 +425,32 @@ export function useAppLogic() {
 
     try {
       const parsedData = await parseFiles(fileArray);
-      setRawTransactions(parsedData);
+      
+      // Pre-calculate rules before rendering
+      await globalArbiter.ingest(parsedData);
+      
+      // Merging Strategy: Append new data to existing data, deduplicate by ID
+      setRawTransactions(prev => {
+        const uniqueMap = new Map<string, Transaction>();
+        
+        // 1. Load existing transactions
+        prev.forEach(tx => uniqueMap.set(tx.id, tx));
+        
+        // 2. Overlay new transactions (New data takes precedence if ID conflicts)
+        parsedData.forEach(tx => uniqueMap.set(tx.id, tx));
+        
+        // 3. Convert back to array and sort by date desc
+        return Array.from(uniqueMap.values())
+          .sort((a, b) => b.originalDate.getTime() - a.originalDate.getTime());
+      });
+
+      // If we have a ledger loaded (e.g. on Android), sync the new data
+      if (memoryFileHandleRef.current && ledgerMemory) {
+        console.log('System: Syncing imported data with connected ledger...');
+        const newMemory = await syncWithLedger(parsedData, memoryFileHandleRef.current, ledgerMemory);
+        setLedgerMemory(newMemory);
+      }
+
     } catch (error) {
       console.error('Error parsing files:', error);
       alert('Failed to parse files. Please check console for details.');
@@ -409,6 +520,32 @@ export function useAppLogic() {
       .reduce((sum, t) => sum + t.amount, 0);
   }, [filteredTransactions]);
 
+  // --- Mock Android Initialization (Web Debug Only) ---
+  const handleMockAndroidInit = async (dirHandle: StorageDirHandle) => {
+    try {
+      console.log('System: [Mock] Initializing ledger from mock handle...');
+      
+      // Try to get existing file, or create if not exists
+      let memoryHandle = await getMemoryFileHandle(dirHandle, false);
+      let currentMemory: LedgerMemory = DEFAULT_MEMORY;
+
+      if (memoryHandle) {
+        console.log('System: Found existing memory.');
+        currentMemory = await readMemoryFile(memoryHandle);
+      } else {
+        console.log('System: Creating default memory...');
+        memoryHandle = await getMemoryFileHandle(dirHandle, true);
+      }
+
+      if (memoryHandle) {
+        memoryFileHandleRef.current = memoryHandle;
+        setLedgerMemory(currentMemory);
+      }
+    } catch (error) {
+      console.error('Failed to init mock ledger:', error);
+    }
+  };
+
   return {
     rawTransactions,
     transactions,
@@ -424,6 +561,9 @@ export function useAppLogic() {
     fileInputRef,
     handleFileChange,
     handleLoadData,
+    handleInitLedger,
+    handleImportData,
+    handleMockAndroidInit, // Export for debug scaffold
     totalExpense,
     totalIncome,
     TABS

@@ -23,6 +23,18 @@ export function DesktopApp() {
     TABS
   } = useAppLogic();
 
+  // In headless mode, we don't change the UI logic. 
+  // The standard button remains "LOAD_DATA_SOURCE"
+  // If debug scaffold auto-connects, it happens silently.
+  // If it needs permission (warned in console), user will click "LOAD_DATA_SOURCE"
+  // which triggers standard flow (requestDirectoryHandle). 
+  // Standard flow will then update the DB record, fixing the permission issue for next reload.
+  
+  const onHeaderClick = () => {
+    // Standard flow always
+    handleLoadData();
+  };
+
   const variants = {
     enter: (direction: number) => ({
       x: direction > 0 ? 20 : -20,
@@ -62,7 +74,10 @@ export function DesktopApp() {
             multiple
           />
 
-          <Header onLoadData={handleLoadData} isLoading={isLoading} />
+          <Header 
+            onLoadData={onHeaderClick} 
+            isLoading={isLoading} 
+          />
 
           <main className="animate-fade-in">
             {/* Stats Bar */}
