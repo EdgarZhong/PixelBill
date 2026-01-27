@@ -7,6 +7,7 @@ interface EditableDateProps {
   maxDate?: Date;
   className?: string;
   readOnly?: boolean;
+  hideYear?: boolean;
 }
 
 const DatePartInput: React.FC<{
@@ -103,7 +104,8 @@ export const EditableDate: React.FC<EditableDateProps> = ({
   minDate,
   maxDate,
   className = "",
-  readOnly = false
+  readOnly = false,
+  hideYear = false
 }) => {
   // Helper to safely update date
   const updateDate = (type: 'year' | 'month' | 'day', val: number) => {
@@ -139,16 +141,18 @@ export const EditableDate: React.FC<EditableDateProps> = ({
   if (!date) return null;
 
   return (
-    <div className={`flex items-center ${readOnly ? 'gap-0' : 'gap-1'} font-mono transition-all duration-300 ${className}`}>
-      <DatePartInput 
-        value={year} 
-        width="w-10" 
-        min={minDate ? minDate.getFullYear() : 1900} 
-        max={maxDate ? maxDate.getFullYear() : 2100} 
-        onChange={(v) => updateDate('year', v)} 
-        readOnly={readOnly}
-      />
-      <span className={`transition-all duration-300 ${readOnly ? 'opacity-50' : 'text-dim'}`}>.</span>
+    <div className={`grid grid-flow-col items-center justify-end ${readOnly ? 'gap-0' : 'gap-1'} font-mono transition-all duration-300 ${className}`}>
+      <div className={`${hideYear ? 'hidden' : 'contents'}`}>
+        <DatePartInput 
+          value={year} 
+          width="w-10" 
+          min={minDate ? minDate.getFullYear() : 1900} 
+          max={maxDate ? maxDate.getFullYear() : 2100} 
+          onChange={(v) => updateDate('year', v)} 
+          readOnly={readOnly}
+        />
+        <span className={`transition-all duration-300 ${readOnly ? 'opacity-50' : 'text-dim'}`}>.</span>
+      </div>
       <DatePartInput 
         value={month} 
         width="w-6" 

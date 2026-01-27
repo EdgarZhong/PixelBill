@@ -1,7 +1,7 @@
 import { Header } from '../components/Header';
 import { ActivityMatrix } from '../components/ActivityMatrix';
 import { TransactionList } from '../components/TransactionList';
-import { DateRangePicker } from '../components/DateRangePicker';
+import { DateRangePicker } from '../components/desktop/DateRangePicker';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAppLogic } from '../hooks/useAppLogic';
 

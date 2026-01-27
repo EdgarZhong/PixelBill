@@ -1,7 +1,7 @@
 import { Header } from '../components/mobile/Header';
 import { ActivityMatrix } from '../components/mobile/ActivityMatrix';
 import { TransactionList } from '../components/TransactionList';
-import { DateRangePicker } from '../components/DateRangePicker';
+import { DateRangePicker } from '../components/mobile/DateRangePicker';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAppLogic } from '../hooks/useAppLogic';
 import { useSafeArea, injectSafeAreaCSS } from '../hooks/useSafeArea';
@@ -246,21 +246,22 @@ export function MobileApp() {
                   {filteredTransactions.length}
                 </div>
               </div>
-              <div className="text-center p-2 bg-card/30 border border-white/5 rounded-sm flex flex-col justify-center items-center">
-                <div className="text-dim text-[10px] mb-1 font-mono tracking-wider">DATA_RANGE</div>
+              <div className="w-full h-full">
                 {transactions.length > 0 ? (
-                  <div className="scale-75 origin-center">
-                    <DateRangePicker
-                      minDate={transactions[transactions.length - 1]?.originalDate || new Date()}
-                      maxDate={transactions[0]?.originalDate || new Date()}
-                      startDate={dateRange.start || transactions[transactions.length - 1]?.originalDate || new Date()}
-                      endDate={dateRange.end || transactions[0]?.originalDate || new Date()}
-                      onChange={(start, end) => setDateRange({ start, end })}
-                    />
-                  </div>
+                  <DateRangePicker
+                    label="DATA_RANGE"
+                    minDate={transactions[transactions.length - 1]?.originalDate || new Date()}
+                    maxDate={transactions[0]?.originalDate || new Date()}
+                    startDate={dateRange.start || transactions[transactions.length - 1]?.originalDate || new Date()}
+                    endDate={dateRange.end || transactions[0]?.originalDate || new Date()}
+                    onChange={(start, end) => setDateRange({ start, end })}
+                  />
                 ) : (
-                  <div className="text-dim opacity-50 text-[10px] font-mono">
-                    NO DATA
+                  <div className="flex flex-col items-center justify-center w-full h-full bg-card/30 border border-white/5 rounded-sm p-2">
+                    <div className="text-dim text-[10px] mb-1 font-mono tracking-wider">DATA_RANGE</div>
+                    <div className="text-dim opacity-50 text-[10px] font-mono">
+                      NO DATA
+                    </div>
                   </div>
                 )}
               </div>
