@@ -4,8 +4,8 @@ import type { Plugin, ViteDevServer } from 'vite';
 
 // Define Roots
 const ROOTS: Record<string, string> = {
-  DOCUMENTS: path.resolve('d:\\Code\\VibeCodingWork\\pixel_bill\\virtual_android_filesys\\Documents_path'),
-  DATA: path.resolve('d:\\Code\\VibeCodingWork\\pixel_bill\\virtual_android_filesys\\sandbox_path')
+  DOCUMENTS: path.resolve('e:\\CyberZen Stdio\\PixelBill\\virtual_android_filesys\\Documents_path'),
+  DATA: path.resolve('e:\\CyberZen Stdio\\PixelBill\\virtual_android_filesys\\sandbox_path')
 };
 
 // Ensure roots exist
