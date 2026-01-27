@@ -200,7 +200,13 @@ export function MobileApp() {
         </div>
       ) : (
         // ====== MAIN LIST PAGE ======
-        <div>
+        <div 
+          className="min-h-screen"
+          style={{
+            paddingLeft: `max(0.75rem, ${safeArea.left}px)`,
+            paddingRight: `max(0.75rem, ${safeArea.right}px)`
+          }}
+        >
           {/* Hidden Input for CSV Selection (Mobile: File Picker) */}
           {/* Android File Picker is picky about MIME types. Using wildcard is safest to ensure file is selectable. Validation happens in parser. */}
           <input
