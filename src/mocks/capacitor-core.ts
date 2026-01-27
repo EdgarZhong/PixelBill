@@ -4,3 +4,12 @@ export const Capacitor = {
   getPlatform: () => 'android',
   pluginMethodNoop: () => {}
 };
+// Mock WebPlugin (空实现)
+export class WebPlugin {
+  constructor() {}
+}
+
+// Mock registerPlugin (空实现)
+export function registerPlugin(_name: string, impl?: any): any {
+  return impl || {};
+}
