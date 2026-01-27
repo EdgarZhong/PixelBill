@@ -18,50 +18,86 @@ export const PixelSlider: React.FC<PixelSliderProps> = ({
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [dragging, setDragging] = useState<'start' | 'end' | null>(null);
+  const valueRef = useRef<[number, number]>([start, end]);
+  const isDraggingRef = useRef<boolean>(false);
 
   const isMini = variant === 'mini';
   // Padding to ensure thumbs don't overflow the container visually.
   // Half of thumb width (approx 12px) = 6px.
   const PADDING_PX = isMini ? 0 : 6; 
 
+  // Update ref whenever value changes, but only when not dragging
   useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
+    if (!isDraggingRef.current) {
+      valueRef.current = [start, end];
+    }
+  }, [start, end]);
+
+  useEffect(() => {
+    let rafId: number | null = null;
+    
+    const handleMove = (clientX: number) => {
       if (!dragging || !containerRef.current || disabled) return;
 
-      const rect = containerRef.current.getBoundingClientRect();
-      // Effective width for the slider track
-      const trackWidth = rect.width - (PADDING_PX * 2);
-      
-      // Calculate relative X position inside the padded area
-      const x = e.clientX - rect.left - PADDING_PX;
-      
-      // Convert to percentage
-      const rawPercentage = (x / trackWidth) * 100;
-      const percentage = Math.max(0, Math.min(100, rawPercentage));
+      if (rafId !== null) {
+        cancelAnimationFrame(rafId);
+      }
 
-      if (dragging === 'start') {
-        const newStart = Math.min(percentage, end);
-        onChange([newStart, end]);
-      } else {
-        const newEnd = Math.max(percentage, start);
-        onChange([start, newEnd]);
+      rafId = requestAnimationFrame(() => {
+        if (!containerRef.current) return;
+        
+        const rect = containerRef.current.getBoundingClientRect();
+        const trackWidth = rect.width - (PADDING_PX * 2);
+        const x = clientX - rect.left - PADDING_PX;
+        const rawPercentage = (x / trackWidth) * 100;
+        const percentage = Math.max(0, Math.min(100, rawPercentage));
+
+        const [currentStart, currentEnd] = valueRef.current;
+
+        if (dragging === 'start') {
+          const newStart = Math.min(percentage, currentEnd);
+          valueRef.current = [newStart, currentEnd];
+          onChange([newStart, currentEnd]);
+        } else {
+          const newEnd = Math.max(percentage, currentStart);
+          valueRef.current = [currentStart, newEnd];
+          onChange([currentStart, newEnd]);
+        }
+      });
+    };
+
+    const handleMouseMove = (e: MouseEvent) => {
+      handleMove(e.clientX);
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      if (e.touches.length > 0) {
+        handleMove(e.touches[0].clientX);
       }
     };
 
-    const handleMouseUp = () => {
+    const handleEnd = () => {
+      isDraggingRef.current = false;
       setDragging(null);
     };
 
     if (dragging) {
       window.addEventListener('mousemove', handleMouseMove);
-      window.addEventListener('mouseup', handleMouseUp);
+      window.addEventListener('mouseup', handleEnd);
+      window.addEventListener('touchmove', handleTouchMove, { passive: false });
+      window.addEventListener('touchend', handleEnd);
     }
 
     return () => {
+      if (rafId !== null) {
+        cancelAnimationFrame(rafId);
+      }
       window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseup', handleMouseUp);
+      window.removeEventListener('mouseup', handleEnd);
+      window.removeEventListener('touchmove', handleTouchMove);
+      window.removeEventListener('touchend', handleEnd);
     };
-  }, [dragging, start, end, onChange, disabled, PADDING_PX]);
+  }, [dragging, onChange, disabled, PADDING_PX]);
 
   // Helper to calculate CSS left position based on percentage and padding
   const getLeftStyle = (percent: number) => {
@@ -85,17 +121,14 @@ export const PixelSlider: React.FC<PixelSliderProps> = ({
       />
       
       {/* Active Range */}
-      <motion.div 
-        layoutId={isMini ? undefined : "slider-range"}
-        className={`absolute top-1/2 -translate-y-1/2 pointer-events-none transition-all duration-300 ${isMini ? 'bg-pixel-green h-1 group-hover:shadow-[0_0_8px_rgba(16,185,129,0.8)]' : 'bg-pixel-green/50 h-[2px] group-hover:bg-pixel-green group-hover:shadow-[0_0_8px_rgba(16,185,129,0.8)]'}`}
+      <div 
+        className={`absolute top-1/2 -translate-y-1/2 pointer-events-none ${isMini ? 'bg-pixel-green h-1 group-hover:shadow-[0_0_8px_rgba(16,185,129,0.8)]' : 'bg-pixel-green/50 h-[2px] group-hover:bg-pixel-green group-hover:shadow-[0_0_8px_rgba(16,185,129,0.8)]'}`}
         style={{ 
           left: getLeftStyle(start),
-          // Calculate width: End Position - Start Position
           width: isMini 
             ? `${Math.max(0, end - start)}%`
             : `calc((100% - ${PADDING_PX * 2}px) * ${Math.max(0, end - start)} / 100)`,
         }}
-        transition={{ duration: 0.1 }}
       />
 
       {/* Thumbs - Only visible/interactive in full mode */}
@@ -117,6 +150,14 @@ export const PixelSlider: React.FC<PixelSliderProps> = ({
                 if (disabled) return;
                 e.preventDefault();
                 e.stopPropagation();
+                isDraggingRef.current = true;
+                setDragging('start');
+              }}
+              onTouchStart={(e) => {
+                if (disabled) return;
+                e.preventDefault();
+                e.stopPropagation();
+                isDraggingRef.current = true;
                 setDragging('start');
               }}
               whileHover={{ scale: 1.1 }}
@@ -143,6 +184,14 @@ export const PixelSlider: React.FC<PixelSliderProps> = ({
                 if (disabled) return;
                 e.preventDefault();
                 e.stopPropagation();
+                isDraggingRef.current = true;
+                setDragging('end');
+              }}
+              onTouchStart={(e) => {
+                if (disabled) return;
+                e.preventDefault();
+                e.stopPropagation();
+                isDraggingRef.current = true;
                 setDragging('end');
               }}
               whileHover={{ scale: 1.1 }}
