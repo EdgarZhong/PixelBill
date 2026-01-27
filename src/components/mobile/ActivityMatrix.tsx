@@ -5,9 +5,10 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 interface ActivityMatrixProps {
   transactions: Transaction[];
+  onDateClick?: (date: Date) => void;
 }
 
-export const ActivityMatrix: React.FC<ActivityMatrixProps> = ({ transactions }) => {
+export const ActivityMatrix: React.FC<ActivityMatrixProps> = ({ transactions, onDateClick }) => {
   const [page, setPage] = useState(0);
   const [touchStart, setTouchStart] = useState<number | null>(null);
   const [touchEnd, setTouchEnd] = useState<number | null>(null);
@@ -141,7 +142,8 @@ export const ActivityMatrix: React.FC<ActivityMatrixProps> = ({ transactions }) 
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: page > 0 ? -50 : 50 }}
               transition={{ duration: 0.2 }}
-              className="flex flex-col gap-[2px] items-center group relative w-full h-full justify-end"
+              className="flex flex-col gap-[2px] items-center group relative w-full h-full justify-end cursor-pointer hover:opacity-80 transition-opacity"
+              onClick={() => onDateClick?.(day.date)}
             >
               {/* Tooltip */}
               <div className="absolute bottom-full mb-2 hidden group-hover:block z-20 bg-card border border-gray-800 p-2 text-xs font-mono whitespace-nowrap shadow-xl pointer-events-none">

@@ -128,36 +128,81 @@ export const Pagination: React.FC<PaginationProps> = ({
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
   };
 
-  const handlePointerMove = (e: React.PointerEvent) => {
-    if (!isDragging || !trackRef.current) return;
-    
-    const rect = trackRef.current.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const width = rect.width;
-    
-    // 反向计算 page
-    // x = 68 + (width - 136) * ratio
-    // ratio = (x - 68) / (width - 136)
-    
-    let ratio = (x - 68) / (width - 136);
-    ratio = Math.max(0, Math.min(1, ratio));
-    
-    const newPage = Math.round(ratio * (totalPages - 1)) + 1;
-    if (newPage !== dragPage) {
-      setDragPage(newPage);
-      onPageChange(newPage, true); // 实时触发翻页，标记为拖拽中
-    }
+  // 处理触摸拖拽 (移动设备优化)
+  const handleTouchStart = (e: React.TouchEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
   };
 
-  const handlePointerUp = (e: React.PointerEvent) => {
-    if (isDragging) {
-      setIsDragging(false);
-      if (dragPage !== currentPage) {
-        onPageChange(dragPage);
+  // 使用 useEffect 实现全局 pointer 和 touch 事件监听，防止鼠标移出元素时事件丢失
+  useEffect(() => {
+    const handlePointerMove = (e: PointerEvent) => {
+      if (!isDragging || !trackRef.current) return;
+      
+      const rect = trackRef.current.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const width = rect.width;
+      
+      let ratio = (x - 68) / (width - 136);
+      ratio = Math.max(0, Math.min(1, ratio));
+      
+      const newPage = Math.round(ratio * (totalPages - 1)) + 1;
+      if (newPage !== dragPage) {
+        setDragPage(newPage);
+        onPageChange(newPage, true);
       }
-      (e.target as HTMLElement).releasePointerCapture(e.pointerId);
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      if (!isDragging || !trackRef.current || e.touches.length === 0) return;
+      
+      const touch = e.touches[0];
+      const rect = trackRef.current.getBoundingClientRect();
+      const x = touch.clientX - rect.left;
+      const width = rect.width;
+      
+      let ratio = (x - 68) / (width - 136);
+      ratio = Math.max(0, Math.min(1, ratio));
+      
+      const newPage = Math.round(ratio * (totalPages - 1)) + 1;
+      if (newPage !== dragPage) {
+        setDragPage(newPage);
+        onPageChange(newPage, true);
+      }
+    };
+
+    const handlePointerUp = (e: PointerEvent) => {
+      if (isDragging) {
+        setIsDragging(false);
+        if (dragPage !== currentPage) {
+          onPageChange(dragPage);
+        }
+      }
+    };
+
+    const handleTouchEnd = (e: TouchEvent) => {
+      if (isDragging) {
+        setIsDragging(false);
+        if (dragPage !== currentPage) {
+          onPageChange(dragPage);
+        }
+      }
+    };
+
+    if (isDragging) {
+      window.addEventListener('pointermove', handlePointerMove);
+      window.addEventListener('pointerup', handlePointerUp);
+      window.addEventListener('touchmove', handleTouchMove, { passive: false });
+      window.addEventListener('touchend', handleTouchEnd, { passive: false });
     }
-  };
+
+    return () => {
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', handlePointerUp);
+      window.removeEventListener('touchmove', handleTouchMove);
+      window.removeEventListener('touchend', handleTouchEnd);
+    };
+  }, [isDragging, dragPage, totalPages, currentPage, onPageChange]);
 
   const handleTrackClick = (e: React.MouseEvent) => {
     if (isDragging || !trackRef.current) return;
@@ -229,11 +274,11 @@ export const Pagination: React.FC<PaginationProps> = ({
           left: thumbLeftStyle,
           transform: 'translateX(-50%)', // Center align based on calculated center point
           cursor: isDragging ? 'grabbing' : 'grab',
-          transition: transitionStyle
+          transition: transitionStyle,
+          touchAction: 'none' // 防止浏览器默认触摸行为
         }}
         onPointerDown={handlePointerDown}
-        onPointerMove={handlePointerMove}
-        onPointerUp={handlePointerUp}
+        onTouchStart={handleTouchStart}
       >
         {/* Prev Button */}
         <button

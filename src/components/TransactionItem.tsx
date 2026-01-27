@@ -10,6 +10,7 @@ interface TransactionItemProps {
   onSwipeLeft?: (id: string) => void;
   onSwipeRight?: (id: string) => void;
   onSwipeCancel?: () => void;
+  onClick?: (transaction: Transaction) => void;
   isActive?: boolean;
 }
 
@@ -45,6 +46,7 @@ export const TransactionItem: React.FC<TransactionItemProps> = ({
   onSwipeLeft,
   onSwipeRight,
   onSwipeCancel,
+  onClick,
   isActive
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -101,11 +103,12 @@ export const TransactionItem: React.FC<TransactionItemProps> = ({
 
       {/* Main Content with Touch Transform */}
       <div
-        className="flex items-center py-3 border-b border-gray-900 hover:bg-white/[0.02] transition-colors relative cursor-grab active:cursor-grabbing"
+        className="flex items-center py-3 border-b border-gray-900 hover:bg-white/[0.02] transition-colors relative cursor-pointer"
         style={{
           transform: `translateX(${translateX}px)`,
           transition: gestureState.isActive ? 'none' : 'transform 0.2s ease-out'
         }}
+        onClick={() => !gestureState.isActive && onClick?.(t)}
       >
         {/* Source Indicator */}
         <div className="w-24 flex items-center">

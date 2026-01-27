@@ -6,43 +6,56 @@ import { triggerHaptic, HapticFeedbackLevel } from '../utils/haptics';
 
 interface TransactionListProps {
   transactions: Transaction[];
+  onTransactionClick?: (transaction: Transaction) => void;
 }
 
-export const TransactionList: React.FC<TransactionListProps> = ({ transactions }) => {
+export const TransactionList: React.FC<TransactionListProps> = ({ transactions, onTransactionClick }) => {
   const [currentPage, setCurrentPage] = useState(1);
   const [swipedItem, setSwipedItem] = useState<string | null>(null);
+  const [deletedIds, setDeletedIds] = useState<Set<string>>(new Set());
+  const [archivedIds, setArchivedIds] = useState<Set<string>>(new Set());
   const listTopRef = useRef<HTMLDivElement>(null);
   
   const ITEMS_PER_PAGE = 20;
-  const totalPages = Math.ceil(transactions.length / ITEMS_PER_PAGE);
   
-  // 当交易数据总量变化时（如筛选），重置到第一页
+  // Filter out deleted and archived transactions
+  const filteredTransactions = transactions.filter(
+    t => !deletedIds.has(t.id) && !archivedIds.has(t.id)
+  );
+  
+  const totalPages = Math.ceil(filteredTransactions.length / ITEMS_PER_PAGE);
+  
+  // When filtered transactions change, reset to first page
   useEffect(() => {
     setCurrentPage(1);
-  }, [transactions.length]);
+  }, [filteredTransactions.length]);
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
   };
 
-  const paginatedTransactions = transactions.slice(
-    (currentPage - 1) * ITEMS_PER_PAGE,
-    currentPage * ITEMS_PER_PAGE
-  );
+  const paginatedTransactions = transactions
+    .filter(t => !deletedIds.has(t.id) && !archivedIds.has(t.id))
+    .slice(
+      (currentPage - 1) * ITEMS_PER_PAGE,
+      currentPage * ITEMS_PER_PAGE
+    );
 
   // Gesture handlers for transaction items
   const handleTransactionSwipeLeft = (transactionId: string) => {
     triggerHaptic(HapticFeedbackLevel.LIGHT);
-    setSwipedItem(transactionId);
-    // TODO: Implement archive action
-    console.log('Archive transaction:', transactionId);
+    // Archive: add to archived set and remove from display
+    setArchivedIds(prev => new Set(prev).add(transactionId));
+    setSwipedItem(null);
+    console.log('Archived transaction:', transactionId);
   };
 
   const handleTransactionSwipeRight = (transactionId: string) => {
     triggerHaptic(HapticFeedbackLevel.LIGHT);
-    setSwipedItem(transactionId);
-    // TODO: Implement delete action
-    console.log('Delete transaction:', transactionId);
+    // Delete: add to deleted set and remove from display
+    setDeletedIds(prev => new Set(prev).add(transactionId));
+    setSwipedItem(null);
+    console.log('Deleted transaction:', transactionId);
   };
 
   const handleSwipeCancel = () => {
@@ -103,6 +116,7 @@ export const TransactionList: React.FC<TransactionListProps> = ({ transactions }
             onSwipeLeft={() => handleTransactionSwipeLeft(t.id)}
             onSwipeRight={() => handleTransactionSwipeRight(t.id)}
             onSwipeCancel={handleSwipeCancel}
+            onClick={onTransactionClick}
           />
         ))}
       </div>
