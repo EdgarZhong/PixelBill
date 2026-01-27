@@ -1,11 +1,16 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import type { Plugin, ViteDevServer } from 'vite';
 
-// Define Roots
+// Get current directory in ESM
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Define Roots (Relative to this file)
 const ROOTS: Record<string, string> = {
-  DOCUMENTS: path.resolve('e:\\CyberZen Stdio\\PixelBill\\virtual_android_filesys\\Documents_path'),
-  DATA: path.resolve('e:\\CyberZen Stdio\\PixelBill\\virtual_android_filesys\\sandbox_path')
+  DOCUMENTS: path.resolve(__dirname, 'virtual_android_filesys/Documents_path'),
+  DATA: path.resolve(__dirname, 'virtual_android_filesys/sandbox_path')
 };
 
 // Ensure roots exist
