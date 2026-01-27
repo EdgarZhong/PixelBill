@@ -270,6 +270,7 @@ export function MobileApp() {
             <ActivityMatrix 
               transactions={filteredTransactions}
               onDateClick={(date) => setSelectedDate(date)}
+              dateRange={dateRange}
             />
 
             {/* Show selected date indicator and clear button */}

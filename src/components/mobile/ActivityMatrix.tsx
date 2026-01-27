@@ -1,30 +1,48 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useRef } from 'react';
 import type { Transaction } from '../../types';
-import { format, subDays, isSameDay } from 'date-fns';
+import { format, subDays, isSameDay, differenceInDays, eachDayOfInterval } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface ActivityMatrixProps {
   transactions: Transaction[];
   onDateClick?: (date: Date) => void;
+  dateRange?: { start: Date; end: Date };
 }
 
-export const ActivityMatrix: React.FC<ActivityMatrixProps> = ({ transactions, onDateClick }) => {
+export const ActivityMatrix: React.FC<ActivityMatrixProps> = ({ transactions, onDateClick, dateRange }) => {
   const [page, setPage] = useState(0);
+  const [animationDirection, setAnimationDirection] = useState(1); // 动画方向状态
   const [touchStart, setTouchStart] = useState<number | null>(null);
   const [touchEnd, setTouchEnd] = useState<number | null>(null);
   const daysPerPage = 7;
-  const swipeThreshold = 50; // 最小滑动距离
+  const swipeThreshold = 80; // 增加最小滑动距离，降低敏感度
   
-  // 计算最近14天的数据
+  // 计算 dateRange 范围内的所有天数据
   const matrixData = useMemo(() => {
-    // 如果没有数据，默认显示以今天为结束的14天
-    const endDate = transactions.length > 0 ? transactions[0].originalDate : new Date();
-    const days = 14;
+    // 确定日期范围
+    let startDate: Date;
+    let endDate: Date;
+    
+    if (dateRange?.start && dateRange?.end) {
+      // 使用传入的 dateRange
+      startDate = dateRange.start;
+      endDate = dateRange.end;
+    } else if (transactions.length > 0) {
+      // 使用交易数据的日期范围
+      startDate = transactions[transactions.length - 1].originalDate;
+      endDate = transactions[0].originalDate;
+    } else {
+      // 没有数据，默认显示最近14天
+      endDate = new Date();
+      startDate = subDays(endDate, 13);
+    }
+
+    // 生成日期范围内的所有天
+    const datesInRange = eachDayOfInterval({ start: startDate, end: endDate });
     const data = [];
     let maxVolume = 0;
 
-    for (let i = days - 1; i >= 0; i--) {
-      const date = subDays(endDate, i);
+    for (const date of datesInRange) {
       const dayTransactions = transactions.filter(t => 
         isSameDay(t.originalDate, date)
       );
@@ -53,7 +71,7 @@ export const ActivityMatrix: React.FC<ActivityMatrixProps> = ({ transactions, on
     if (maxVolume === 0) maxVolume = 1;
 
     return { data, maxVolume };
-  }, [transactions]);
+  }, [transactions, dateRange]);
 
   // 分页显示7天数据
   const paginatedData = useMemo(() => {
@@ -65,15 +83,22 @@ export const ActivityMatrix: React.FC<ActivityMatrixProps> = ({ transactions, on
   const maxPage = Math.ceil(matrixData.data.length / daysPerPage) - 1;
   
   const handleSwipeLeft = () => {
-    if (page < maxPage) setPage(page + 1);
+    if (page < maxPage) {
+      setAnimationDirection(1);
+      setPage(prev => prev + 1);
+    }
   };
   
   const handleSwipeRight = () => {
-    if (page > 0) setPage(page - 1);
+    if (page > 0) {
+      setAnimationDirection(-1);
+      setPage(prev => prev - 1);
+    }
   };
 
   // 处理触摸滑动
   const handleTouchStart = (e: React.TouchEvent) => {
+    setTouchEnd(null); // 重置结束位置
     setTouchStart(e.targetTouches[0].clientX);
   };
 
@@ -82,19 +107,41 @@ export const ActivityMatrix: React.FC<ActivityMatrixProps> = ({ transactions, on
   };
 
   const handleTouchEnd = () => {
-    if (!touchStart || !touchEnd) return;
-    const distance = touchStart - touchEnd;
-    const isLeftSwipe = distance > swipeThreshold;
-    const isRightSwipe = distance < -swipeThreshold;
-
-    if (isLeftSwipe) {
-      handleSwipeLeft();
-    } else if (isRightSwipe) {
-      handleSwipeRight();
+    if (!touchStart || !touchEnd) {
+      // 重置状态
+      setTouchStart(null);
+      setTouchEnd(null);
+      return;
     }
+    
+    const distance = touchStart - touchEnd;
+    const absDistance = Math.abs(distance);
+    
+    // 只有滑动距离超过阈值才触发换页
+    if (absDistance > swipeThreshold) {
+      const isLeftSwipe = distance > 0;
+      
+      if (isLeftSwipe) {
+        handleSwipeLeft();
+      } else {
+        handleSwipeRight();
+      }
+    }
+    
+    // 重置状态
+    setTouchStart(null);
+    setTouchEnd(null);
   };
 
   const { maxVolume } = matrixData;
+  
+  // 计算当前页显示的日期范围
+  const currentPageDateRange = useMemo(() => {
+    if (paginatedData.length === 0) return '';
+    const firstDate = paginatedData[0].date;
+    const lastDate = paginatedData[paginatedData.length - 1].date;
+    return `${format(firstDate, 'MM/dd')}-${format(lastDate, 'MM/dd')}`;
+  }, [paginatedData]);
 
   return (
     <div 
@@ -111,8 +158,10 @@ export const ActivityMatrix: React.FC<ActivityMatrixProps> = ({ transactions, on
         >
           ◀
         </button>
-        <span className="flex-1 text-center tracking-wider">ACTIVITY_MATRIX_7D</span>
-        <span className="text-dim/70 flex-1 text-right">MAX_VOL: ¥{maxVolume.toFixed(0)}</span>
+        <span className="flex-1 text-center tracking-wider">
+          {currentPageDateRange || 'ACTIVITY_MATRIX'}
+        </span>
+        <span className="text-dim/70 flex-1 text-right">MAX: ¥{maxVolume.toFixed(0)}</span>
         <button
           onClick={handleSwipeLeft}
           disabled={page === maxPage}
@@ -122,8 +171,30 @@ export const ActivityMatrix: React.FC<ActivityMatrixProps> = ({ transactions, on
         </button>
       </div>
       
-      <AnimatePresence mode="wait">
-        <div key={page} className="flex justify-between items-end h-[120px] gap-2">
+      <AnimatePresence mode="wait" initial={false}>
+        <motion.div 
+          key={page}
+          variants={{
+            enter: (dir: number) => ({
+              opacity: 0,
+              x: dir > 0 ? 100 : -100
+            }),
+            center: {
+              opacity: 1,
+              x: 0
+            },
+            exit: (dir: number) => ({
+              opacity: 0,
+              x: dir > 0 ? -100 : 100
+            })
+          }}
+          custom={animationDirection}
+          initial="enter"
+          animate="center"
+          exit="exit"
+          transition={{ duration: 0.25, ease: "easeInOut" }}
+          className="flex justify-between items-end h-[120px] gap-2"
+        >
           {paginatedData.map((day, index) => {
           // 计算高度 (0-20格)
           const intensity = maxVolume > 0 
@@ -136,12 +207,8 @@ export const ActivityMatrix: React.FC<ActivityMatrixProps> = ({ transactions, on
           const expensePixels = Math.round(intensity * expenseRatio);
 
           return (
-            <motion.div
+            <div
               key={index}
-              initial={{ opacity: 0, x: page > 0 ? 50 : -50 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: page > 0 ? -50 : 50 }}
-              transition={{ duration: 0.2 }}
               className="flex flex-col gap-[2px] items-center group relative w-full h-full justify-end cursor-pointer hover:opacity-80 transition-opacity"
               onClick={() => onDateClick?.(day.date)}
             >
@@ -188,10 +255,10 @@ export const ActivityMatrix: React.FC<ActivityMatrixProps> = ({ transactions, on
               <div className="mt-2 text-[10px] font-mono text-dim rotate-90 md:rotate-0 origin-left translate-x-1 md:translate-x-0 opacity-50 group-hover:opacity-100 transition-opacity">
                 {format(day.date, 'MM/dd')}
               </div>
-            </motion.div>
+            </div>
           );
         })}
-        </div>
+        </motion.div>
       </AnimatePresence>
       
       {/* Page Indicator */}
