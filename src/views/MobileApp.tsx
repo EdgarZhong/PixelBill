@@ -33,6 +33,7 @@ export function MobileApp() {
 
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
+  const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
   const safeArea = useSafeArea();
   const detailPageRef = useRef<HTMLDivElement | null>(null);
   const touchStartRef = useRef<{ x: number; y: number; timestamp: number } | null>(null);
@@ -281,11 +282,18 @@ export function MobileApp() {
             )}
 
             {/* Filter Tabs */}
-            <div className="flex gap-4 mb-6 border-b border-gray-800">
+            <div className="flex gap-4 mb-6 border-b border-gray-800 relative">
               {TABS.map((f) => (
                 <button
                   key={f}
-                  onClick={() => handleTabChange(f)}
+                  onClick={() => {
+                    if (f === 'MEAL') {
+                      // Toggle meal category expansion
+                      setExpandedCategory(expandedCategory === 'MEAL' ? null : 'MEAL');
+                    } else {
+                      handleTabChange(f);
+                    }
+                  }}
                   className={`pb-2 px-1 text-xs transition-colors relative font-pixel tracking-tight ${
                     filter === f ? 'text-white' : 'text-dim hover:text-gray-400'
                   }`}
@@ -300,6 +308,39 @@ export function MobileApp() {
                 </button>
               ))}
             </div>
+
+            {/* Expanded Category Menu */}
+            <AnimatePresence>
+              {expandedCategory === 'MEAL' && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="mb-6 border border-gray-800 rounded overflow-hidden bg-card/50"
+                >
+                  <div className="p-4 space-y-2">
+                    <div className="text-[10px] text-dim mb-3 font-mono">选择分类</div>
+                    <div className="grid grid-cols-2 gap-2">
+                      {Object.entries(CategoryDict)
+                        .filter(([key]) => key !== 'others')
+                        .map(([key, value]) => (
+                          <button
+                            key={key}
+                            onClick={() => {
+                              handleTabChange('MEAL');
+                              setExpandedCategory(null);
+                            }}
+                            className="px-3 py-2 text-xs font-mono border border-gray-800 rounded hover:border-pixel-green hover:text-pixel-green transition-colors text-dim bg-card/30"
+                          >
+                            [{value}]
+                          </button>
+                        ))}
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
 
             {/* TransactionList */}
             <AnimatePresence mode="popLayout" custom={direction} initial={false}>
