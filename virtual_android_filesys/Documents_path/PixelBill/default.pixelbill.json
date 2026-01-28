@@ -3,6 +3,15 @@
   "last_sync": "2026-01-07 23:58:40",
   "defined_categories": [
     "meal",
+    "transport",
+    "shopping",
+    "entertainment",
+    "health",
+    "education",
+    "housing",
+    "travel",
+    "digital",
+    "pets",
     "others"
   ],
   "records": {

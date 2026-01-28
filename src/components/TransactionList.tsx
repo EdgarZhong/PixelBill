@@ -79,92 +79,104 @@ export const TransactionList: React.FC<TransactionListProps> = ({ transactions, 
   // Animation variants for page transitions
   const variants = {
     enter: (direction: number) => ({
-      x: direction > 0 ? 20 : -20,
+      x: direction > 0 ? '100%' : '-100%',
       opacity: 0,
-      filter: 'blur(4px)'
+      filter: 'blur(4px)',
+      zIndex: 1,
+      position: 'relative' as const
     }),
     center: {
-      zIndex: 1,
+      zIndex: 2,
       x: 0,
       opacity: 1,
-      filter: 'blur(0px)'
+      filter: 'blur(0px)',
+      position: 'relative' as const
     },
     exit: (direction: number) => ({
       zIndex: 0,
-      x: direction < 0 ? 20 : -20,
+      x: direction < 0 ? '100%' : '-100%',
       opacity: 0,
-      filter: 'blur(4px)'
+      filter: 'blur(8px)',
+      position: 'absolute' as const,
+      top: 0,
+      left: 0,
+      width: '100%'
     })
   };
 
-  // Empty State with Placeholder Lines
-  if (transactions.length === 0) {
-    return (
-      <div className="font-mono text-sm opacity-50 select-none pointer-events-none">
-        <div className="flex justify-between items-center mb-6 text-dim text-xs uppercase tracking-wider">
-          <div className="w-24">Source</div>
-          <div className="flex-1">Details</div>
-          <div className="w-32 text-right">Amount</div>
-        </div>
-        <div className="space-y-4">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <div key={i} className="flex items-center py-3 border-b border-gray-900/50">
-              <div className="w-24 flex items-center">
-                <div className="w-3 h-3 bg-gray-800" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="w-32 h-4 bg-gray-800/50 mb-1" />
-                <div className="w-20 h-3 bg-gray-900/50" />
-              </div>
-              <div className="w-32 flex flex-col items-end gap-1">
-                <div className="w-16 h-4 bg-gray-800/50" />
-                <div className="flex gap-1">
-                  {Array.from({ length: 5 }).map((_, j) => (
-                    <div key={j} className="w-1.5 h-1.5 bg-gray-900" />
-                  ))}
-                </div>
-              </div>
-            </div>
+  // Helper component for skeleton items
+  const SkeletonItem = () => (
+    <div className="flex items-start py-3 border-b border-gray-900/50 opacity-30 pointer-events-none select-none">
+      <div className="w-6 flex justify-center pt-1">
+        <div className="w-3 h-3 bg-gray-800" />
+      </div>
+      <div className="flex-1 min-w-0 pl-2">
+        <div className="w-32 h-4 bg-gray-800/50 mb-1" />
+        <div className="w-20 h-3 bg-gray-900/50" />
+      </div>
+      <div className="w-20 flex flex-col items-end gap-1">
+        <div className="w-16 h-4 bg-gray-800/50" />
+        <div className="flex gap-1">
+          {Array.from({ length: 5 }).map((_, j) => (
+            <div key={j} className="w-1.5 h-1.5 bg-gray-900" />
           ))}
-          <div className="text-center py-8 text-dim text-xs">
-            AWAITING_DATA_STREAM...
-          </div>
         </div>
       </div>
-    );
+    </div>
+  );
+
+  const displayItems = [...paginatedTransactions];
+  // Fill remaining slots with skeleton items to maintain fixed height (20 items)
+  while (displayItems.length < ITEMS_PER_PAGE) {
+    displayItems.push({ id: `skeleton-${displayItems.length}`, isSkeleton: true } as any);
   }
 
   return (
     <div className="font-mono text-sm" ref={listTopRef}>
       <div className="flex justify-between items-center mb-6 text-dim text-xs uppercase tracking-wider">
-        <div className="w-24">Source</div>
-        <div className="flex-1">Details</div>
-        <div className="w-32 text-right">Amount</div>
+        <div className="w-6 text-center">Src</div>
+        <div className="flex-1 pl-2">Details</div>
+        <div className="w-20 text-right">Amount</div>
       </div>
 
-      <AnimatePresence mode="wait" custom={direction} initial={false}>
-        <motion.div 
-          key={currentPage}
-          ref={listContainerRef}
-          className="space-y-4 min-h-[800px] touch-pan-y"
-          onTouchStart={handleTouchStart}
-          onTouchEnd={handleTouchEnd}
-          custom={direction}
-          variants={variants}
-          initial="enter"
-          animate="center"
-          exit="exit"
-          transition={{ duration: 0.25, ease: "easeInOut" }}
-        >
-          {paginatedTransactions.map((t) => (
-            <TransactionItem
-              key={t.id}
-              transaction={t}
-              onClick={onTransactionClick}
-            />
-          ))}
-        </motion.div>
-      </AnimatePresence>
+      <div className="relative overflow-hidden" style={{ height: 'calc(20 * 68px + 20px)' }}> {/* Approx height for 20 items */}
+        <AnimatePresence mode="popLayout" custom={direction} initial={false}>
+          <motion.div 
+            key={currentPage}
+            ref={listContainerRef}
+            className="space-y-4 touch-pan-y w-full"
+            onTouchStart={handleTouchStart}
+            onTouchEnd={handleTouchEnd}
+            custom={direction}
+            variants={variants}
+            initial="enter"
+            animate="center"
+            exit="exit"
+            transition={{ duration: 0.2, ease: [0.25, 0.1, 0.25, 1.0] }}
+          >
+            {displayItems.map((t) => (
+              (t as any).isSkeleton ? (
+                <SkeletonItem key={t.id} />
+              ) : (
+                <TransactionItem
+                  key={t.id}
+                  transaction={t}
+                  onClick={onTransactionClick}
+                />
+              )
+            ))}
+            
+            {/* Show message only if truly empty (all skeletons) */}
+            {transactions.length === 0 && (
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                 <div className="text-center py-8 text-dim text-xs bg-background/80 px-4 rounded border border-gray-800">
+                    AWAITING_DATA_STREAM...
+                 </div>
+              </div>
+            )}
+          </motion.div>
+        </AnimatePresence>
+      </div>
       
       {/* Pagination */}
       {totalPages > 1 && (

@@ -73,6 +73,11 @@ PixelBill 奉行“生成式极简主义”与“赛博禅意”的设计哲学�
     *   **Load**: 数据加载时，使用类似终端打字机或数据流解码的动画。
 *   **Context-Aware Transitions (上下文感知转场)**:
     *   **Tab Switching (标签切换)**: 采用 **"Slide + Blur + Fade"** 组合动画。内容根据切换方向（左/右）进行横向位移，配合模糊和透明度变化，营造空间导航感。
+    *   **Infinite Carousel (无限轮盘)**:
+        *   **交互逻辑**: 标签列表支持无限循环滑动，首尾相接，无边界感。
+        *   **实现原理**: 采用 `[Tail Buffer] + [Core] + [Head Buffer]` 的三段式数据结构。当滚动至 Buffer 区时，静默跳转至 Core 区对应位置。
+        *   **方向判断 (Shortest Path)**: 切换方向不依赖索引大小，而是基于“圆环最短路径”算法。例如从末尾标签切回首个标签，视觉上判定为“向右/Forward”，而非“向左/Backward”。
+        *   **Center Snap**: 滚动停止时，最近的标签自动吸附居中并激活。
     *   **Pagination (翻页)**: **无动画 (Instant)**。移除所有过渡效果，确保数据即时响应，避免重复浏览时的视觉疲劳。
 
 ### 2.6 核心组件规范 (Component Specifications)

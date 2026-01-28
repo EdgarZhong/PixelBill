@@ -29,15 +29,43 @@ export function useAppLogic() {
   const [ledgerMemory, setLedgerMemory] = useState<LedgerMemory | null>(null);
   // const [storageStatus, setStorageStatus] = useState<'disconnected' | 'connected' | 'saving'>('disconnected');
   const [isLoading, setIsLoading] = useState(false);
-  const [filter, setFilter] = useState<'ALL' | 'MEAL' | 'OTHER'>('ALL');
+  const [filter, setFilter] = useState<string>('ALL');
   const [direction, setDirection] = useState(0);
-  const TABS = ['ALL', 'MEAL', 'OTHER'] as const;
+  const TABS = useMemo(() => {
+    const defaultTabs = ['ALL', 'meal', 'transport', 'shopping', 'entertainment', 'health', 'education', 'housing', 'travel', 'digital', 'pets', 'others'];
+    if (!ledgerMemory) return defaultTabs;
 
-  const handleTabChange = (newFilter: typeof TABS[number]) => {
+    const defined = ledgerMemory.defined_categories || [];
+    // Constraint: View must always have 'ALL'
+    const tabs = ['ALL', ...defined];
+
+    // Constraint: If at least one category tag exists (excluding ALL), 'others' must exist
+    if (defined.length > 0 && !tabs.includes('others')) {
+      tabs.push('others');
+    }
+
+    // Deduplicate
+    return Array.from(new Set(tabs));
+  }, [ledgerMemory]);
+
+  const handleTabChange = (newFilter: string) => {
     if (newFilter === filter) return;
     const currentIndex = TABS.indexOf(newFilter);
     const prevIndex = TABS.indexOf(filter);
-    setDirection(currentIndex > prevIndex ? 1 : -1);
+    
+    // Shortest path circular direction logic
+    // N = TABS.length
+    // If delta > N/2 => wrap around (go other way)
+    const n = TABS.length;
+    let delta = currentIndex - prevIndex;
+    
+    if (delta > n / 2) {
+      delta -= n; // e.g. 0 -> 4 (delta=4 > 2.5) => -1 (Left)
+    } else if (delta < -n / 2) {
+      delta += n; // e.g. 4 -> 0 (delta=-4 < -2.5) => +1 (Right)
+    }
+    
+    setDirection(delta > 0 ? 1 : -1);
     setFilter(newFilter);
   };
 
@@ -496,16 +524,14 @@ export function useAppLogic() {
       result = result.filter(t => 
         isWithinInterval(t.originalDate, {
           start: dateRange.start!,
-          end: dateRange.end!
+          end: endOfDay(dateRange.end!) // Ensure we include the full end day
         })
       );
     }
 
     // 2. Category Filter
     if (filter === 'ALL') return result;
-    if (filter === 'MEAL') return result.filter(t => t.category === 'meal');
-    if (filter === 'OTHER') return result.filter(t => t.category !== 'meal');
-    return result;
+    return result.filter(t => t.category === filter);
   }, [transactions, filter, dateRange]);
 
   const totalExpense = useMemo(() => {

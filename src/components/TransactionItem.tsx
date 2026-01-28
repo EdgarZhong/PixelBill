@@ -42,49 +42,50 @@ export const TransactionItem: React.FC<TransactionItemProps> = ({
   return (
     <div className={clsx('group relative overflow-hidden rounded-sm')}>
       <div
-        className="flex items-center py-3 border-b border-gray-900 hover:bg-white/[0.02] transition-colors relative cursor-pointer"
+        className="flex items-start py-3 border-b border-gray-900 hover:bg-white/[0.02] transition-colors relative cursor-pointer"
         onClick={() => onClick?.(t)}
       >
         {/* Source Indicator */}
-        <div className="w-24 flex items-center">
+        <div className="w-6 flex justify-center h-5 items-center">
           <div 
             className={clsx(
-              "w-3 h-3 transition-transform duration-300 group-hover:rotate-45",
+              "w-2.5 h-2.5 transition-transform duration-300 group-hover:rotate-45",
               t.sourceType === 'wechat' ? 'bg-pixel-green' : 'bg-alipay-blue'
             )}
           />
-          <span className="ml-3 text-xs text-dim opacity-0 group-hover:opacity-100 transition-opacity">
-            {t.sourceType === 'wechat' ? 'WX' : 'ALI'}
-          </span>
         </div>
 
         {/* Details */}
-        <div className="flex-1 min-w-0">
-          <div className="flex items-baseline gap-3 mb-1">
-            <span className="text-primary truncate font-bold">
+        <div className="flex-1 min-w-0 pl-2">
+          <div className="flex items-baseline gap-2 mb-1 h-5">
+            <span className="text-primary truncate font-bold leading-none">
               {t.category !== 'others' && (
-                <span className="text-income-yellow mr-2">
+                <span className="text-income-yellow mr-2 text-[10px]">
                   [{CategoryDict[t.category] || t.category.toUpperCase()}]
                 </span>
               )}
               {t.product !== '/' && t.product !== 'Unknown' ? t.product : t.counterparty}
             </span>
-            <span className="text-xs text-dim truncate">{format(t.originalDate, 'MM-dd HH:mm')}</span>
+            <span className="text-[10px] text-dim truncate">{format(t.originalDate, 'MM-dd')}</span>
           </div>
-          <div className="text-xs text-dim truncate max-w-md">
+          <div className="text-xs text-dim truncate max-w-md h-4 flex items-center">
             {t.rawClass} {t.counterparty !== t.product && `• ${t.counterparty}`}
           </div>
         </div>
 
         {/* Amount & Dots */}
-        <div className="w-32 flex flex-col items-end gap-1">
-          <span className={clsx(
-            "font-bold",
-            t.direction === 'in' ? 'text-income-yellow' : 'text-expense-red'
-          )}>
-            {t.direction === 'in' ? '+' : '-'} {t.amount.toFixed(2)}
-          </span>
-          {t.direction === 'out' && <AmountDots amount={t.amount} />}
+        <div className="w-20 flex flex-col items-end">
+          <div className="h-5 flex items-center justify-end mb-1">
+            <span className={clsx(
+              "font-bold leading-none",
+              t.direction === 'in' ? 'text-income-yellow' : 'text-expense-red'
+            )}>
+              {t.direction === 'in' ? '+' : '-'} {t.amount.toFixed(0)}
+            </span>
+          </div>
+          <div className="h-4 flex items-center">
+             {t.direction === 'out' && <AmountDots amount={t.amount} />}
+          </div>
         </div>
       </div>
     </div>
