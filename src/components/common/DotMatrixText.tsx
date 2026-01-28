@@ -121,7 +121,7 @@ const DotMatrixChar: React.FC<DotMatrixCharProps> = ({ char, className = '', siz
 
 export const DotMatrixText: React.FC<{ text: string; className?: string; size?: 'sm' | 'md' | 'lg' }> = ({ text, className, size = 'sm' }) => {
   return (
-    <div className={`flex ${size === 'lg' ? 'gap-5' : size === 'md' ? 'gap-4' : 'gap-3'} ${className}`}>
+    <div className={`flex flex-shrink-0 ${size === 'lg' ? 'gap-5' : size === 'md' ? 'gap-4' : 'gap-3'} ${className}`}>
       {text.split('').map((char, i) => (
         <DotMatrixChar key={i} char={char} size={size} />
       ))}

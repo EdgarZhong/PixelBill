@@ -26,7 +26,7 @@ export const Header: React.FC<HeaderProps> = ({ onLoadData, isLoading, onInitLed
   };
 
   return (
-    <header className="flex flex-col gap-6 py-6 border-b border-gray-800 mb-8 select-none">
+    <header className="flex flex-col gap-6 py-6 border-b border-gray-800 mb-3 select-none">
       <div className="flex justify-between items-center w-full">
         <div className="flex items-center gap-4 group cursor-default">
           {/* Logo Icon */}
@@ -39,8 +39,8 @@ export const Header: React.FC<HeaderProps> = ({ onLoadData, isLoading, onInitLed
             <h1 className="text-3xl font-pixel tracking-tighter text-gray-100 pt-[4px]">
               PIXEL
             </h1>
-            <div className="text-pixel-green animate-text-glow cursor-default -translate-y-[1px]">
-              <DotMatrixText text="BILL" size="lg" />
+            <div className="text-pixel-green animate-text-glow cursor-default">
+              <DotMatrixText text="BILL" size="md" />
             </div>
           </div>
         </div>

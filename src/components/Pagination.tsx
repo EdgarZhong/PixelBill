@@ -61,6 +61,13 @@ export const Pagination: React.FC<PaginationProps> = ({
 
   // 确保拖拽结束时重置 dragPage (已移除，避免震动)
 
+  // 动态计算尺寸参数
+  const THUMB_WIDTH = isMobile ? 80 : 120;
+  const HALF_THUMB = THUMB_WIDTH / 2;
+  const ANCHOR_WIDTH = 8;
+  const MIN_CENTER = ANCHOR_WIDTH + HALF_THUMB;
+  const TOTAL_PADDING = MIN_CENTER * 2;
+
   // 计算滑块位置百分比 (0-100)
   // page 1 -> 0%, page total -> 100%
   const getProgress = (page: number) => {
@@ -71,53 +78,9 @@ export const Pagination: React.FC<PaginationProps> = ({
   // 统一使用 dragPage 作为显示源，实现乐观 UI 更新
   const displayPage = dragPage;
   const currentProgress = getProgress(displayPage);
+  
+  const thumbLeftStyle = `calc(${MIN_CENTER}px + (100% - ${TOTAL_PADDING}px) * ${currentProgress / 100})`;
 
-  // 轨道计算优化：确保线条完美跟随，且滑块不遮挡像素块
-  // 假设 Container Width = 100%
-  // Thumb Width = 120px, Half Thumb = 60px
-  // Anchor Width = 8px (w-2)
-  // Safe Margin = 8px (Anchor) + 4px (Gap) = 12px? Or just ensure thumb doesn't overlap anchor.
-  
-  // 但我们使用的是百分比定位。
-  // 为了防止滑块遮挡两端像素块，我们需要限制 left 的最小值和最大值。
-  // 滑块中心点 left: currentProgress%
-  // 左边缘: calc(currentProgress% - 60px)
-  // 右边缘: calc(currentProgress% + 60px)
-  
-  // 容器左边界: 0px. Anchor: 0-8px.
-  // 所以左边缘必须 >= 8px (或更多一点留白)
-  // 右边缘必须 <= 100% - 8px.
-  
-  // 由于我们是基于 page (discrete steps) 计算 progress，而不是自由拖动像素。
-  // 所以需要在 getProgress 映射时或者在 CSS 渲染时做 clamp。
-  // 但 page 1 对应 0%，也就是中心在最左侧？不对。
-  // 原逻辑: left: currentProgress%. transform: translateX(-50%).
-  // 当 page=1 (0%) 时，中心在 0，左边缘在 -60px。这肯定溢出了。
-  
-  // 修正定位逻辑：
-  // 我们希望 page=1 时，滑块左边缘紧贴左侧像素块 (left=8px + gap)。
-  // page=total 时，滑块右边缘紧贴右侧像素块。
-  
-  // 设 Container Width = W.
-  // Thumb Width = 120px. Anchor = 8px.
-  // Available Slide Range for Center Point:
-  // Min Center = 8px + 60px = 68px.
-  // Max Center = W - 8px - 60px = W - 68px.
-  // Range Length = W - 136px.
-  
-  // 这是一个 CSS calc 问题。
-  // left: calc(68px + (100% - 136px) * progress / 100)
-  
-  const thumbLeftStyle = `calc(68px + (100% - 136px) * ${currentProgress / 100})`;
-
-  // 线条逻辑：
-  // Left Segment Width: Thumb Center - 60px (Half Thumb)
-  // 但是 Thumb Center 是上面的 calc 值。
-  // Width = (68px + (100% - 136px) * P) - 60px = 8px + (100% - 136px) * P
-  // Right Segment Width: Total - (Thumb Center + 60px)
-  // = 100% - (68px + (100% - 136px) * P + 60px)
-  // = 100% - 128px - (100% - 136px) * P
-  
   const progressRatio = currentProgress / 100;
   
   // 动画配置：拖拽时禁用，非拖拽时（点击翻页）启用缓动
@@ -145,7 +108,7 @@ export const Pagination: React.FC<PaginationProps> = ({
       const x = e.clientX - rect.left;
       const width = rect.width;
       
-      let ratio = (x - 68) / (width - 136);
+      let ratio = (x - MIN_CENTER) / (width - TOTAL_PADDING);
       ratio = Math.max(0, Math.min(1, ratio));
       
       const newPage = Math.round(ratio * (totalPages - 1)) + 1;
@@ -163,7 +126,7 @@ export const Pagination: React.FC<PaginationProps> = ({
       const x = touch.clientX - rect.left;
       const width = rect.width;
       
-      let ratio = (x - 68) / (width - 136);
+      let ratio = (x - MIN_CENTER) / (width - TOTAL_PADDING);
       ratio = Math.max(0, Math.min(1, ratio));
       
       const newPage = Math.round(ratio * (totalPages - 1)) + 1;
@@ -204,7 +167,7 @@ export const Pagination: React.FC<PaginationProps> = ({
       window.removeEventListener('touchmove', handleTouchMove);
       window.removeEventListener('touchend', handleTouchEnd);
     };
-  }, [isDragging, dragPage, totalPages, currentPage, onPageChange]);
+  }, [isDragging, dragPage, totalPages, currentPage, onPageChange, MIN_CENTER, TOTAL_PADDING]);
 
   const handleTrackClick = (e: React.MouseEvent) => {
     if (isDragging || !trackRef.current) return;
@@ -213,7 +176,7 @@ export const Pagination: React.FC<PaginationProps> = ({
     const x = e.clientX - rect.left;
     const width = rect.width;
     
-    let ratio = (x - 68) / (width - 136);
+    let ratio = (x - MIN_CENTER) / (width - TOTAL_PADDING);
     ratio = Math.max(0, Math.min(1, ratio));
     
     const newPage = Math.round(ratio * (totalPages - 1)) + 1;
@@ -225,7 +188,7 @@ export const Pagination: React.FC<PaginationProps> = ({
   };
 
   return (
-    <div className="relative w-full h-12 flex items-center justify-center mt-12 mb-16 select-none group/container">
+    <div className="relative w-full h-12 flex items-center justify-center mt-2 mb-8 select-none group/container">
       {/* 
         Fiber Track (光纤轨道) 
       */}
@@ -238,7 +201,7 @@ export const Pagination: React.FC<PaginationProps> = ({
         <div 
           className="h-[2px] bg-emerald-500/30 group-hover/container:bg-emerald-500/60 group-hover/container:shadow-[0_0_8px_rgba(16,185,129,0.5)]"
           style={{ 
-            width: `calc(8px + (100% - 136px) * ${progressRatio})`, 
+            width: `calc(${ANCHOR_WIDTH}px + (100% - ${TOTAL_PADDING}px) * ${progressRatio})`, 
             position: 'absolute',
             left: 0,
             transition: transitionStyle
@@ -251,7 +214,7 @@ export const Pagination: React.FC<PaginationProps> = ({
         <div 
           className="h-[2px] bg-emerald-500/30 group-hover/container:bg-emerald-500/60 group-hover/container:shadow-[0_0_8px_rgba(16,185,129,0.5)]"
           style={{ 
-            width: `calc(100% - 128px - (100% - 136px) * ${progressRatio})`,
+            width: `calc(100% - ${ANCHOR_WIDTH + THUMB_WIDTH}px - (100% - ${TOTAL_PADDING}px) * ${progressRatio})`,
             position: 'absolute',
             right: 0,
             transition: transitionStyle

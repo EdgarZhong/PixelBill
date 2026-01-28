@@ -7,6 +7,7 @@ import clsx from 'clsx';
 interface TransactionItemProps {
   transaction: Transaction;
   onClick?: (transaction: Transaction) => void;
+  isActive?: boolean;
 }
 
 // 心理账户分级点阵
@@ -37,7 +38,8 @@ const AmountDots: React.FC<{ amount: number }> = ({ amount }) => {
  */
 export const TransactionItem: React.FC<TransactionItemProps> = ({
   transaction: t,
-  onClick
+  onClick,
+  isActive
 }) => {
   return (
     <div className={clsx('group relative overflow-hidden rounded-sm')}>
@@ -49,7 +51,8 @@ export const TransactionItem: React.FC<TransactionItemProps> = ({
         <div className="w-6 flex justify-center h-5 items-center">
           <div 
             className={clsx(
-              "w-2.5 h-2.5 transition-transform duration-300 group-hover:rotate-45",
+              "w-2.5 h-2.5 transition-transform duration-300",
+              isActive ? "rotate-45" : "group-hover:rotate-45",
               t.sourceType === 'wechat' ? 'bg-pixel-green' : 'bg-alipay-blue'
             )}
           />

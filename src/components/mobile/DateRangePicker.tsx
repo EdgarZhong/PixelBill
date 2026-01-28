@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { format, differenceInDays, addDays, startOfDay } from 'date-fns';
+import { format, differenceInDays, addDays, startOfDay, endOfDay } from 'date-fns';
 import { PixelSlider } from '../PixelSlider';
 import { EditableDate } from '../EditableDate';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -48,7 +48,8 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({
   const handleSliderChange = ([startP, endP]: [number, number]) => {
     const newStart = getDateFromPercentage(startP);
     const newEnd = getDateFromPercentage(endP);
-    onChange(newStart, newEnd);
+    // Ensure end date includes the full day (23:59:59)
+    onChange(newStart, endOfDay(newEnd));
   };
 
   const startPercent = getPercentage(startDate);
@@ -81,7 +82,7 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({
           <motion.div 
             layoutId="picker-container"
             transition={transition}
-            className="flex flex-col items-center justify-center w-full h-full bg-card/30 border border-white/5 rounded-sm py-2"
+            className="flex flex-col items-center justify-start w-full h-full bg-card/30 border border-white/5 rounded-sm p-2"
           >
             {/* Label - Child of layoutId container */}
             {label && (
@@ -203,8 +204,8 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({
                         <EditableDate 
                           date={endDate} 
                           minDate={startDate} 
-                          maxDate={maxDate} 
-                          onChange={(d) => onChange(startDate, d)} 
+                          maxDate={maxDate}
+                          onChange={(d) => onChange(startDate, endOfDay(d))} 
                           readOnly={!isOpen} 
                           hideYear={!isOpen}
                           className="text-white"
@@ -218,7 +219,7 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({
                       animate={{ opacity: 1 }}
                       exit={{ opacity: 0, transition: { duration: 0.2 } }}
                       transition={{ delay: 0.1, duration: 0.2 }}
-                      className="mt-4 mb-4"
+                      className="mt-4 mb-2"
                     >
                       <PixelSlider 
                         min={0} 
@@ -236,7 +237,7 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({
                       animate={{ opacity: 1 }}
                       exit={{ opacity: 0, transition: { duration: 0.2 } }}
                       transition={{ delay: 0.15, duration: 0.2 }}
-                      className="flex justify-between text-[10px] text-dim font-mono border-t border-gray-800/50 pt-3 mt-2"
+                      className="flex justify-between text-[10px] text-dim font-mono border-t border-gray-800/50 pt-2 mt-1"
                     >
                       <span>MIN: {format(minDate, 'yyyy.MM.dd')}</span>
                       <span>MAX: {format(maxDate, 'yyyy.MM.dd')}</span>

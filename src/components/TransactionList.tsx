@@ -9,9 +9,10 @@ interface TransactionListProps {
   transactions: Transaction[];
   onTransactionClick?: (transaction: Transaction) => void;
   isMobile?: boolean;
+  activeTransactionId?: string | null;
 }
 
-export const TransactionList: React.FC<TransactionListProps> = ({ transactions, onTransactionClick, isMobile = false }) => {
+export const TransactionList: React.FC<TransactionListProps> = ({ transactions, onTransactionClick, isMobile = false, activeTransactionId }) => {
   const [currentPage, setCurrentPage] = useState(1);
   const [direction, setDirection] = useState(0);
   const listTopRef = useRef<HTMLDivElement>(null);
@@ -106,19 +107,19 @@ export const TransactionList: React.FC<TransactionListProps> = ({ transactions, 
 
   // Helper component for skeleton items
   const SkeletonItem = () => (
-    <div className="flex items-start py-3 border-b border-gray-900/50 opacity-30 pointer-events-none select-none">
+    <div className="flex items-start py-3 border-b border-gray-900/50 opacity-50 pointer-events-none select-none">
       <div className="w-6 flex justify-center pt-1">
-        <div className="w-3 h-3 bg-gray-800" />
+        <div className="w-3 h-3 bg-gray-700" />
       </div>
       <div className="flex-1 min-w-0 pl-2">
-        <div className="w-32 h-4 bg-gray-800/50 mb-1" />
-        <div className="w-20 h-3 bg-gray-900/50" />
+        <div className="w-32 h-5 bg-gray-700/50 mb-1" />
+        <div className="w-20 h-4 bg-gray-800/50" />
       </div>
       <div className="w-20 flex flex-col items-end gap-1">
-        <div className="w-16 h-4 bg-gray-800/50" />
+        <div className="w-16 h-5 bg-gray-700/50" />
         <div className="flex gap-1">
           {Array.from({ length: 5 }).map((_, j) => (
-            <div key={j} className="w-1.5 h-1.5 bg-gray-900" />
+            <div key={j} className="w-1.5 h-1.5 bg-gray-800" />
           ))}
         </div>
       </div>
@@ -144,7 +145,7 @@ export const TransactionList: React.FC<TransactionListProps> = ({ transactions, 
           <motion.div 
             key={currentPage}
             ref={listContainerRef}
-            className="space-y-4 touch-pan-y w-full"
+            className="space-y-1 touch-pan-y w-full"
             onTouchStart={handleTouchStart}
             onTouchEnd={handleTouchEnd}
             custom={direction}
@@ -162,6 +163,7 @@ export const TransactionList: React.FC<TransactionListProps> = ({ transactions, 
                   key={t.id}
                   transaction={t}
                   onClick={onTransactionClick}
+                  isActive={t.id === activeTransactionId}
                 />
               )
             ))}

@@ -34,9 +34,27 @@ export function MobileApp() {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
   const [isDetailAnimating, setIsDetailAnimating] = useState(false);
+  const [scaleOrigin, setScaleOrigin] = useState('50% 50%');
+  const [lastSelectedId, setLastSelectedId] = useState<string | null>(null);
+
+  const activeTransactionId = selectedTransaction?.id || (isDetailAnimating ? lastSelectedId : null);
   
   const safeArea = useSafeArea();
   const detailPageRef = useRef<HTMLDivElement | null>(null);
+
+  const handleTransactionSelect = (t: Transaction | null) => {
+    if (t) {
+      const scrollY = window.scrollY;
+      const centerY = scrollY + window.innerHeight / 2;
+      setScaleOrigin(`50% ${centerY}px`);
+      setLastSelectedId(t.id);
+    } else {
+      setIsDetailAnimating(true);
+      // 延迟重置 origin，等待动画完成（可选，或者直接保持上一次的 origin 也可以）
+      // 这里不重置也可以，因为放大回原位时 origin 仍然有效
+    }
+    setSelectedTransaction(t);
+  };
   const tabContainerRef = useRef<HTMLDivElement>(null);
   const detailTouchStartRef = useRef<{ x: number; y: number; timestamp: number } | null>(null);
   const animationFrameRef = useRef<number | null>(null);
@@ -80,7 +98,7 @@ export function MobileApp() {
       deltaY < 50 && // 垂直移动很少
       timeDelta < 300 // 快速手势
     ) {
-      setSelectedTransaction(null);
+      handleTransactionSelect(null);
     }
 
     detailTouchStartRef.current = null;
@@ -335,7 +353,8 @@ export function MobileApp() {
         className="min-h-screen"
         style={{
           paddingLeft: `max(0.75rem, ${safeArea.left}px)`,
-          paddingRight: `max(0.75rem, ${safeArea.right}px)`
+          paddingRight: `max(0.75rem, ${safeArea.right}px)`,
+          transformOrigin: scaleOrigin
         }}
         animate={{
           scale: selectedTransaction ? 0.95 : 1,
@@ -365,7 +384,7 @@ export function MobileApp() {
         />
         <main className="animate-fade-in">
           {/* 统计栏 - 移动端网格布局 */}
-          <div className="grid grid-cols-2 gap-4 mb-8 border-b border-gray-800 pb-8">
+          <div className="grid grid-cols-2 gap-4 mb-3 border-b border-gray-800 pb-3">
             <div className="text-center p-2 bg-card/30 border border-white/5 rounded-sm">
               <div className="text-dim text-[10px] mb-1">TOTAL_EXPENSE</div>
               <div className="text-xl font-bold text-expense-red truncate">
@@ -395,7 +414,7 @@ export function MobileApp() {
                   onChange={(start, end) => setDateRange({ start, end })}
                 />
               ) : (
-                <div className="flex flex-col items-center justify-center w-full h-full bg-card/30 border border-white/5 rounded-sm p-2">
+                <div className="flex flex-col items-center justify-start w-full h-full bg-card/30 border border-white/5 rounded-sm p-2">
                   <div className="text-dim text-[10px] mb-1 font-mono tracking-wider">DATA_RANGE</div>
                   <div className="text-dim opacity-50 text-[10px] font-mono">
                     NO DATA
@@ -413,22 +432,37 @@ export function MobileApp() {
           />
 
           {/* 显示选定日期指示器和清除按钮 */}
-          {selectedDate && (
-            <div className="mb-6 p-3 bg-card/50 border border-pixel-green/50 rounded-sm flex items-center justify-between">
-              <span className="text-xs font-mono text-pixel-green">
-                FILTERED: {new Date(selectedDate).toLocaleDateString('zh-CN')}
-              </span>
-              <button
-                onClick={() => setSelectedDate(null)}
-                className="text-xs px-2 py-1 bg-pixel-green/20 hover:bg-pixel-green/40 text-pixel-green rounded transition-colors"
+          <AnimatePresence>
+            {selectedDate && (
+              <motion.div
+                layout
+                initial={{ height: 0, opacity: 0, marginBottom: 0 }}
+                animate={{ height: 'auto', opacity: 1, marginBottom: 24 }}
+                exit={{ height: 0, opacity: 0, marginBottom: 0 }}
+                transition={{ duration: 0.3, ease: "easeInOut" }}
+                className="overflow-hidden"
               >
-                CLEAR
-              </button>
-            </div>
-          )}
+                <div className="p-3 bg-card/50 border border-pixel-green/50 rounded-sm flex items-center justify-between">
+                  <span className="text-xs font-mono text-pixel-green">
+                    FILTERED: {format(selectedDate, 'yyyy-MM-dd')}
+                  </span>
+                  <button
+                    onClick={() => setSelectedDate(null)}
+                    className="text-xs px-2 py-1 bg-pixel-green/20 hover:bg-pixel-green/40 text-pixel-green rounded transition-colors"
+                  >
+                    CLEAR
+                  </button>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {/* 过滤标签 - 轮播样式 */}
-          <div className="mb-6 relative overflow-hidden">
+          <motion.div 
+            layout 
+            transition={{ duration: 0.3, ease: "easeInOut" }}
+            className="mb-2 relative overflow-hidden"
+          >
             <div className="border-b border-gray-800 relative">
               <div 
                 ref={tabContainerRef}
@@ -469,7 +503,7 @@ export function MobileApp() {
                       {isSelected && (
                         <motion.div 
                           layoutId={layoutId}
-                          transition={{ type: "spring", stiffness: 400, damping: 40 }}
+                          transition={{ duration: 0.3, ease: "easeInOut" }}
                           className="absolute bottom-0 left-0 w-full h-[2px] bg-pixel-green shadow-[0_0_8px_rgba(16,185,129,0.6)]" 
                         />
                       )}
@@ -486,7 +520,7 @@ export function MobileApp() {
                 </>
               )}
             </div>
-          </div>
+          </motion.div>
 
           {/* 交易列表 */}
           <AnimatePresence mode="popLayout" custom={direction} initial={false}>
@@ -500,8 +534,9 @@ export function MobileApp() {
             >
               <TransactionList 
                 transactions={displayTransactions}
-                onTransactionClick={setSelectedTransaction}
+                onTransactionClick={handleTransactionSelect}
                 isMobile={true}
+                activeTransactionId={activeTransactionId}
               />
             </motion.div>
           </AnimatePresence>
@@ -513,7 +548,7 @@ export function MobileApp() {
       </motion.div>
 
       {/* 详情页覆盖层 */}
-      <AnimatePresence>
+      <AnimatePresence onExitComplete={() => setIsDetailAnimating(false)}>
         {selectedTransaction && (
           <motion.div
             ref={detailPageRef}
@@ -544,7 +579,7 @@ export function MobileApp() {
               {/* 带有返回按钮的标题 */}
               <div className="flex items-center gap-4 mb-8">
                 <button
-                  onClick={() => setSelectedTransaction(null)}
+                  onClick={() => handleTransactionSelect(null)}
                   className="text-dim hover:text-white transition-colors text-2xl"
                 >
                   ←
