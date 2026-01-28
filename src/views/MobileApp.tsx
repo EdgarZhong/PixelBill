@@ -34,6 +34,7 @@ export function MobileApp() {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
   const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
+  const [isDetailAnimating, setIsDetailAnimating] = useState(false);
   const safeArea = useSafeArea();
   const detailPageRef = useRef<HTMLDivElement | null>(null);
   const touchStartRef = useRef<{ x: number; y: number; timestamp: number } | null>(null);
@@ -108,272 +109,294 @@ export function MobileApp() {
       {/* Fixed Background Layer */}
       <div className="fixed inset-0 z-[-1] bg-background bg-dot-matrix pointer-events-none" />
       
-      {/* Show detail page if transaction is selected, otherwise show main list */}
-      {selectedTransaction ? (
-        // ====== TRANSACTION DETAIL PAGE ======
-        <div 
-          ref={detailPageRef}
-          onTouchStart={handleDetailPageTouchStart}
-          onTouchEnd={handleDetailPageTouchEnd}
-          className="min-h-screen text-primary font-mono overflow-x-hidden overflow-y-auto w-full"
-          style={{
-            paddingTop: `max(1rem, ${safeArea.top}px)`,
-            paddingBottom: `max(1rem, ${safeArea.bottom}px)`,
-            paddingLeft: `max(1rem, ${safeArea.left}px)`,
-            paddingRight: `max(1rem, ${safeArea.right}px)`
-          }}
-        >
-          <div className="w-full max-w-full">
-            {/* Header with back button */}
-            <div className="flex items-center gap-4 mb-8">
-              <button
-                onClick={() => setSelectedTransaction(null)}
-                className="text-dim hover:text-white transition-colors text-2xl"
-              >
-                ←
-              </button>
-              <h1 className="text-xl font-bold text-primary flex-1">交易详情</h1>
-            </div>
+      {/* Main Page - Always rendered */}
+      <motion.div 
+        className="min-h-screen"
+        style={{
+          paddingLeft: `max(0.75rem, ${safeArea.left}px)`,
+          paddingRight: `max(0.75rem, ${safeArea.right}px)`
+        }}
+        animate={{
+          scale: selectedTransaction ? 0.95 : 1,
+          filter: selectedTransaction ? 'blur(4px)' : 'blur(0px)',
+          opacity: selectedTransaction ? 0.6 : 1
+        }}
+        transition={{
+          duration: 0.4,
+          ease: [0.4, 0.0, 0.2, 1]
+        }}
+      >
+        {/* Hidden Input for CSV Selection (Mobile: File Picker) */}
+        <input
+          type="file"
+          ref={fileInputRef}
+          onChange={handleFileChange}
+          className="hidden"
+          accept="*/*" 
+          multiple
+        />
 
-            {/* Detail Content */}
-            <div className="space-y-4 pb-20">
-              {/* Amount - Large Display */}
-              <div className="p-4 bg-card border border-gray-800 rounded">
-                <div className="text-dim text-xs mb-2">金额</div>
-                <div className={`text-3xl font-bold ${selectedTransaction.direction === 'in' ? 'text-income-yellow' : 'text-expense-red'}`}>
-                  {selectedTransaction.direction === 'in' ? '+' : '-'}¥{selectedTransaction.amount.toFixed(2)}
-                </div>
-              </div>
-
-              {/* Category */}
-              <div className="p-4 bg-card border border-gray-800 rounded">
-                <div className="text-dim text-xs mb-2">分类</div>
-                <div className="text-lg text-income-yellow font-bold">
-                  {CategoryDict[selectedTransaction.category] || selectedTransaction.category.toUpperCase()}
-                </div>
-              </div>
-
-              {/* Time */}
-              <div className="p-4 bg-card border border-gray-800 rounded">
-                <div className="text-dim text-xs mb-2">时间</div>
-                <div className="text-primary">{format(selectedTransaction.originalDate, 'yyyy-MM-dd HH:mm:ss')}</div>
-              </div>
-
-              {/* Product */}
-              <div className="p-4 bg-card border border-gray-800 rounded">
-                <div className="text-dim text-xs mb-2">商品/服务</div>
-                <div className="text-primary break-words">{selectedTransaction.product}</div>
-              </div>
-
-              {/* Counterparty */}
-              <div className="p-4 bg-card border border-gray-800 rounded">
-                <div className="text-dim text-xs mb-2">交易方</div>
-                <div className="text-primary break-words">{selectedTransaction.counterparty}</div>
-              </div>
-
-              {/* Source */}
-              <div className="p-4 bg-card border border-gray-800 rounded">
-                <div className="text-dim text-xs mb-2">来源</div>
-                <div className={selectedTransaction.sourceType === 'wechat' ? 'text-pixel-green' : 'text-alipay-blue'}>
-                  {selectedTransaction.sourceType === 'wechat' ? '微信' : '支付宝'}
-                </div>
-              </div>
-
-              {/* Raw Class */}
-              <div className="p-4 bg-card border border-gray-800 rounded">
-                <div className="text-dim text-xs mb-2">原始分类</div>
-                <div className="text-dim text-sm">{selectedTransaction.rawClass}</div>
-              </div>
-
-              {/* Transaction ID */}
-              <div className="p-4 bg-card border border-gray-800 rounded">
-                <div className="text-dim text-xs mb-2">交易ID</div>
-                <div className="text-dim text-[10px] break-all font-mono">{selectedTransaction.id}</div>
+        <Header 
+          onLoadData={handleLoadData} 
+          isLoading={isLoading} 
+          onInitLedger={handleInitLedger}
+          onImportData={handleImportData}
+        />
+        <main className="animate-fade-in">
+          {/* Stats Bar - Mobile Grid Layout */}
+          <div className="grid grid-cols-2 gap-4 mb-8 border-b border-gray-800 pb-8">
+            <div className="text-center p-2 bg-card/30 border border-white/5 rounded-sm">
+              <div className="text-dim text-[10px] mb-1">TOTAL_EXPENSE</div>
+              <div className="text-xl font-bold text-expense-red truncate">
+                -¥{totalExpense.toFixed(0)}
               </div>
             </div>
-
-            {/* Footer */}
-            <footer className="mt-16 mb-8 text-center text-dim text-[10px] font-mono opacity-40">
-              <p>TRANSACTION_DETAIL_VIEW</p>
-            </footer>
-          </div>
-        </div>
-      ) : (
-        // ====== MAIN LIST PAGE ======
-        <div 
-          className="min-h-screen"
-          style={{
-            paddingLeft: `max(0.75rem, ${safeArea.left}px)`,
-            paddingRight: `max(0.75rem, ${safeArea.right}px)`
-          }}
-        >
-          {/* Hidden Input for CSV Selection (Mobile: File Picker) */}
-          {/* Android File Picker is picky about MIME types. Using wildcard is safest to ensure file is selectable. Validation happens in parser. */}
-          <input
-            type="file"
-            ref={fileInputRef}
-            onChange={handleFileChange}
-            className="hidden"
-            accept="*/*" 
-            multiple
-          />
-
-          <Header 
-            onLoadData={handleLoadData} 
-            isLoading={isLoading} 
-            onInitLedger={handleInitLedger}
-            onImportData={handleImportData}
-          />
-
-          <main className="animate-fade-in">
-            {/* Stats Bar - Mobile Grid Layout */}
-            <div className="grid grid-cols-2 gap-4 mb-8 border-b border-gray-800 pb-8">
-              <div className="text-center p-2 bg-card/30 border border-white/5 rounded-sm">
-                <div className="text-dim text-[10px] mb-1">TOTAL_EXPENSE</div>
-                <div className="text-xl font-bold text-expense-red truncate">
-                  -¥{totalExpense.toFixed(0)}
-                </div>
-              </div>
-              <div className="text-center p-2 bg-card/30 border border-white/5 rounded-sm">
-                <div className="text-dim text-[10px] mb-1">TOTAL_INCOME</div>
-                <div className="text-xl font-bold text-income-yellow truncate">
-                  +¥{totalIncome.toFixed(0)}
-                </div>
-              </div>
-              <div className="text-center p-2 bg-card/30 border border-white/5 rounded-sm">
-                <div className="text-dim text-[10px] mb-1">TXN_COUNT</div>
-                <div className="text-xl font-bold text-gray-200">
-                  {filteredTransactions.length}
-                </div>
-              </div>
-              <div className="w-full h-full">
-                {transactions.length > 0 ? (
-                  <DateRangePicker
-                    label="DATA_RANGE"
-                    minDate={transactions[transactions.length - 1]?.originalDate || new Date()}
-                    maxDate={transactions[0]?.originalDate || new Date()}
-                    startDate={dateRange.start || transactions[transactions.length - 1]?.originalDate || new Date()}
-                    endDate={dateRange.end || transactions[0]?.originalDate || new Date()}
-                    onChange={(start, end) => setDateRange({ start, end })}
-                  />
-                ) : (
-                  <div className="flex flex-col items-center justify-center w-full h-full bg-card/30 border border-white/5 rounded-sm p-2">
-                    <div className="text-dim text-[10px] mb-1 font-mono tracking-wider">DATA_RANGE</div>
-                    <div className="text-dim opacity-50 text-[10px] font-mono">
-                      NO DATA
-                    </div>
-                  </div>
-                )}
+            <div className="text-center p-2 bg-card/30 border border-white/5 rounded-sm">
+              <div className="text-dim text-[10px] mb-1">TOTAL_INCOME</div>
+              <div className="text-xl font-bold text-income-yellow truncate">
+                +¥{totalIncome.toFixed(0)}
               </div>
             </div>
-
-            {/* Activity Matrix - Mobile Version */}
-            <ActivityMatrix 
-              transactions={filteredTransactions}
-              onDateClick={(date) => setSelectedDate(date)}
-              dateRange={dateRange}
-            />
-
-            {/* Show selected date indicator and clear button */}
-            {selectedDate && (
-              <div className="mb-6 p-3 bg-card/50 border border-pixel-green/50 rounded-sm flex items-center justify-between">
-                <span className="text-xs font-mono text-pixel-green">
-                  FILTERED: {new Date(selectedDate).toLocaleDateString('zh-CN')}
-                </span>
-                <button
-                  onClick={() => setSelectedDate(null)}
-                  className="text-xs px-2 py-1 bg-pixel-green/20 hover:bg-pixel-green/40 text-pixel-green rounded transition-colors"
-                >
-                  CLEAR
-                </button>
+            <div className="text-center p-2 bg-card/30 border border-white/5 rounded-sm">
+              <div className="text-dim text-[10px] mb-1">TXN_COUNT</div>
+              <div className="text-xl font-bold text-gray-200">
+                {filteredTransactions.length}
               </div>
-            )}
-
-            {/* Filter Tabs */}
-            <div className="flex gap-4 mb-6 border-b border-gray-800 relative">
-              {TABS.map((f) => (
-                <button
-                  key={f}
-                  onClick={() => {
-                    if (f === 'MEAL') {
-                      // Toggle meal category expansion
-                      setExpandedCategory(expandedCategory === 'MEAL' ? null : 'MEAL');
-                    } else {
-                      handleTabChange(f);
-                    }
-                  }}
-                  className={`pb-2 px-1 text-xs transition-colors relative font-pixel tracking-tight ${
-                    filter === f ? 'text-white' : 'text-dim hover:text-gray-400'
-                  }`}
-                >
-                  {f}_VIEW
-                  {filter === f && (
-                    <motion.div 
-                      layoutId="tab-indicator"
-                      className="absolute bottom-0 left-0 w-full h-[2px] bg-pixel-green" 
-                    />
-                  )}
-                </button>
-              ))}
             </div>
-
-            {/* Expanded Category Menu */}
-            <AnimatePresence>
-              {expandedCategory === 'MEAL' && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  exit={{ opacity: 0, height: 0 }}
-                  transition={{ duration: 0.2 }}
-                  className="mb-6 border border-gray-800 rounded overflow-hidden bg-card/50"
-                >
-                  <div className="p-4 space-y-2">
-                    <div className="text-[10px] text-dim mb-3 font-mono">选择分类</div>
-                    <div className="grid grid-cols-2 gap-2">
-                      {Object.entries(CategoryDict)
-                        .filter(([key]) => key !== 'others')
-                        .map(([key, value]) => (
-                          <button
-                            key={key}
-                            onClick={() => {
-                              handleTabChange('MEAL');
-                              setExpandedCategory(null);
-                            }}
-                            className="px-3 py-2 text-xs font-mono border border-gray-800 rounded hover:border-pixel-green hover:text-pixel-green transition-colors text-dim bg-card/30"
-                          >
-                            [{value}]
-                          </button>
-                        ))}
-                    </div>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-            {/* TransactionList */}
-            <AnimatePresence mode="popLayout" custom={direction} initial={false}>
-              <motion.div
-                key={filter}
-                custom={direction}
-                variants={variants}
-                initial="enter"
-                animate="center"
-                exit="exit"
-                transition={{ duration: 0.25, ease: "easeInOut" }}
-              >
-                <TransactionList 
-                  transactions={displayTransactions}
-                  onTransactionClick={setSelectedTransaction}
+            <div className="w-full h-full">
+              {transactions.length > 0 ? (
+                <DateRangePicker
+                  label="DATA_RANGE"
+                  minDate={transactions[transactions.length - 1]?.originalDate || new Date()}
+                  maxDate={transactions[0]?.originalDate || new Date()}
+                  startDate={dateRange.start || transactions[transactions.length - 1]?.originalDate || new Date()}
+                  endDate={dateRange.end || transactions[0]?.originalDate || new Date()}
+                  onChange={(start, end) => setDateRange({ start, end })}
                 />
-              </motion.div>
-            </AnimatePresence>
+              ) : (
+                <div className="flex flex-col items-center justify-center w-full h-full bg-card/30 border border-white/5 rounded-sm p-2">
+                  <div className="text-dim text-[10px] mb-1 font-mono tracking-wider">DATA_RANGE</div>
+                  <div className="text-dim opacity-50 text-[10px] font-mono">
+                    NO DATA
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
 
-            <footer className="mt-16 mb-8 text-center text-dim text-[10px] font-mono opacity-40">
-              <p>DESIGNED & ENGINEERED BY <span className="font-bold text-gray-400">CYBERZEN STUDIO</span></p>
-            </footer>
-          </main>
-        </div>
-      )}
+          {/* Activity Matrix - Mobile Version */}
+          <ActivityMatrix 
+            transactions={filteredTransactions}
+            onDateClick={(date) => setSelectedDate(date)}
+            dateRange={dateRange}
+          />
+
+          {/* Show selected date indicator and clear button */}
+          {selectedDate && (
+            <div className="mb-6 p-3 bg-card/50 border border-pixel-green/50 rounded-sm flex items-center justify-between">
+              <span className="text-xs font-mono text-pixel-green">
+                FILTERED: {new Date(selectedDate).toLocaleDateString('zh-CN')}
+              </span>
+              <button
+                onClick={() => setSelectedDate(null)}
+                className="text-xs px-2 py-1 bg-pixel-green/20 hover:bg-pixel-green/40 text-pixel-green rounded transition-colors"
+              >
+                CLEAR
+              </button>
+            </div>
+          )}
+
+          {/* Filter Tabs */}
+          <div className="flex gap-4 mb-6 border-b border-gray-800 relative">
+            {TABS.map((f) => (
+              <button
+                key={f}
+                onClick={() => {
+                  if (f === 'MEAL') {
+                    // Toggle meal category expansion
+                    setExpandedCategory(expandedCategory === 'MEAL' ? null : 'MEAL');
+                  } else {
+                    handleTabChange(f);
+                  }
+                }}
+                className={`pb-2 px-1 text-xs transition-colors relative font-pixel tracking-tight ${
+                  filter === f ? 'text-white' : 'text-dim hover:text-gray-400'
+                }`}
+              >
+                {f}_VIEW
+                {filter === f && (
+                  <motion.div 
+                    layoutId="tab-indicator"
+                    className="absolute bottom-0 left-0 w-full h-[2px] bg-pixel-green" 
+                  />
+                )}
+              </button>
+            ))}
+          </div>
+
+          {/* Expanded Category Menu */}
+          <AnimatePresence>
+            {expandedCategory === 'MEAL' && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.2 }}
+                className="mb-6 border border-gray-800 rounded overflow-hidden bg-card/50"
+              >
+                <div className="p-4 space-y-2">
+                  <div className="text-[10px] text-dim mb-3 font-mono">选择分类</div>
+                  <div className="grid grid-cols-2 gap-2">
+                    {Object.entries(CategoryDict)
+                      .filter(([key]) => key !== 'others')
+                      .map(([key, value]) => (
+                        <button
+                          key={key}
+                          onClick={() => {
+                            handleTabChange('MEAL');
+                            setExpandedCategory(null);
+                          }}
+                          className="px-3 py-2 text-xs font-mono border border-gray-800 rounded hover:border-pixel-green hover:text-pixel-green transition-colors text-dim bg-card/30"
+                        >
+                          [{value}]
+                        </button>
+                      ))}
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* TransactionList */}
+          <AnimatePresence mode="popLayout" custom={direction} initial={false}>
+            <motion.div
+              key={filter}
+              custom={direction}
+              variants={variants}
+              initial="enter"
+              animate="center"
+              exit="exit"
+              transition={{ duration: 0.25, ease: "easeInOut" }}
+            >
+              <TransactionList 
+                transactions={displayTransactions}
+                onTransactionClick={setSelectedTransaction}
+                isMobile={true}
+              />
+            </motion.div>
+          </AnimatePresence>
+
+          <footer className="mt-16 mb-8 text-center text-dim text-[10px] font-mono opacity-40">
+            <p>DESIGNED & ENGINEERED BY <span className="font-bold text-gray-400">CYBERZEN STUDIO</span></p>
+          </footer>
+        </main>
+      </motion.div>
+
+      {/* Detail Page Overlay */}
+      <AnimatePresence>
+        {selectedTransaction && (
+          <motion.div
+            ref={detailPageRef}
+            onTouchStart={handleDetailPageTouchStart}
+            onTouchEnd={handleDetailPageTouchEnd}
+            className="fixed inset-0 z-50 bg-background text-primary font-mono overflow-x-hidden overflow-y-auto"
+            style={{
+              paddingTop: `max(1rem, ${safeArea.top}px)`,
+              paddingBottom: `max(1rem, ${safeArea.bottom}px)`,
+              paddingLeft: `max(1rem, ${safeArea.left}px)`,
+              paddingRight: `max(1rem, ${safeArea.right}px)`
+            }}
+            initial={{
+              x: '100%'
+            }}
+            animate={{
+              x: 0
+            }}
+            exit={{
+              x: '100%'
+            }}
+            transition={{
+              duration: 0.4,
+              ease: [0.4, 0.0, 0.2, 1]
+            }}
+          >
+            <div className="w-full max-w-full">
+              {/* Header with back button */}
+              <div className="flex items-center gap-4 mb-8">
+                <button
+                  onClick={() => setSelectedTransaction(null)}
+                  className="text-dim hover:text-white transition-colors text-2xl"
+                >
+                  ←
+                </button>
+                <h1 className="text-xl font-bold text-primary flex-1">交易详情</h1>
+              </div>
+
+              {/* Detail Content */}
+              <div className="space-y-4 pb-20">
+                {/* Amount - Large Display */}
+                <div className="p-4 bg-card border border-gray-800 rounded">
+                  <div className="text-dim text-xs mb-2">金额</div>
+                  <div className={`text-3xl font-bold ${selectedTransaction.direction === 'in' ? 'text-income-yellow' : 'text-expense-red'}`}>
+                    {selectedTransaction.direction === 'in' ? '+' : '-'}¥{selectedTransaction.amount.toFixed(2)}
+                  </div>
+                </div>
+
+                {/* Category */}
+                <div className="p-4 bg-card border border-gray-800 rounded">
+                  <div className="text-dim text-xs mb-2">分类</div>
+                  <div className="text-lg text-income-yellow font-bold">
+                    {CategoryDict[selectedTransaction.category] || selectedTransaction.category.toUpperCase()}
+                  </div>
+                </div>
+
+                {/* Time */}
+                <div className="p-4 bg-card border border-gray-800 rounded">
+                  <div className="text-dim text-xs mb-2">时间</div>
+                  <div className="text-primary">{format(selectedTransaction.originalDate, 'yyyy-MM-dd HH:mm:ss')}</div>
+                </div>
+
+                {/* Product */}
+                <div className="p-4 bg-card border border-gray-800 rounded">
+                  <div className="text-dim text-xs mb-2">商品/服务</div>
+                  <div className="text-primary break-words">{selectedTransaction.product}</div>
+                </div>
+
+                {/* Counterparty */}
+                <div className="p-4 bg-card border border-gray-800 rounded">
+                  <div className="text-dim text-xs mb-2">交易方</div>
+                  <div className="text-primary break-words">{selectedTransaction.counterparty}</div>
+                </div>
+
+                {/* Source */}
+                <div className="p-4 bg-card border border-gray-800 rounded">
+                  <div className="text-dim text-xs mb-2">来源</div>
+                  <div className={selectedTransaction.sourceType === 'wechat' ? 'text-pixel-green' : 'text-alipay-blue'}>
+                    {selectedTransaction.sourceType === 'wechat' ? '微信' : '支付宝'}
+                  </div>
+                </div>
+
+                {/* Raw Class */}
+                <div className="p-4 bg-card border border-gray-800 rounded">
+                  <div className="text-dim text-xs mb-2">原始分类</div>
+                  <div className="text-dim text-sm">{selectedTransaction.rawClass}</div>
+                </div>
+
+                {/* Transaction ID */}
+                <div className="p-4 bg-card border border-gray-800 rounded">
+                  <div className="text-dim text-xs mb-2">交易ID</div>
+                  <div className="text-dim text-[10px] break-all font-mono">{selectedTransaction.id}</div>
+                </div>
+              </div>
+
+              {/* Footer */}
+              <footer className="mt-16 mb-8 text-center text-dim text-[10px] font-mono opacity-40">
+                <p>TRANSACTION_DETAIL_VIEW</p>
+              </footer>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </>
   );
 }

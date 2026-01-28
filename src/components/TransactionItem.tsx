@@ -1,17 +1,12 @@
-import React, { useRef } from 'react';
+import React from 'react';
 import type { Transaction } from '../types';
 import { CategoryDict } from '../types/metadata';
 import { format } from 'date-fns';
 import clsx from 'clsx';
-import { useGestureHandler } from '../hooks/useGestureHandler';
 
 interface TransactionItemProps {
   transaction: Transaction;
-  onSwipeLeft?: (id: string) => void;
-  onSwipeRight?: (id: string) => void;
-  onSwipeCancel?: () => void;
   onClick?: (transaction: Transaction) => void;
-  isActive?: boolean;
 }
 
 // 心理账户分级点阵
@@ -38,77 +33,17 @@ const AmountDots: React.FC<{ amount: number }> = ({ amount }) => {
 };
 
 /**
- * Reusable Transaction List Item component with swipe gesture support
- * Provides visual feedback for swipe actions (left: archive, right: delete)
+ * Reusable Transaction List Item component
  */
 export const TransactionItem: React.FC<TransactionItemProps> = ({
   transaction: t,
-  onSwipeLeft,
-  onSwipeRight,
-  onSwipeCancel,
-  onClick,
-  isActive
+  onClick
 }) => {
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  const { gestureState, bind } = useGestureHandler({
-    onSwipeLeft: () => onSwipeLeft?.(t.id),
-    onSwipeRight: () => onSwipeRight?.(t.id),
-    onSwipeCancel
-  });
-
-  React.useEffect(() => {
-    const element = containerRef.current;
-    if (!element) return;
-
-    return () => {
-      // Cleanup handled by bind function
-    };
-  }, [bind]);
-
-  // Inject gesture handlers by binding to the ref
-  React.useEffect(() => {
-    if (containerRef.current) {
-      bind(containerRef.current);
-    }
-  }, [bind]);
-
-  const isShowingActions = gestureState.isActive && gestureState.progress > 0.3;
-  const translateX = gestureState.isActive ? gestureState.translateX : 0;
-
   return (
-    <div
-      ref={containerRef}
-      className={clsx(
-        'group relative overflow-hidden rounded-sm',
-        isActive && 'bg-white/[0.05]'
-      )}
-    >
-      {/* Swipe Action Background Layers */}
-      {gestureState.direction === 'left' && isShowingActions && (
-        <div className="absolute inset-y-0 right-0 w-20 bg-gradient-to-l from-expense-red/20 to-transparent flex items-center justify-end pr-4">
-          <span className="text-[10px] text-expense-red font-bold tracking-tight">
-            ARCHIVE
-          </span>
-        </div>
-      )}
-      
-      {gestureState.direction === 'right' && isShowingActions && (
-        <div className="absolute inset-y-0 left-0 w-20 bg-gradient-to-r from-red-600/20 to-transparent flex items-center justify-start pl-4">
-          <span className="text-[10px] text-red-400 font-bold tracking-tight">
-            DELETE
-          </span>
-        </div>
-      )}
-
-      {/* Main Content with Touch Transform */}
+    <div className={clsx('group relative overflow-hidden rounded-sm')}>
       <div
         className="flex items-center py-3 border-b border-gray-900 hover:bg-white/[0.02] transition-colors relative cursor-pointer"
-        style={{
-          transform: `translateX(${translateX}px)`,
-          transition: gestureState.isActive ? 'none' : 'transform 0.2s ease-out'
-        }}
-        onClick={() => !gestureState.isActive && onClick?.(t)}
+        onClick={() => onClick?.(t)}
       >
         {/* Source Indicator */}
         <div className="w-24 flex items-center">

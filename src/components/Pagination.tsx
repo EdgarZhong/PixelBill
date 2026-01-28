@@ -5,12 +5,14 @@ interface PaginationProps {
   currentPage: number;
   totalPages: number;
   onPageChange: (page: number, isDragging?: boolean) => void;
+  isMobile?: boolean;
 }
 
 export const Pagination: React.FC<PaginationProps> = ({
   currentPage,
   totalPages,
   onPageChange,
+  isMobile = false,
 }) => {
   const [isDragging, setIsDragging] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
@@ -264,7 +266,8 @@ export const Pagination: React.FC<PaginationProps> = ({
       */}
       <div
         className={clsx(
-          "absolute h-6 w-[120px] flex items-center justify-between px-2 border z-10 group",
+          "absolute h-6 flex items-center justify-between px-2 border z-10 group",
+          isMobile ? "w-[80px]" : "w-[120px]",
           // 视觉状态处理
           isVisualActive 
             ? "bg-transparent border-white shadow-[0_0_15px_rgba(255,255,255,0.2)]" // Active (透视): 彻底透明
@@ -281,25 +284,27 @@ export const Pagination: React.FC<PaginationProps> = ({
         onTouchStart={handleTouchStart}
       >
         {/* Prev Button */}
-        <button
-          className={clsx(
-            "text-[10px] font-pixel transition-all duration-200 p-1",
-            dragPage <= 1 
-              ? "opacity-20 cursor-default" 
-              : "cursor-pointer hover:text-emerald-500 hover:scale-110 hover:drop-shadow-[0_0_2px_rgba(16,185,129,0.8)]"
-          )}
-          onClick={(e) => {
-            e.stopPropagation();
-            if (dragPage > 1) {
-              setDragPage(dragPage - 1);
-              onPageChange(dragPage - 1);
-              triggerAnimation();
-            }
-          }}
-          disabled={dragPage <= 1}
-        >
-          {'<'}
-        </button>
+        {!isMobile && (
+          <button
+            className={clsx(
+              "text-[10px] font-pixel transition-all duration-200 p-1",
+              dragPage <= 1 
+                ? "opacity-20 cursor-default" 
+                : "cursor-pointer hover:text-emerald-500 hover:scale-110 hover:drop-shadow-[0_0_2px_rgba(16,185,129,0.8)]"
+            )}
+            onClick={(e) => {
+              e.stopPropagation();
+              if (dragPage > 1) {
+                setDragPage(dragPage - 1);
+                onPageChange(dragPage - 1);
+                triggerAnimation();
+              }
+            }}
+            disabled={dragPage <= 1}
+          >
+            {'<'}
+          </button>
+        )}
 
         {/* Page Indicator */}
         <span 
@@ -317,25 +322,27 @@ export const Pagination: React.FC<PaginationProps> = ({
         </span>
 
         {/* Next Button */}
-        <button
-          className={clsx(
-            "text-[10px] font-pixel transition-all duration-200 p-1",
-            dragPage >= totalPages 
-              ? "opacity-20 cursor-default" 
-              : "cursor-pointer hover:text-emerald-500 hover:scale-110 hover:drop-shadow-[0_0_2px_rgba(16,185,129,0.8)]"
-          )}
-          onClick={(e) => {
-            e.stopPropagation();
-            if (dragPage < totalPages) {
-              setDragPage(dragPage + 1);
-              onPageChange(dragPage + 1, false);
-              triggerAnimation();
-            }
-          }}
-          disabled={dragPage >= totalPages}
-        >
-          {'>'}
-        </button>
+        {!isMobile && (
+          <button
+            className={clsx(
+              "text-[10px] font-pixel transition-all duration-200 p-1",
+              dragPage >= totalPages 
+                ? "opacity-20 cursor-default" 
+                : "cursor-pointer hover:text-emerald-500 hover:scale-110 hover:drop-shadow-[0_0_2px_rgba(16,185,129,0.8)]"
+            )}
+            onClick={(e) => {
+              e.stopPropagation();
+              if (dragPage < totalPages) {
+                setDragPage(dragPage + 1);
+                onPageChange(dragPage + 1, false);
+                triggerAnimation();
+              }
+            }}
+            disabled={dragPage >= totalPages}
+          >
+            {'>'}
+          </button>
+        )}
       </div>
       
       {/* 
