@@ -33,12 +33,14 @@ export function MobileApp() {
 
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
-  const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
   const [isDetailAnimating, setIsDetailAnimating] = useState(false);
+  // Removed custom scroll states: tabScrollX, isDragging
   const safeArea = useSafeArea();
   const detailPageRef = useRef<HTMLDivElement | null>(null);
-  const touchStartRef = useRef<{ x: number; y: number; timestamp: number } | null>(null);
-
+  const tabContainerRef = useRef<HTMLDivElement>(null);
+  const detailTouchStartRef = useRef<{ x: number; y: number; timestamp: number } | null>(null);
+  const animationFrameRef = useRef<number | null>(null);
+  
   // 当点击直方图某一天时，过滤该天的交易
   const displayTransactions = selectedDate
     ? filteredTransactions.filter(t => isSameDay(t.originalDate, selectedDate))
@@ -52,7 +54,7 @@ export function MobileApp() {
   // Handle edge swipe gesture to go back (全面屏手势返回)
   const handleDetailPageTouchStart = useCallback((e: React.TouchEvent) => {
     const touch = e.touches[0];
-    touchStartRef.current = {
+    detailTouchStartRef.current = {
       x: touch.clientX,
       y: touch.clientY,
       timestamp: Date.now()
@@ -60,18 +62,18 @@ export function MobileApp() {
   }, []);
 
   const handleDetailPageTouchEnd = useCallback((e: React.TouchEvent) => {
-    if (!touchStartRef.current) return;
+    if (!detailTouchStartRef.current) return;
 
     const endTouch = e.changedTouches[0];
-    const deltaX = endTouch.clientX - touchStartRef.current.x;
-    const deltaY = Math.abs(endTouch.clientY - touchStartRef.current.y);
-    const timeDelta = Date.now() - touchStartRef.current.timestamp;
+    const deltaX = endTouch.clientX - detailTouchStartRef.current.x;
+    const deltaY = Math.abs(endTouch.clientY - detailTouchStartRef.current.y);
+    const timeDelta = Date.now() - detailTouchStartRef.current.timestamp;
     const screenWidth = window.innerWidth;
 
     // Detect edge swipe gestures to go back (返回手势)
     // 从左边缘向右滑动 或 从右边缘向左滑动
-    const fromLeftEdge = touchStartRef.current.x < 50 && deltaX > 50;
-    const fromRightEdge = touchStartRef.current.x > screenWidth - 50 && deltaX < -50;
+    const fromLeftEdge = detailTouchStartRef.current.x < 50 && deltaX > 50;
+    const fromRightEdge = detailTouchStartRef.current.x > screenWidth - 50 && deltaX < -50;
 
     if (
       (fromLeftEdge || fromRightEdge) && // From left or right edge
@@ -81,8 +83,95 @@ export function MobileApp() {
       setSelectedTransaction(null);
     }
 
-    touchStartRef.current = null;
+    detailTouchStartRef.current = null;
   }, []);
+
+  // Custom smooth scroll function with ease-out-quart
+  const smoothScrollTo = useCallback((element: HTMLElement, target: number, duration: number) => {
+    const start = element.scrollLeft;
+    const change = target - start;
+    const startTime = performance.now();
+
+    // Logarithmic deceleration curve (Ease Out Quart)
+    const easeOutQuart = (x: number): number => {
+      return 1 - Math.pow(1 - x, 4);
+    };
+
+    const animateScroll = (currentTime: number) => {
+      const elapsed = currentTime - startTime;
+      
+      if (elapsed < duration) {
+        const progress = easeOutQuart(elapsed / duration);
+        element.scrollLeft = start + change * progress;
+        animationFrameRef.current = requestAnimationFrame(animateScroll);
+      } else {
+        element.scrollLeft = target;
+        animationFrameRef.current = null;
+      }
+    };
+
+    // Cancel any existing animation
+    if (animationFrameRef.current) {
+      cancelAnimationFrame(animationFrameRef.current);
+    }
+    
+    animationFrameRef.current = requestAnimationFrame(animateScroll);
+  }, []);
+
+  // Stop scroll animation on interaction
+  const stopScrollAnimation = useCallback(() => {
+    if (animationFrameRef.current) {
+      cancelAnimationFrame(animationFrameRef.current);
+      animationFrameRef.current = null;
+    }
+  }, []);
+
+  // Center selected tab in viewport using custom smooth scroll
+  const centerTab = useCallback((tabIndex: number) => {
+    if (!tabContainerRef.current) return;
+    
+    const container = tabContainerRef.current;
+    const tabs = container.children;
+    if (tabIndex >= 0 && tabIndex < tabs.length) {
+      const tab = tabs[tabIndex] as HTMLElement;
+      
+      // Calculate center position manually for total control
+      const containerWidth = container.offsetWidth;
+      const tabLeft = tab.offsetLeft;
+      const tabWidth = tab.offsetWidth;
+      
+      // Target scroll position: tab center aligned with container center
+      const targetScrollLeft = tabLeft - (containerWidth / 2) + (tabWidth / 2);
+      
+      // Verify bounds
+      const maxScroll = container.scrollWidth - containerWidth;
+      const boundedTarget = Math.max(0, Math.min(targetScrollLeft, maxScroll));
+      
+      // Use custom smooth scroll instead of native behavior
+      // 500ms duration with ease-out curve feels silky smooth
+      smoothScrollTo(container, boundedTarget, 500);
+    }
+  }, [smoothScrollTo]);
+
+  // Handle tab change with centering
+  const handleTabChangeWithCenter = useCallback((newTab: string) => {
+    const tabIndex = TABS.indexOf(newTab as any);
+    if (tabIndex !== -1) {
+      centerTab(tabIndex);
+      handleTabChange(newTab as any);
+    }
+  }, [TABS, centerTab, handleTabChange]);
+
+  // Removed simple touch event handlers for tabs since we use native scrolling now
+
+  // Initialize tab centering on mount
+
+  useEffect(() => {
+    const currentTabIndex = TABS.indexOf(filter);
+    if (currentTabIndex !== -1) {
+      centerTab(currentTabIndex);
+    }
+  }, [TABS, filter, centerTab]);
 
   const variants = {
     enter: (direction: number) => ({
@@ -206,66 +295,44 @@ export function MobileApp() {
             </div>
           )}
 
-          {/* Filter Tabs */}
-          <div className="flex gap-4 mb-6 border-b border-gray-800 relative">
-            {TABS.map((f) => (
-              <button
-                key={f}
-                onClick={() => {
-                  if (f === 'MEAL') {
-                    // Toggle meal category expansion
-                    setExpandedCategory(expandedCategory === 'MEAL' ? null : 'MEAL');
-                  } else {
-                    handleTabChange(f);
-                  }
+          {/* Filter Tabs - Carousel Style */}
+          <div className="mb-6 relative overflow-hidden">
+            <div className="border-b border-gray-800 relative">
+              <div 
+                ref={tabContainerRef}
+                className="flex gap-6 pb-2 relative overflow-x-auto whitespace-nowrap scrollbar-hide"
+                style={{
+                  WebkitOverflowScrolling: 'touch',
                 }}
-                className={`pb-2 px-1 text-xs transition-colors relative font-pixel tracking-tight ${
-                  filter === f ? 'text-white' : 'text-dim hover:text-gray-400'
-                }`}
+                onTouchStart={stopScrollAnimation}
               >
-                {f}_VIEW
-                {filter === f && (
-                  <motion.div 
-                    layoutId="tab-indicator"
-                    className="absolute bottom-0 left-0 w-full h-[2px] bg-pixel-green" 
-                  />
-                )}
-              </button>
-            ))}
+                {TABS.map((f, index) => {
+                  return (
+                    <button
+                      key={f}
+                      onClick={() => handleTabChangeWithCenter(f)}
+                      className={`pb-2 px-3 text-xs transition-all duration-300 relative font-mono tracking-tight whitespace-nowrap flex-shrink-0 ${
+                        filter === f ? 'text-pixel-green scale-110' : 'text-dim hover:text-gray-400'
+                      }`}
+                    >
+                      {f}
+                      {filter === f && (
+                        <motion.div 
+                          layoutId="tab-indicator"
+                          transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                          className="absolute bottom-0 left-0 w-full h-[2px] bg-pixel-green shadow-[0_0_8px_rgba(16,185,129,0.6)]" 
+                        />
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+              
+              {/* Gradient fade edges */}
+              <div className="absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-background to-transparent pointer-events-none" />
+              <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-background to-transparent pointer-events-none" />
+            </div>
           </div>
-
-          {/* Expanded Category Menu */}
-          <AnimatePresence>
-            {expandedCategory === 'MEAL' && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }}
-                transition={{ duration: 0.2 }}
-                className="mb-6 border border-gray-800 rounded overflow-hidden bg-card/50"
-              >
-                <div className="p-4 space-y-2">
-                  <div className="text-[10px] text-dim mb-3 font-mono">选择分类</div>
-                  <div className="grid grid-cols-2 gap-2">
-                    {Object.entries(CategoryDict)
-                      .filter(([key]) => key !== 'others')
-                      .map(([key, value]) => (
-                        <button
-                          key={key}
-                          onClick={() => {
-                            handleTabChange('MEAL');
-                            setExpandedCategory(null);
-                          }}
-                          className="px-3 py-2 text-xs font-mono border border-gray-800 rounded hover:border-pixel-green hover:text-pixel-green transition-colors text-dim bg-card/30"
-                        >
-                          [{value}]
-                        </button>
-                      ))}
-                  </div>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
 
           {/* TransactionList */}
           <AnimatePresence mode="popLayout" custom={direction} initial={false}>
