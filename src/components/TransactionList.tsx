@@ -3,6 +3,7 @@ import type { Transaction } from '../types';
 import { Pagination } from './Pagination';
 import { TransactionItem } from './TransactionItem';
 import { triggerHaptic, HapticFeedbackLevel } from '../utils/haptics';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface TransactionListProps {
   transactions: Transaction[];
@@ -12,6 +13,7 @@ interface TransactionListProps {
 
 export const TransactionList: React.FC<TransactionListProps> = ({ transactions, onTransactionClick, isMobile = false }) => {
   const [currentPage, setCurrentPage] = useState(1);
+  const [direction, setDirection] = useState(0);
   const listTopRef = useRef<HTMLDivElement>(null);
   const listContainerRef = useRef<HTMLDivElement>(null);
   const touchStartRef = useRef<{ x: number; y: number; timestamp: number } | null>(null);
@@ -26,6 +28,8 @@ export const TransactionList: React.FC<TransactionListProps> = ({ transactions, 
   }, [transactions.length]);
 
   const handlePageChange = (page: number) => {
+    const newDirection = page > currentPage ? 1 : -1;
+    setDirection(newDirection);
     setCurrentPage(page);
   };
 
@@ -59,16 +63,39 @@ export const TransactionList: React.FC<TransactionListProps> = ({ transactions, 
       if (deltaX > 0 && currentPage > 1) {
         // Swipe right - previous page
         triggerHaptic(HapticFeedbackLevel.LIGHT);
+        setDirection(-1);
         setCurrentPage(prev => prev - 1);
       } else if (deltaX < 0 && currentPage < totalPages) {
         // Swipe left - next page
         triggerHaptic(HapticFeedbackLevel.LIGHT);
+        setDirection(1);
         setCurrentPage(prev => prev + 1);
       }
     }
 
     touchStartRef.current = null;
   }, [currentPage, totalPages]);
+
+  // Animation variants for page transitions
+  const variants = {
+    enter: (direction: number) => ({
+      x: direction > 0 ? 20 : -20,
+      opacity: 0,
+      filter: 'blur(4px)'
+    }),
+    center: {
+      zIndex: 1,
+      x: 0,
+      opacity: 1,
+      filter: 'blur(0px)'
+    },
+    exit: (direction: number) => ({
+      zIndex: 0,
+      x: direction < 0 ? 20 : -20,
+      opacity: 0,
+      filter: 'blur(4px)'
+    })
+  };
 
   // Empty State with Placeholder Lines
   if (transactions.length === 0) {
@@ -115,20 +142,29 @@ export const TransactionList: React.FC<TransactionListProps> = ({ transactions, 
         <div className="w-32 text-right">Amount</div>
       </div>
 
-      <div 
-        ref={listContainerRef}
-        className="space-y-4 min-h-[800px] touch-pan-y"
-        onTouchStart={handleTouchStart}
-        onTouchEnd={handleTouchEnd}
-      >
-        {paginatedTransactions.map((t) => (
-          <TransactionItem
-            key={t.id}
-            transaction={t}
-            onClick={onTransactionClick}
-          />
-        ))}
-      </div>
+      <AnimatePresence mode="wait" custom={direction} initial={false}>
+        <motion.div 
+          key={currentPage}
+          ref={listContainerRef}
+          className="space-y-4 min-h-[800px] touch-pan-y"
+          onTouchStart={handleTouchStart}
+          onTouchEnd={handleTouchEnd}
+          custom={direction}
+          variants={variants}
+          initial="enter"
+          animate="center"
+          exit="exit"
+          transition={{ duration: 0.25, ease: "easeInOut" }}
+        >
+          {paginatedTransactions.map((t) => (
+            <TransactionItem
+              key={t.id}
+              transaction={t}
+              onClick={onTransactionClick}
+            />
+          ))}
+        </motion.div>
+      </AnimatePresence>
       
       {/* Pagination */}
       {totalPages > 1 && (
