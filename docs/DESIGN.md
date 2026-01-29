@@ -76,14 +76,20 @@ PixelBill 奉行“生成式极简主义”与“赛博禅意”的设计哲学�
 *   **Micro-interactions**:
     *   **Hover**: 列表项悬停时，左侧指示器旋转 45 度，边框高亮。
     *   **Load**: 数据加载时，使用类似终端打字机或数据流解码的动画。
+*   **Animation Standards (动画规范)**:
+    *   **No Bounce Policy (无弹性原则)**: 金融数据界面追求精准与理性，**严禁使用 Spring (弹簧) 物理效果**。所有过渡必须是确定性的 (Deterministic) 贝塞尔曲线，避免任何回弹或震荡。
+    *   **Structural Layer (结构层)**: `0.6s` `[0.25, 1, 0.5, 1]` (EaseOutQuart-like)。用于 Tab 切换、页面进出、大模块位移。此曲线特点是**极速启动、优雅停车**，确保用户意图被立即响应，同时视觉落点平滑。
+    *   **Component Layer (组件层)**: `0.3s` `easeInOut`。用于 DateRangePicker 展开、局部面板变形。使用对称缓动以保持组件的“呼吸感”。
+    *   **Micro Layer (微交互层)**: `0.2s` (Fast Linear/EaseOut)。用于 Hover、点击反馈、分页滑动。
 *   **Context-Aware Transitions (上下文感知转场)**:
     *   **Tab Switching (标签切换)**: 采用 **"Slide + Blur + Fade"** 组合动画。内容根据切换方向（左/右）进行横向位移，配合模糊和透明度变化，营造空间导航感。
     *   **Infinite Carousel (无限轮盘)**:
         *   **交互逻辑**: 标签列表支持无限循环滑动，首尾相接，无边界感。
         *   **实现原理**: 采用 `[Tail Buffer] + [Core] + [Head Buffer]` 的三段式数据结构。当滚动至 Buffer 区时，静默跳转至 Core 区对应位置。
-        *   **方向判断 (Shortest Path)**: 切换方向不依赖索引大小，而是基于“圆环最短路径”算法。例如从末尾标签切回首个标签，视觉上判定为“向右/Forward”，而非“向左/Backward”。
+        *   **动态绑定 (Dynamic LayoutId)**: 必须根据当前渲染的 buffer 位置动态计算 `layoutId` (如 `tab-indicator-active` 仅绑定到当前视口中的实例)，确保绿色指示器在 DOM 重排时能正确捕捉目标，避免“飞来飞去”的错误动画。
+        *   **Scroll Sync (滚动同步)**: 严禁使用原生 `scrollTo` 进行动画。必须使用基于 `requestAnimationFrame` 的自定义 `animate()` 函数配合 `EaseOutQuart` 曲线，确保滚动惯性与页面其他 Framer Motion 动画（如绿色滑块）的物理特性完全一致，消除“滑块追不上内容”的视觉撕裂感。
         *   **Center Snap**: 滚动停止时，最近的标签自动吸附居中并激活。
-    *   **Pagination (翻页)**: **无动画 (Instant)**。移除所有过渡效果，确保数据即时响应，避免重复浏览时的视觉疲劳。
+    *   **Pagination (翻页)**: **快速滑动 (Fast Swipe)**。采用 `0.3s` `cubic-bezier(0.4, 0, 0.2, 1)` 转场，保留方向感但拒绝拖泥带水。
 
 ### 2.6 核心组件规范 (Component Specifications)
 
@@ -121,6 +127,15 @@ PixelBill 奉行“生成式极简主义”与“赛博禅意”的设计哲学�
         *   **4 Dots**: ≤ 2000 (轻奢/电子/大额)
         *   **5 Dots**: > 2000 (巨额/房租/理财)
     *   **视觉**: 保持 5 点阵列，使用 **像素方块**（非圆点）表示消费量级，**支出使用红色**，收入使用黄色。
+
+### 2.7 架构原则 (Architectural Principles)
+
+*   **Value Convergence (值收敛策略)**: 严格复用现有设计常量。禁止引入新的动画时间（只能选 0.6s, 0.3s 或 0.2s）、颜色或间距，除非有压倒性的理由。
+*   **Mixed Animation Ban (混合动画禁令)**: 同一个组件禁止混用 CSS Transition 和 Framer Motion。如果组件参与 Layout 动画，其所有状态（Hover, Active）必须全权委托给 Framer Motion 管理，防止冲突导致的视觉跳动。
+*   **Layout Projection Integrity (布局投影完整性)**:
+    *   **Global Sync**: 任何跨组件的跟随动画（如 Tab Indicator 随内容滚动），必须通过 Layout Projection (`layoutId`) 实现，而非手动计算位置。
+    *   **Isolation**: 为避免不必要的重排，仅在真正需要变形的叶子节点使用 `layoutId`，严禁在父容器随意添加 `layout` 属性。
+
 
 ## 3. 功能特性与交互流程 (Features & Interaction)
 
@@ -190,7 +205,8 @@ PixelBill 奉行“生成式极简主义”与“赛博禅意”的设计哲学�
 *   **完全可逆 (Reversibility)**: 收起的动画必须是展开的**严格倒放**。能量耗尽后，物体应当沿原路回归平静。
 
 #### 3. 实现策略
-*   **状态驱动 (State-Driven)**: 使用 React State (`readOnly`) 配合 CSS transition 驱动样式变化，而非手动计算关键帧。
+*   **Layout Projection (布局投影)**: 使用 Framer Motion 的 `layoutId` 绑定组件（如 `layoutId="picker-container"`），实现从“Dashboard 小条”到“全屏面板”的无缝形变 (Morphing)。
+*   **状态驱动 (State-Driven)**: 使用 React State (`readOnly`) 配合 `AnimatePresence` 驱动内容挂载，而非简单的 `display: none`。
 *   **布局投影的克制 (Layout Projection Control)**: 对于精密排版，**显式地控制尺寸和位置**（如明确指定 `width`, `left`）比交给自动布局引擎更稳健，消除“果冻效应”。
 *   **分层交互 (Layered Interaction)**: 引入透明覆盖层 (`z-40 overlay`) 简化触发逻辑，将视觉层与交互层分离，提升容错率。
 
@@ -238,7 +254,7 @@ PixelBill 奉行“生成式极简主义”与“赛博禅意”的设计哲学�
         *   点击轨道空白处 -> 滑块跳跃至该位置。
         *   点击左右箭头 -> 翻页。
     *   **分页量**: 20条/页。
-    *   **刷新**: Instant / No Animation (无动画)。为了保持浏览的连贯性与响应速度，翻页操作不应用任何过渡动画，实现数据的即时刷新。
+    *   **刷新**: Fast Swipe (快速滑动)。采用 `0.2s` 极速转场，保留方向感但拒绝拖泥带水。
 
 ## 4. 数据结构 (Data Structure)
 

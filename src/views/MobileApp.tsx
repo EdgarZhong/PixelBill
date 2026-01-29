@@ -57,7 +57,8 @@ export function MobileApp() {
   };
   const tabContainerRef = useRef<HTMLDivElement>(null);
   const detailTouchStartRef = useRef<{ x: number; y: number; timestamp: number } | null>(null);
-  const animationFrameRef = useRef<number | null>(null);
+  // 修改 ref 类型以支持 Framer Motion controls
+  const animationFrameRef = useRef<number | { stop: () => void } | null>(null);
   
   // 当点击直方图某一天时，过滤该天的交易
   const displayTransactions = selectedDate
@@ -205,14 +206,14 @@ export function MobileApp() {
          const tabWidth = tab.offsetWidth;
          const targetScrollLeft = tabLeft - (containerWidth / 2) + (tabWidth / 2);
          // 验证非无限模式的边界
-         const maxScroll = container.scrollWidth - containerWidth;
-         const boundedTarget = Math.max(0, Math.min(targetScrollLeft, maxScroll));
-         smoothScrollTo(container, boundedTarget, 500);
-       }
-       return;
-    }
+          const maxScroll = container.scrollWidth - containerWidth;
+          const boundedTarget = Math.max(0, Math.min(targetScrollLeft, maxScroll));
+          smoothScrollTo(container, boundedTarget, 600);
+        }
+        return;
+     }
 
-    // 对于无限循环（isOverflowing=true），找到最近的目标实例
+     // 对于无限循环（isOverflowing=true），找到最近的目标实例
     const tabs = container.children;
     const N = TABS.length;
     const currentScroll = container.scrollLeft;
@@ -248,7 +249,7 @@ export function MobileApp() {
     });
 
     if (bestTarget !== -1) {
-      smoothScrollTo(container, bestTarget, 500);
+      smoothScrollTo(container, bestTarget, 600);
       if (bestCandidateIndex !== -1) {
          setActiveTabIndex(bestCandidateIndex);
       }
@@ -316,8 +317,8 @@ export function MobileApp() {
       opacity: 0,
       filter: 'blur(4px)',
       transition: {
-        duration: 0.5,
-        ease: "easeInOut"
+        duration: 0.6,
+        ease: [0.25, 1, 0.5, 1]
       }
     }),
     center: {
@@ -326,8 +327,8 @@ export function MobileApp() {
       opacity: 1,
       filter: 'blur(0px)',
       transition: {
-        duration: 0.5,
-        ease: "easeInOut",
+        duration: 0.6,
+        ease: [0.25, 1, 0.5, 1],
         filter: { duration: 0.1, ease: "linear" }
       }
     },
@@ -337,8 +338,8 @@ export function MobileApp() {
       opacity: 0,
       filter: 'blur(4px)',
       transition: {
-        duration: 0.5,
-        ease: "easeInOut"
+        duration: 0.6,
+        ease: [0.25, 1, 0.5, 1]
       }
     })
   };
@@ -439,7 +440,7 @@ export function MobileApp() {
                 initial={{ height: 0, opacity: 0, marginBottom: 0 }}
                 animate={{ height: 'auto', opacity: 1, marginBottom: 24 }}
                 exit={{ height: 0, opacity: 0, marginBottom: 0 }}
-                transition={{ duration: 0.3, ease: "easeInOut" }}
+                transition={{ duration: 0.6, ease: [0.25, 1, 0.5, 1] }}
                 className="overflow-hidden"
               >
                 <div className="p-3 bg-card/50 border border-pixel-green/50 rounded-sm flex items-center justify-between">
@@ -458,11 +459,7 @@ export function MobileApp() {
           </AnimatePresence>
 
           {/* 过滤标签 - 轮播样式 */}
-          <motion.div 
-            layout 
-            transition={{ duration: 0.3, ease: "easeInOut" }}
-            className="mb-2 relative overflow-hidden"
-          >
+          <div className="mb-2 relative overflow-hidden">
             <div className="border-b border-gray-800 relative">
               <div 
                 ref={tabContainerRef}
@@ -492,22 +489,28 @@ export function MobileApp() {
                   const layoutId = isActiveInstance ? 'tab-indicator-active' : undefined;
 
                   return (
-                    <button
+                    <motion.button
                       key={`${f}-${index}`}
                       onClick={() => handleTabChangeWithCenter(f, index)}
-                      className={`pb-2 px-3 text-[10px] transition-all duration-300 relative font-pixel tracking-tight whitespace-nowrap flex-shrink-0 ${
-                        isSelected ? 'text-pixel-green scale-110' : 'text-dim hover:text-gray-400'
-                      }`}
+                      animate={{ 
+                        scale: isSelected ? 1.1 : 1,
+                        color: isSelected ? '#10B981' : '#9CA3AF'
+                      }}
+                      transition={{ 
+                        duration: 0.6, 
+                        ease: [0.25, 1, 0.5, 1] 
+                      }}
+                      className="pb-2 px-3 text-[10px] relative font-pixel tracking-tight whitespace-nowrap flex-shrink-0"
                     >
                       {f.toUpperCase()}
                       {isSelected && (
                         <motion.div 
                           layoutId={layoutId}
-                          transition={{ duration: 0.3, ease: "easeInOut" }}
+                          transition={{ duration: 0.6, ease: [0.25, 1, 0.5, 1] }}
                           className="absolute bottom-0 left-0 w-full h-[2px] bg-pixel-green shadow-[0_0_8px_rgba(16,185,129,0.6)]" 
                         />
                       )}
-                    </button>
+                    </motion.button>
                   );
                 })}
               </div>
@@ -518,9 +521,9 @@ export function MobileApp() {
                   <div className="absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-background to-transparent pointer-events-none" />
                   <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-background to-transparent pointer-events-none" />
                 </>
-              )}
+              )}</div>
             </div>
-          </motion.div>
+
 
           {/* 交易列表 */}
           <AnimatePresence mode="popLayout" custom={direction} initial={false}>
