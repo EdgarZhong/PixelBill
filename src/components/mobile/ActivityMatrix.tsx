@@ -7,12 +7,13 @@ interface ActivityMatrixProps {
   transactions: Transaction[];
   onDateClick?: (date: Date) => void;
   dateRange?: { start: Date; end: Date };
+  selectedDate?: Date | null;
 }
 
 // 幽灵占位符数据 - 起伏态势
 const GHOST_WAVE = [3, 5, 8, 12, 6, 4, 2];
 
-export const ActivityMatrix: React.FC<ActivityMatrixProps> = ({ transactions, onDateClick, dateRange }) => {
+export const ActivityMatrix: React.FC<ActivityMatrixProps> = ({ transactions, onDateClick, dateRange, selectedDate }) => {
   const [page, setPage] = useState(0);
   const [animationDirection, setAnimationDirection] = useState(1); // 动画方向状态
   const [touchStart, setTouchStart] = useState<number | null>(null);
@@ -214,6 +215,8 @@ export const ActivityMatrix: React.FC<ActivityMatrixProps> = ({ transactions, on
           className="flex justify-between items-end h-[120px] gap-2"
         >
           {paginatedData.map((day, index) => {
+            const isSelected = selectedDate ? isSameDay(day.date, selectedDate) : false;
+
             // 如果显示幽灵模式，使用预设波形
             const ghostIntensity = showGhost ? GHOST_WAVE[index] : 0;
             
@@ -230,12 +233,12 @@ export const ActivityMatrix: React.FC<ActivityMatrixProps> = ({ transactions, on
             return (
               <div
                 key={index}
-                className={`flex flex-col gap-[2px] items-center group relative w-full h-full justify-end ${showGhost ? 'pointer-events-none' : 'cursor-pointer hover:opacity-80'} transition-opacity`}
+                className={`flex flex-col gap-[2px] items-center relative w-full h-full justify-end ${showGhost ? 'pointer-events-none' : 'cursor-pointer'} transition-opacity`}
                 onClick={() => !showGhost && onDateClick?.(day.date)}
               >
-                {/* Tooltip - 幽灵模式下不显示 */}
-                {!showGhost && (
-                  <div className="absolute bottom-full mb-2 hidden group-hover:block z-20 bg-card border border-gray-800 p-2 text-xs font-mono whitespace-nowrap shadow-xl pointer-events-none">
+                {/* Tooltip - 选中状态下显示 */}
+                {!showGhost && isSelected && (
+                  <div className="absolute bottom-full mb-2 z-20 bg-card border border-gray-800 p-2 text-xs font-mono whitespace-nowrap shadow-xl pointer-events-none">
                     <div className="text-gray-400">{format(day.date, 'yyyy-MM-dd')}</div>
                     <div className="text-expense-red">OUT: -¥{day.expense.toFixed(2)}</div>
                     <div className="text-income-yellow">IN: +¥{day.income.toFixed(2)}</div>
@@ -265,7 +268,7 @@ export const ActivityMatrix: React.FC<ActivityMatrixProps> = ({ transactions, on
                       );
                     }
 
-                    // 正常模式样式逻辑
+                    // 正常模式样式逻辑 - 基于 isSelected 状态
                     return (
                       <motion.div
                         key={i}
@@ -277,13 +280,12 @@ export const ActivityMatrix: React.FC<ActivityMatrixProps> = ({ transactions, on
                         transition={{ delay: index * 0.05 + i * 0.01 }}
                         className={`h-1 md:h-1.5 rounded-[1px] transition-colors duration-300 ${
                           isActive 
-                            ? `shadow-[0_0_2px_rgba(0,0,0,0.5)]
-                               bg-pixel-green group-hover:shadow-none
-                               ${isExpense 
-                                 ? 'group-hover:bg-expense-red' 
-                                 : 'group-hover:bg-income-yellow'
+                            ? `${isSelected ? 'shadow-none' : 'shadow-[0_0_2px_rgba(0,0,0,0.5)]'}
+                               ${isSelected 
+                                 ? (isExpense ? 'bg-expense-red' : 'bg-income-yellow') 
+                                 : 'bg-pixel-green'
                                }`
-                            : 'bg-gray-800 group-hover:bg-gray-700'
+                            : 'bg-gray-800'
                         }`}
                       />
                     );
@@ -291,7 +293,7 @@ export const ActivityMatrix: React.FC<ActivityMatrixProps> = ({ transactions, on
                 </div>
                 
                 {/* Date Label */}
-                <div className={`mt-2 text-[10px] font-mono text-dim rotate-90 md:rotate-0 origin-left translate-x-1 md:translate-x-0 transition-opacity ${showGhost ? 'opacity-30' : 'opacity-50 group-hover:opacity-100'}`}>
+                <div className={`mt-2 text-[10px] font-mono text-dim rotate-90 md:rotate-0 origin-left translate-x-1 md:translate-x-0 transition-opacity ${showGhost ? 'opacity-30' : (isSelected ? 'opacity-100 text-pixel-green' : 'opacity-50')}`}>
                   {format(day.date, 'MM/dd')}
                 </div>
               </div>

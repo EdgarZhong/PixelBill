@@ -58,7 +58,7 @@ export function mockFsMiddleware(): Plugin {
             const targetDirKey = directory === 'DATA' ? 'DATA' : 'DOCUMENTS';
             const absPath = getAbsPath(targetDirKey, relPath);
 
-            console.log(`[MockFS] ${action} -> ${relPath} (Dir: ${targetDirKey})`);
+            // console.log(`[MockFS] ${action} -> ${relPath} (Dir: ${targetDirKey})`);
 
             if (action === 'read') {
               if (fs.existsSync(absPath)) {

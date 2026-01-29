@@ -430,6 +430,7 @@ export function MobileApp() {
             transactions={filteredTransactions}
             onDateClick={(date) => setSelectedDate(date)}
             dateRange={dateRange}
+            selectedDate={selectedDate}
           />
 
           {/* 显示选定日期指示器和清除按钮 */}
@@ -437,23 +438,27 @@ export function MobileApp() {
             {selectedDate && (
               <motion.div
                 layout
-                initial={{ height: 0, opacity: 0, marginBottom: 0 }}
-                animate={{ height: 'auto', opacity: 1, marginBottom: 24 }}
-                exit={{ height: 0, opacity: 0, marginBottom: 0 }}
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
                 transition={{ duration: 0.6, ease: [0.25, 1, 0.5, 1] }}
                 className="overflow-hidden"
               >
-                <div className="p-3 bg-card/50 border border-pixel-green/50 rounded-sm flex items-center justify-between">
-                  <span className="text-xs font-mono text-pixel-green">
-                    FILTERED: {format(selectedDate, 'yyyy-MM-dd')}
-                  </span>
-                  <button
-                    onClick={() => setSelectedDate(null)}
-                    className="text-xs px-2 py-1 bg-pixel-green/20 hover:bg-pixel-green/40 text-pixel-green rounded transition-colors"
-                  >
-                    CLEAR
-                  </button>
+                <div className="bg-card/50 border border-pixel-green/50 rounded-sm">
+                  <div className="p-3 flex items-center justify-between">
+                    <span className="text-xs font-mono text-pixel-green">
+                      FILTERED: {format(selectedDate, 'yyyy-MM-dd')}
+                    </span>
+                    <button
+                      onClick={() => setSelectedDate(null)}
+                      className="text-xs px-2 py-1 bg-pixel-green/20 hover:bg-pixel-green/40 text-pixel-green rounded transition-colors"
+                    >
+                      CLEAR
+                    </button>
+                  </div>
                 </div>
+                {/* 垫片替代 marginBottom，确保动画平滑无跳动 */}
+                <div className="h-6" />
               </motion.div>
             )}
           </AnimatePresence>
