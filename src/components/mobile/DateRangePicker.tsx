@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef, useEffect } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { format, differenceInDays, addDays, startOfDay, endOfDay } from 'date-fns';
 import { PixelSlider } from '../PixelSlider';
@@ -23,7 +23,6 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({
   label,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [isHovered, setIsHovered] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
   // --- Logic Helpers ---
@@ -59,13 +58,11 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({
     type: "tween",
     ease: "easeInOut",
     duration: 0.3
-  };
+  } as const;
 
   return (
     <div 
       className="relative z-30 flex flex-col items-center justify-center h-full w-full group"
-      onMouseEnter={() => setIsHovered(true)} 
-      onMouseLeave={() => setIsHovered(false)}
       ref={containerRef}
     >
       {/* Explicit Trigger Overlay for Resting State */}

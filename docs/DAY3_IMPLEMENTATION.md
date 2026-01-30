@@ -100,6 +100,7 @@ graph LR
 ```json
 {
   "user_rules": "<用户自定义分类规则文件导出的字符串>",
+  "category_list": ["meal", "transport", "others"],
   "context": {
     "date": "2024-03-21",
     "weekday": "Thursday"
@@ -108,28 +109,22 @@ graph LR
     { 
       "id": "tx_1", 
       "time": "08:30", 
-      "counterparty": "星巴克", 
-      "product": "拿铁", 
       "amount": 32.00, 
       "direction": "out", 
-      "sourceType": "wechat",
-      "rawClass": "餐饮美食",
-      "paymentMethod": "零钱",
-      "transactionStatus": "SUCCESS",
-      "remark": "早餐咖啡" 
+      "counterparty": "星巴克", 
+      "description": "拿铁", 
+      "source": "wechat",
+      "raw_category": "餐饮美食"
     },
     { 
       "id": "tx_2", 
       "time": "12:00", 
-      "counterparty": "7-11", 
-      "product": "便当", 
       "amount": 18.50, 
       "direction": "out",
-      "sourceType": "alipay",
-      "rawClass": "生活日用",
-      "paymentMethod": "花呗",
-      "transactionStatus": "SUCCESS",
-      "remark": "/"
+      "counterparty": "7-11", 
+      "description": "便当", 
+      "source": "alipay",
+      "raw_category": "生活日用"
     }
   ]
 }
@@ -138,10 +133,19 @@ graph LR
 **Response (AI -> User)**:
 ```json
 {
-  "results": {
-    "tx_1": { "category": "餐饮", "reasoning": "早餐咖啡" },
-    "tx_2": { "category": "餐饮", "reasoning": "午餐便当" }
-  }
+  "date": "2024-03-21",
+  "results": [
+    { 
+      "id": "tx_1", 
+      "category": "meal", 
+      "reasoning": "早餐咖啡" 
+    },
+    { 
+      "id": "tx_2", 
+      "category": "meal", 
+      "reasoning": "午餐便当" 
+    }
+  ]
 }
 ```
 

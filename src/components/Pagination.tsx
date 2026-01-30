@@ -136,7 +136,7 @@ export const Pagination: React.FC<PaginationProps> = ({
       }
     };
 
-    const handlePointerUp = (e: PointerEvent) => {
+    const handlePointerUp = () => {
       if (isDragging) {
         setIsDragging(false);
         if (dragPage !== currentPage) {
@@ -145,7 +145,7 @@ export const Pagination: React.FC<PaginationProps> = ({
       }
     };
 
-    const handleTouchEnd = (e: TouchEvent) => {
+    const handleTouchEnd = () => {
       if (isDragging) {
         setIsDragging(false);
         if (dragPage !== currentPage) {

@@ -3,6 +3,7 @@ import { MobileApp } from './views/MobileApp';
 import { useState, useEffect } from 'react';
 import { configManager } from './core/config/ConfigManager';
 import { FetchClient } from './core/network/FetchClient';
+import { generateSystemPrompt } from './core/llm/prompt/SystemPrompt';
 
 function App() {
   const [isMobile, setIsMobile] = useState(false);
@@ -44,8 +45,15 @@ function App() {
 
             const requestBody = {
               model: config.model,
-              messages: [{ role: 'user', content: question }],
+              messages: [
+                { 
+                  role: 'system', 
+                  content: PIXEL_BILL_SYSTEM_PROMPT 
+                },
+                { role: 'user', content: question }
+              ],
               stream: false,
+              response_format: { type: 'json_object' },
               extra_body: config.enableThinking ? { enable_thinking: true } : undefined
             };
 

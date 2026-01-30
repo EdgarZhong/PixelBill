@@ -5,7 +5,7 @@
 export class CryptoUtils {
   private static readonly ALGORITHM = 'AES-GCM';
   private static readonly KDF_ALGORITHM = 'PBKDF2';
-  private static readonly SALT_LENGTH = 16;
+  // private static readonly SALT_LENGTH = 16;
   private static readonly IV_LENGTH = 12;
   private static readonly KEY_LENGTH = 256;
   private static readonly ITERATIONS = 100000;

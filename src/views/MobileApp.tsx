@@ -58,7 +58,7 @@ export function MobileApp() {
   const tabContainerRef = useRef<HTMLDivElement>(null);
   const detailTouchStartRef = useRef<{ x: number; y: number; timestamp: number } | null>(null);
   // 修改 ref 类型以支持 Framer Motion controls
-  const animationFrameRef = useRef<number | { stop: () => void } | null>(null);
+  const animationFrameRef = useRef<number | null>(null);
   
   // 当点击直方图某一天时，过滤该天的交易
   const displayTransactions = selectedDate
@@ -318,7 +318,7 @@ export function MobileApp() {
       filter: 'blur(4px)',
       transition: {
         duration: 0.6,
-        ease: [0.25, 1, 0.5, 1]
+        ease: [0.25, 1, 0.5, 1] as const
       }
     }),
     center: {
@@ -328,7 +328,7 @@ export function MobileApp() {
       filter: 'blur(0px)',
       transition: {
         duration: 0.6,
-        ease: [0.25, 1, 0.5, 1],
+        ease: [0.25, 1, 0.5, 1] as const,
         filter: { duration: 0.1, ease: "linear" }
       }
     },
@@ -339,7 +339,7 @@ export function MobileApp() {
       filter: 'blur(4px)',
       transition: {
         duration: 0.6,
-        ease: [0.25, 1, 0.5, 1]
+        ease: [0.25, 1, 0.5, 1] as const
       }
     })
   };
@@ -437,7 +437,6 @@ export function MobileApp() {
           <AnimatePresence>
             {selectedDate && (
               <motion.div
-                layout
                 initial={{ height: 0, opacity: 0 }}
                 animate={{ height: 'auto', opacity: 1 }}
                 exit={{ height: 0, opacity: 0 }}

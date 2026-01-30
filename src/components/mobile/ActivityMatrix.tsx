@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 interface ActivityMatrixProps {
   transactions: Transaction[];
   onDateClick?: (date: Date) => void;
-  dateRange?: { start: Date; end: Date };
+  dateRange?: { start: Date | null; end: Date | null };
   selectedDate?: Date | null;
 }
 
