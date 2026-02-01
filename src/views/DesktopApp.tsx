@@ -155,6 +155,7 @@ export function DesktopApp() {
               >
                 <TransactionList 
                   transactions={filteredTransactions} 
+                  currentFilter={filter}
                 />
               </motion.div>
             </AnimatePresence>

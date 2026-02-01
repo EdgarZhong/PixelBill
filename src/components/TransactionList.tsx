@@ -10,9 +10,16 @@ interface TransactionListProps {
   onTransactionClick?: (transaction: Transaction) => void;
   isMobile?: boolean;
   activeTransactionId?: string | null;
+  currentFilter?: string;
 }
 
-export const TransactionList: React.FC<TransactionListProps> = ({ transactions, onTransactionClick, isMobile = false, activeTransactionId }) => {
+export const TransactionList: React.FC<TransactionListProps> = ({ 
+  transactions, 
+  onTransactionClick, 
+  isMobile = false, 
+  activeTransactionId,
+  currentFilter = 'ALL'
+}) => {
   const [currentPage, setCurrentPage] = useState(1);
   const [direction, setDirection] = useState(0);
   const listTopRef = useRef<HTMLDivElement>(null);
@@ -164,6 +171,7 @@ export const TransactionList: React.FC<TransactionListProps> = ({ transactions, 
                   transaction={t}
                   onClick={onTransactionClick}
                   isActive={t.id === activeTransactionId}
+                  currentFilter={currentFilter}
                 />
               )
             ))}

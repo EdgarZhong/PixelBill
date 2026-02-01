@@ -1,4 +1,4 @@
-import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
+import { Filesystem, Directory, Encoding } from '../../../utils/filesystem-adapter';
 
 export class RuleLoader {
   private static readonly BASE_PATH = 'PixelBill/classify_rules';

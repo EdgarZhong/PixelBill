@@ -1,7 +1,7 @@
 import { generateSystemPrompt } from './SystemPrompt';
 import { RuleLoader } from './RuleLoader';
 import { LedgerLoader } from './LedgerLoader';
-import type { ChatMessage } from '../infrastructure/types';
+import type { ChatMessage } from '../types';
 import type { TransactionBase } from '../../../types/metadata';
 import { format } from 'date-fns';
 
@@ -57,7 +57,7 @@ export class PromptBuilder {
     return [
       {
         role: 'system',
-        content: PIXEL_BILL_SYSTEM_PROMPT
+        content: generateSystemPrompt({ language })
       },
       {
         role: 'user',

@@ -169,8 +169,8 @@ const parseAlipayCSV = async (csvText: string): Promise<Transaction[]> => {
       originalDate: date,
       time: format(date, 'yyyy-MM-dd HH:mm:ss'),
       sourceType: 'alipay',
-      category: 'others',
-      rawClass: category,
+      category: 'uncategorized', // Default to uncategorized for new imports
+          rawClass: category,
       counterparty: counterparty,
       product: product,
       amount: amount,

@@ -544,6 +544,7 @@ export function MobileApp() {
                 onTransactionClick={handleTransactionSelect}
                 isMobile={true}
                 activeTransactionId={activeTransactionId}
+                currentFilter={filter}
               />
             </motion.div>
           </AnimatePresence>

@@ -8,6 +8,7 @@ interface TransactionItemProps {
   transaction: Transaction;
   onClick?: (transaction: Transaction) => void;
   isActive?: boolean;
+  currentFilter?: string;
 }
 
 // 心理账户分级点阵
@@ -39,7 +40,8 @@ const AmountDots: React.FC<{ amount: number }> = ({ amount }) => {
 export const TransactionItem: React.FC<TransactionItemProps> = ({
   transaction: t,
   onClick,
-  isActive
+  isActive,
+  currentFilter = 'ALL'
 }) => {
   return (
     <div className={clsx('group relative overflow-hidden rounded-sm')}>
@@ -62,8 +64,11 @@ export const TransactionItem: React.FC<TransactionItemProps> = ({
         <div className="flex-1 min-w-0 pl-2">
           <div className="flex items-baseline gap-2 mb-1 h-5">
             <span className="text-primary truncate font-bold leading-none">
-              {t.category !== 'others' && (
-                <span className="text-income-yellow mr-2 text-[10px]">
+              {currentFilter === 'ALL' && (
+                <span className={clsx(
+                  "mr-2 text-[10px]",
+                  t.category === 'uncategorized' ? "text-expense-red" : "text-income-yellow"
+                )}>
                   [{CategoryDict[t.category] || t.category.toUpperCase()}]
                 </span>
               )}

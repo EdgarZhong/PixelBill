@@ -245,6 +245,27 @@ Day 2 移动端交互重构的实现文档请参阅 [DAY2_IMPLEMENTATION.md](doc
 
 ---
 
+## 🧪 维护与测试计划 (Maintenance & Testing)
+
+### 1. 边界异常测试 (Boundary Testing)
+已通过 `src/scripts/test_boundaries.ts` 验证以下核心逻辑的健壮性：
+- [x] **数据畸形恢复**: 模拟 JSON 字段缺失或类型错误时，Arbiter 能够安全降级到 Fallback 状态，不导致 Crash。
+- [x] **高频并发一致性**: 模拟 1ms 内连续 5 次状态变更，验证时间戳最新的状态最终胜出。
+- [x] **乱序到达防御**: 模拟网络延迟导致旧数据（Timestamp 小）晚于新数据到达，系统正确拒绝旧数据，保护最新状态。
+
+### 2. UI/交互极端情况测试 (UI/UX Extreme Cases)
+**[待执行]** 下一阶段需在真实设备或 E2E 环境中验证以下场景：
+- **权限被拒 (Permission Denied)**: 
+    - Android 端拒绝文件存储权限后，App 应弹出友好提示并禁用相关功能，而非崩溃。
+- **文件被锁 (File Lock)**: 
+    - 模拟文件正在被其他应用占用（或系统备份中）时的写入行为，验证 `fs-storage` 的重试机制。
+- **UI 压力测试 (UI Stress)**:
+    - **快速连击**: 在 1s 内连续点击分类标签 10 次，验证防抖 (Debounce) 逻辑是否只触发一次文件写入。
+    - **大数据量渲染**: 导入 > 5000 条数据时，验证虚拟列表滚动流畅度及内存占用。
+    - **长文件名/特殊字符**: 导入包含 Emoji 或超长文件名的 CSV，验证显示与存储是否正常。
+
+---
+
 Made with ❤️ by **CyberZen Studio**
 
 License: MIT

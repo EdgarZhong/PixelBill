@@ -460,7 +460,18 @@ export interface LedgerMemory {
 1.  **状态惯性**: 优先保留该交易上一次的历史分类（如有）。
 2.  **最终兜底**: 归为 `Uncategorized` 或 `others`。
 
-#### C. 插件接口定义 (Plugin Interface)
+#### C. 时序卫士 (Timestamp Guard)
+
+为了解决“远程 AI 结果（新）被本地旧文件读取（旧）覆盖”的竞态问题，Arbiter 实现了严格的时序保护机制。
+
+1.  **原则**: Arbiter 拒绝“来自过去”的提案。
+2.  **机制**:
+    *   对于同一信源（Source），Arbiter 仅接受 `timestamp >= current_cached_timestamp` 的新提案。
+    *   **Remote AI**: 生成提案时使用 `Date.now()` (最新)。
+    *   **Local AI**: 读取文件时使用 `meta.updated_at` 或 `file.mtime` (历史)。
+3.  **效果**: 即使 Local Plugin 在 Remote Plugin 之后读取到了旧文件，由于其时间戳较早，提案将被 Arbiter 丢弃，从而保护了内存中最新的远程 AI 结果。
+
+#### D. 插件接口定义 (Plugin Interface)
 
 ```typescript
 export type ProposalSource = 'USER' | 'RULE_ENGINE' | 'AI_AGENT';
@@ -685,11 +696,38 @@ function generatePatch(proposal: Proposal): PersistencePatch {
 
 #### D. 文件监听与热重载 (Watcher & Hot Reload)
 
-1.  **单一信源**: 系统仅监听唯一的账本文件 `[账本名].pixelbill.json`。
-2.  **被动触发**: 
-    *   本地 AI 插件**不**主动读取文件。
-    *   当外部进程（如 Python 脚本）修改 JSON 时，`File Watcher` 捕获变更 -> 触发 App 重载 -> `LocalAIMetaPlugin` 将新的 `ai_category` 转换为 Proposal -> 注入 Arbiter。
-3.  **循环破除**: Writer 在写入文件时会暂时挂起 Watcher（或通过对比最后修改时间），防止“App 写文件 -> Watcher 报变更 -> App 重读”的死循环。
+1.  **Desktop First**:
+    *   **Desktop**: 启用 `FileWatcher` (Polling/Events)，支持用户使用外部编辑器修改文件后即时生效。
+    *   **Mobile**: **禁用** 实时监听（省电/性能优化）。改为 **Lifecycle Reload**：仅在 App 从后台切回前台 (OnResume) 时触发一次数据检查与重载。
+2.  **单一信源**: 系统仅监听唯一的账本文件 `[账本名].pixelbill.json`。
+3.  **循环破除**: Writer 在写入文件时会暂时挂起 Watcher，防止死循环。
+
+#### E. 用户备注同步规则 (User Note Sync Rule)
+
+为了保证数据的一致性，UI 层在生成 `USER` 来源的提案时，必须遵循以下联动规则：
+*   **Trigger**: 当用户修改 `user_category` 时。
+*   **Action**: 必须**同步**提交 `user_note` 的更新。
+    *   若用户未显式修改备注，默认清空旧备注（防止“分类变了，旧备注还在”的语义冲突）。
+    *   若用户显式输入了新备注，提交新值。
+    *   允许提交空字符串。
+*   **Payload**: `{ category: "NEW_CAT", reasoning: "NEW_NOTE" | "" }` (Atomic Update).
+
+#### F. 一致性维护策略 (Consistency Maintenance Strategy)
+
+针对 **冷启动** (Cold Start) 和 **仲裁逻辑变更** (Re-Arbitration) 导致的文件与内存不一致问题，必须实施以下策略：
+
+1.  **启动时一致性检查 (Startup Consistency Check)**:
+    *   **时机**: App 启动并完成 `hydrate` 后，或 `useMemo` 完成首轮全量仲裁时。
+    *   **逻辑**: 遍历所有交易，比对 `Arbiter.decide(tx).category` (内存计算值) 与 `meta.category` (文件存储值)。
+    *   **触发**: 若发现不一致，标记为 **Dirty**，并生成 `PersistencePatch` 推送至 Writer 队列。
+    *   **防抖**: 由于启动时可能产生大量不一致（如规则库更新后），Writer 的防抖机制 (1000ms) 将自动合并这些 Patch，执行一次或少量的批量写入，避免 IO 风暴。
+
+2.  **重仲裁回写 (Re-Arbitration Persistence)**:
+    *   **场景**: 当 `RulePlugin` 更新或 `AIPlugin` 切换模型导致优先级/结果变更时。
+    *   **行为**: 触发全量 `decide` -> 发现变更 -> 触发 `dispatchPersistence`。确保文件系统始终反映最新的仲裁共识。
+
+3.  **脏检查原则 (Dirty Check Principle)**:
+    *   为了减少 IO，只有当 `final_category` 或 `reasoning` 真正发生变化时才写入。单纯的 `timestamp` 更新不应触发持久化（除非是为了作为心跳包，但目前无需此机制）。
 
 ## 6. 开发守则 (User Rules)
 

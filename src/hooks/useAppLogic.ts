@@ -15,36 +15,52 @@ import type { StorageHandle, StorageDirHandle } from '../utils/fs-storage';
 import type { Transaction } from '../types';
 import type { LedgerMemory, FullTransactionRecord } from '../types/metadata';
 import { startOfDay, endOfDay, isWithinInterval, format, parse } from 'date-fns';
-import { globalArbiter } from '../core/arbiter/Arbiter';
-import { LocalAIMetaPlugin } from '../core/plugin';
+import { globalArbiter, type PersistencePatch } from '../core/arbiter/Arbiter';
 import { useFileWatcher, type FileChangeInfo } from './useFileWatcher';
+import { useDebouncedWriter } from './useDebouncedWriter';
 
 // Register default plugins once
 // globalArbiter.registerPlugin(new RegexRulePlugin());
-globalArbiter.registerPlugin(new LocalAIMetaPlugin());
+// globalArbiter.registerPlugin(new LocalAIMetaPlugin());
 
 export function useAppLogic() {
   const [rawTransactions, setRawTransactions] = useState<Transaction[]>([]);
   // Ledger Memory (Metadata)
   const [ledgerMemory, setLedgerMemory] = useState<LedgerMemory | null>(null);
+  const [arbiterTick, setArbiterTick] = useState(0); // Force re-render when Arbiter updates
   // const [storageStatus, setStorageStatus] = useState<'disconnected' | 'connected' | 'saving'>('disconnected');
   const [isLoading, setIsLoading] = useState(false);
   const [filter, setFilter] = useState<string>('ALL');
   const [direction, setDirection] = useState(0);
   const TABS = useMemo(() => {
-    const defaultTabs = ['ALL', 'meal', 'transport', 'shopping', 'entertainment', 'health', 'education', 'housing', 'travel', 'digital', 'pets', 'others'];
+    // Design 3.5 Tag System Specification
+    // Structure: [ ALL ] + [ JSON Defined List ] + [ OTHERS (if exists) ] + [ UNCATEGORIZED ]
+
+    const defaultTabs = ['ALL', 'uncategorized'];
     if (!ledgerMemory) return defaultTabs;
 
     const defined = ledgerMemory.defined_categories || [];
-    // Constraint: View must always have 'ALL'
-    const tabs = ['ALL', ...defined];
+    
+    // 1. Start with ALL
+    const tabs = ['ALL'];
 
-    // Constraint: If at least one category tag exists (excluding ALL), 'others' must exist
-    if (defined.length > 0 && !tabs.includes('others')) {
+    // 2. Add JSON Defined List (Strict Order)
+    tabs.push(...defined);
+
+    // 3. Add OTHERS if defined list is not empty (Logic Layer rule)
+    // Note: Design says "Others Injection: Only when defined_categories is not empty"
+    // AND check if 'others' is not already in defined list (avoid dup)
+    if (defined.length > 0 && !defined.includes('others')) {
       tabs.push('others');
     }
 
-    // Deduplicate
+    // 4. Always end with UNCATEGORIZED
+    // Ensure we don't duplicate if it was somehow in defined list (though it shouldn't be)
+    if (!tabs.includes('uncategorized')) {
+      tabs.push('uncategorized');
+    }
+
+    // Deduplicate (Safety net)
     return Array.from(new Set(tabs));
   }, [ledgerMemory]);
 
@@ -77,6 +93,111 @@ export function useAppLogic() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const memoryFileHandleRef = useRef<StorageHandle | null>(null);
   const lastSaveTimeRef = useRef(0); // 记录最后一次自身写入的时间，防止 Watcher 回环触发
+  
+  // Persistence Loop (Step 4.2)
+  const { scheduleWrite } = useDebouncedWriter();
+  
+  // --- Arbiter Integration ---
+
+  // 1. Hydrate Arbiter from Ledger Memory
+  useEffect(() => {
+    if (ledgerMemory) {
+      Object.entries(ledgerMemory.records).forEach(([id, meta]) => {
+        globalArbiter.hydrate(id, meta);
+      });
+      setArbiterTick(t => t + 1);
+
+      // --- Consistency Check (Design 5.3.F) ---
+      // Runs once after hydration to ensure File == Memory
+      if (memoryFileHandleRef.current) {
+        console.log('[System] Running Consistency Check...');
+        const updates: Record<string, FullTransactionRecord> = {};
+        let updateCount = 0;
+
+        Object.keys(ledgerMemory.records).forEach(id => {
+          const record = ledgerMemory.records[id];
+          const decision = globalArbiter.decide(id);
+          
+          // Dirty Check: Compare Logic Category vs File Category
+          // Note: record.category is the cached "final category" in JSON
+          if (decision.category !== record.category) {
+            updates[id] = {
+              ...record,
+              category: decision.category,
+              // If AI/Rule changed the outcome, update timestamp? 
+              // No, per Dirty Check Principle, we only sync the RESULT to file.
+              // Unless we want to persist the AI source fields too?
+              // Assuming AI plugin would have triggered its own ingest if it was a new AI result.
+              // Here we just fix the "Cached Category" field in JSON.
+            };
+            updateCount++;
+          }
+        });
+
+        if (updateCount > 0) {
+          console.log(`[System] Consistency Check found ${updateCount} dirty records. Scheduling write...`);
+          const newMemory = {
+            ...ledgerMemory,
+            records: {
+              ...ledgerMemory.records,
+              ...updates
+            }
+          };
+          scheduleWrite(memoryFileHandleRef.current, newMemory);
+          // Note: We don't call setLedgerMemory here to avoid re-triggering this effect immediately.
+          // The scheduleWrite will update file, and if we wanted to update UI state we should.
+          // But UI is driven by Arbiter (which is already correct), so ledgerMemory state is just for persistence base.
+          // Actually, we SHOULD update state so future diffs are correct.
+          // But updating state triggers this effect again.
+          // However, next time 'decision.category' will equal 'record.category', so updateCount will be 0.
+          setLedgerMemory(newMemory); 
+        } else {
+          console.log('[System] Consistency Check Passed. No writes needed.');
+        }
+      }
+    }
+  }, [ledgerMemory]);
+
+  // 2. Handle Arbiter Patches (Persistence)
+  useEffect(() => {
+    globalArbiter.setPatchCallback((patch: PersistencePatch) => {
+      console.log('[AppLogic] Received patch:', patch.id, patch.updates);
+      setLedgerMemory(prev => {
+        if (!prev) {
+            console.warn('[AppLogic] LedgerMemory is null, cannot apply patch.');
+            return null;
+        }
+        const record = prev.records[patch.id];
+        // If record doesn't exist, we might need to create it? 
+        // Usually patch comes from existing transaction, so record should exist or be created by loader.
+        // If arbiter emits patch for unknown ID, ignore.
+        if (!record) {
+             console.warn('[AppLogic] Record not found for patch:', patch.id);
+             return prev; 
+        }
+
+        const newRecord = { ...record, ...patch.updates };
+        const newMemory = {
+          ...prev,
+          records: {
+            ...prev.records,
+            [patch.id]: newRecord
+          }
+        };
+
+        // 2. Persist to Disk (Debounced)
+        if (memoryFileHandleRef.current) {
+          console.log('[AppLogic] Scheduling write for patch:', patch.id);
+          scheduleWrite(memoryFileHandleRef.current, newMemory);
+          lastSaveTimeRef.current = Date.now();
+        } else {
+          console.error('[AppLogic] memoryFileHandleRef is missing! Cannot persist.');
+        }
+
+        return newMemory;
+      });
+    });
+  }, []);
 
   // 性能优化：缓存上一次的合并结果
   // Key: Transaction ID
@@ -136,12 +257,13 @@ export function useAppLogic() {
         is_verified: safeMeta.is_verified || false,
         updated_at: safeMeta.updated_at || "",
         // 核心修复：优先使用 meta 中的历史分类（即上一次的仲裁结果）作为基准
-        // 当所有信源（User/Rule/AI）都失效时，Arbiter 将回退到这个值，而不是盲目重置为 'others'
-        category: (meta && meta.category) || t.category || 'others'
+        // 当所有信源（User/Rule/AI）都失效时，Arbiter 将回退到这个值
+        // 如果没有历史值，则默认为 'uncategorized' (新逻辑) 而不是 'others'
+        category: (meta && meta.category) || t.category || 'uncategorized'
       };
 
       // --- Arbitration Logic ---
-      const decision = globalArbiter.decide(tempRecord as FullTransactionRecord, ledgerMemory || undefined);
+      const decision = globalArbiter.decide(t.id);
       
       // [DEBUG] Trace specific IDs to verify arbitration logic
       if (['5110f45d20aab6c3', 'd4db723dbb333a5a'].includes(t.id)) {
@@ -151,7 +273,11 @@ export function useAppLogic() {
       const candidate = decision.category;
 
       // --- Category Logic (Strict Validation) ---
-      const finalCategory = validCategories.includes(candidate) ? candidate : 'others';
+      // Allow 'uncategorized' to pass through.
+      // If category is invalid (not in defined list and not 'uncategorized'), reset to 'uncategorized' for re-processing.
+      const finalCategory = (validCategories.includes(candidate) || candidate === 'uncategorized') 
+        ? candidate 
+        : 'uncategorized';
 
       const newResult = {
         ...tempRecord,
@@ -167,7 +293,7 @@ export function useAppLogic() {
 
       return newResult;
     });
-  }, [rawTransactions, ledgerMemory]);
+  }, [rawTransactions, ledgerMemory, arbiterTick]);
 
   // Update date range when new transactions are loaded
   useEffect(() => {
@@ -183,57 +309,24 @@ export function useAppLogic() {
     }
   }, [transactions]);
 
-  // --- Sync Arbitration Result to Persistence ---
-  // 当仲裁结果(transactions)与存储状态(ledgerMemory)不一致时，
-  // 触发反向同步，将最新的 category 写入 JSON。
-  useEffect(() => {
-    if (!ledgerMemory || transactions.length === 0) return;
+  // --- User Action Handlers (Arbiter Bridge) ---
+  const updateCategory = async (id: string, newCategory: string, newReasoning?: string) => {
+    // 1. Construct Proposal
+    // Design 5.3.E: User Note Sync Rule - Atomically update note when category changes
+    const proposal: import('../core/plugin/types').Proposal = {
+      source: 'USER',
+      category: newCategory,
+      reasoning: newReasoning ?? "", // If not provided, default to empty (clear note)
+      timestamp: Date.now(),
+      txId: id
+    };
 
-    const updates: Record<string, FullTransactionRecord> = {};
-    let hasChanges = false;
-
-    transactions.forEach(tx => {
-      const stored = ledgerMemory.records[tx.id];
-      // 如果存储中不存在（新记录）或者 category 不一致
-      // 注意：这里只关注 category 的变化。
-      if (stored && stored.category !== tx.category) {
-        // 发现不一致！
-        updates[tx.id] = {
-          ...stored,
-          category: tx.category,
-          updated_at: format(new Date(), 'yyyy-MM-dd HH:mm:ss')
-        } as FullTransactionRecord;
-        hasChanges = true;
-      }
-    });
-
-    if (hasChanges) {
-      console.log(`[Sync] Detected ${Object.keys(updates).length} category changes. Persisting...`);
-      
-      // 构造新内存对象
-      const newMemory = {
-        ...ledgerMemory,
-        records: {
-          ...ledgerMemory.records,
-          ...updates
-        }
-      };
-
-      // 1. Update State (这将触发新一轮 render，但因为 category 已一致，不会再进此分支)
-      setLedgerMemory(newMemory);
-
-      // 2. Persist to Disk
-      if (memoryFileHandleRef.current) {
-        writeMemoryFile(memoryFileHandleRef.current, newMemory)
-          .then(() => {
-            lastSaveTimeRef.current = Date.now();
-          })
-          .catch(err => 
-            console.error('[Sync] Save failed:', err)
-          );
-      }
-    }
-  }, [transactions, ledgerMemory]);
+    // 2. Ingest to Arbiter
+    globalArbiter.ingest(id, proposal);
+    
+    // 3. Trigger Render Update
+    setArbiterTick(t => t + 1);
+  };
 
   // --- Helper: Sync Parsed Data with Ledger ---
   const syncWithLedger = async (
@@ -345,8 +438,8 @@ export function useAppLogic() {
           // Sort by date desc (latest first)
           restoredTransactions.sort((a, b) => b.originalDate.getTime() - a.originalDate.getTime());
           
-          // Ingest into arbiter for rule learning
-          await globalArbiter.ingest(restoredTransactions);
+          // Removed erroneous ingest call (Hydration handled by useEffect)
+          // await globalArbiter.ingest(restoredTransactions);
           
           setRawTransactions(restoredTransactions);
           console.log(`System: Hydrated ${restoredTransactions.length} transactions from memory.`);
@@ -390,8 +483,8 @@ export function useAppLogic() {
         
         const parsedData = await parseFiles(files);
         
-        // Pre-calculate rules before rendering
-        await globalArbiter.ingest(parsedData);
+        // Removed erroneous ingest call
+        // await globalArbiter.ingest(parsedData);
 
         setRawTransactions(parsedData);
         
@@ -454,8 +547,8 @@ export function useAppLogic() {
     try {
       const parsedData = await parseFiles(fileArray);
       
-      // Pre-calculate rules before rendering
-      await globalArbiter.ingest(parsedData);
+      // Removed erroneous ingest call
+      // await globalArbiter.ingest(parsedData);
       
       // Merging Strategy: Append new data to existing data, deduplicate by ID
       setRawTransactions(prev => {
@@ -579,8 +672,8 @@ export function useAppLogic() {
     ledgerMemory,
     isLoading,
     filter,
-    setFilter,
     handleTabChange,
+    updateCategory, // Expose Action
     direction,
     dateRange,
     setDateRange,

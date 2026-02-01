@@ -14,7 +14,7 @@ export type TransactionStatus = typeof TransactionStatus[keyof typeof Transactio
 
 export const CategoryDict: Record<string, string> = {
   meal: 'MEAL',
-  others: 'OTHER',
+  others: 'OTHERS',
 };
 
 // 基础交易数据结构 (JSON 友好，存储用)

@@ -6,27 +6,27 @@ export interface Proposal {
   /**
    * 提案来源：
    * - USER: 用户手动指定（最高优先级）
-   * - RULE_ENGINE: 正则/关键词规则匹配
-   * - AI_AGENT: LLM 模型推理
+   * - RULE_ENGINE: 规则引擎匹配（中等优先级）
+   * - AI_AGENT: LLM 模型推理（最低优先级）
    */
   source: ProposalSource;
   
   /**
    * 建议的分类名称
    */
-  category?: string;
+  category: string;
   
   /**
-   * 推理理由（用于 AI 解释或规则名称）
+   * 推理理由（用于 AI 解释或 User Note）
+   * - 必填，无内容则为空字符串
    */
-  reasoning?: string;
+  reasoning: string;
   
   /**
-   * 置信度 (0.0 - 1.0)
-   * 注意：目前仲裁策略仅基于优先级，暂不使用置信度进行加权
+   * 关联的交易ID (用于反向索引)
    */
-  confidence: number;
-  
+  txId?: string;
+
   /**
    * 提案生成时间戳
    */

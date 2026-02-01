@@ -18,19 +18,16 @@ export abstract class CategoryPlugin implements ICategoryPlugin {
    * 辅助方法：快速构建标准化的 Proposal 对象
    * @param source 来源
    * @param category 建议分类
-   * @param confidence 置信度 (0-1)
    * @param reasoning 理由
    */
   protected createProposal(
     source: ProposalSource,
     category: string,
-    confidence: number,
     reasoning?: string
   ): Proposal {
     return {
       source,
       category,
-      confidence: Math.max(0, Math.min(1, confidence)), // 确保在 0-1 之间
       reasoning,
       timestamp: Date.now(),
     };
