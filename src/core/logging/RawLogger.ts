@@ -16,6 +16,24 @@ const MAX_LOG_FILES = 300;
 
 export class RawLogger {
   /**
+   * 适配 LLMClient 的实例方法
+   */
+  public async logInteraction(
+    messages: any[],
+    response: any,
+    duration: number,
+    model: string
+  ) {
+    const batchId = `LLM_${Date.now()}`;
+    await RawLogger.log(batchId, {
+      request: { model, messages },
+      response,
+      duration_ms: duration,
+      status: 'SUCCESS'
+    });
+  }
+
+  /**
    * 记录一次完整的 LLM 交互
    * @param batchId 批次ID (通常是 hash 或 uuid)
    * @param entry 日志内容
@@ -36,7 +54,7 @@ export class RawLogger {
         try {
           await Filesystem.mkdir({
             path: LOG_DIR,
-            directory: Directory.Documents,
+            directory: Directory.Data,
             recursive: true
           });
         } catch (e) {
@@ -46,7 +64,7 @@ export class RawLogger {
         await Filesystem.writeFile({
           path: `${LOG_DIR}/${fileName}`,
           data: content,
-          directory: Directory.Documents,
+          directory: Directory.Data,
           encoding: Encoding.UTF8
         });
       } else {
@@ -71,7 +89,7 @@ export class RawLogger {
     try {
       const result = await Filesystem.readdir({
         path: LOG_DIR,
-        directory: Directory.Documents
+        directory: Directory.Data
       });
 
       const files = result.files;
@@ -91,7 +109,7 @@ export class RawLogger {
       for (const file of toDelete) {
         await Filesystem.deleteFile({
           path: `${LOG_DIR}/${file.name}`,
-          directory: Directory.Documents
+          directory: Directory.Data
         });
       }
 

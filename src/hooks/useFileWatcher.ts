@@ -26,8 +26,15 @@ export function useFileWatcher(
   }, [onFileChange]);
 
   useEffect(() => {
-    if (!fileHandle) {
+    // Mobile Performance Optimization:
+    // Disable file watching on native devices to save battery and CPU.
+    // Cloud Sync (Future) should use a dedicated Event Bus or Push Notification mechanism,
+    // not low-level file polling.
+    if (!fileHandle || isNative) {
       setIsWatching(false);
+      if (isNative) {
+        console.log('[FileWatcher] Disabled on native platform for performance.');
+      }
       return;
     }
 

@@ -30,7 +30,7 @@
       "remark": "/",
       "ai_category": "meal",
       "ai_reasoning": "正餐时间段的肉夹馍餐饮消费，金额合理",
-      "user_category": "pets",
+      "user_category": "",
       "user_note": "Manual Test Update",
       "is_verified": false,
       "updated_at": "2026-02-01 10:09:23"
@@ -5009,11 +5009,11 @@
       "transactionStatus": "SUCCESS",
       "remark": "",
       "ai_category": "others",
-      "ai_reasoning": "奶茶饮品",
+      "ai_reasoning": "傍晚18:48支付12元，商户'有凤来仪'信息不明。金额12元，未超过70元的大餐阈值。无明确正餐商户特征（如食堂、面馆），根据规则归为其他。",
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-01 10:09:23"
+      "updated_at": "2026-02-01T10:23:16.219Z"
     },
     "febc11b3ce1eb28a": {
       "id": "febc11b3ce1eb28a",

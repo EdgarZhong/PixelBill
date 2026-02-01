@@ -5,10 +5,10 @@ import { PromptBuilder } from '../llm_service/prompt/PromptBuilder';
 import { 
   getAutoDirectoryHandle, 
   getMemoryFileHandle, 
-  readMemoryFile, 
-  writeMemoryFile 
+  readMemoryFile 
 } from '../../utils/fs-storage';
 import type { LedgerMemory, FullTransactionRecord } from '../../types/metadata';
+import type { Proposal } from '../plugin/types';
 import type { AIStatus, AIProgress, ProcessingResult } from './types';
 import { format, parseISO, compareDesc } from 'date-fns';
 
@@ -19,6 +19,7 @@ export class BatchProcessor {
   private progress: AIProgress = { total: 0, current: 0, currentDate: '' };
   private listeners: ((status: AIStatus, progress: AIProgress) => void)[] = [];
   private shouldStop = false;
+  private proposalHandler?: (txId: string, proposal: Proposal) => void;
 
   private constructor() {}
 
@@ -27,6 +28,10 @@ export class BatchProcessor {
       BatchProcessor.instance = new BatchProcessor();
     }
     return BatchProcessor.instance;
+  }
+
+  public setProposalHandler(handler: (txId: string, proposal: Proposal) => void) {
+    this.proposalHandler = handler;
   }
 
   public subscribe(listener: (status: AIStatus, progress: AIProgress) => void) {
@@ -133,31 +138,26 @@ export class BatchProcessor {
               throw new Error('Invalid AI response structure');
             }
 
-            // Write Back (Critical Section)
-            // We re-read the memory to ensure we have the latest version (Optimistic Locking simulation)
-            memory = await readMemoryFile(fileHandle);
-            let updatesCount = 0;
-
-            aiResult.results.forEach((item: any) => {
-              const txId = item.id;
-              const tx = memory.records[txId] as FullTransactionRecord;
-              
-              if (tx && !tx.is_verified) {
-                // Only update if not verified by user
-                tx.ai_category = item.category;
-                tx.ai_reasoning = item.reasoning;
-                // We do NOT update the main 'category' field directly, 
-                // we leave that to the Arbiter/User to confirm (or Auto-Accept logic if enabled later).
-                // But wait, the plan says: "AIProcessor (writes Metadata) -> pixelbill.json"
-                // And "AIPlugin ... simply reads ai_category".
-                // So we write to ai_category. 
-                // If the system is set to auto-apply, Arbiter will pick it up.
-                updatesCount++;
-              }
-            });
-
-            if (updatesCount > 0) {
-              await writeMemoryFile(fileHandle, memory);
+            // Ingest to Arbiter (Proposal System)
+            // We do not write to file directly anymore. We let Arbiter handle the persistence.
+            if (this.proposalHandler) {
+              const timestamp = Date.now();
+              aiResult.results.forEach((item: any) => {
+                 // Only propose if we have valid data
+                 if (item.id && item.category) {
+                    const proposal: Proposal = {
+                        source: 'AI_AGENT',
+                        category: item.category,
+                        reasoning: item.reasoning,
+                        timestamp: timestamp,
+                        txId: item.id
+                    };
+                    // Call handler (which should call Arbiter.ingest)
+                    this.proposalHandler!(item.id, proposal);
+                 }
+              });
+            } else {
+                console.warn('[BatchProcessor] No proposal handler registered! Results are lost.');
             }
             
             result.processedCount++;

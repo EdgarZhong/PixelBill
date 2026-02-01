@@ -1,0 +1,13 @@
+{
+  "extends": "./tsconfig.app.json",
+  "compilerOptions": {
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "paths": {
+      "@capacitor/filesystem": ["./scripts/mocks/node-filesystem.ts"],
+      "@capacitor/core": ["./scripts/mocks/capacitor-core.ts"]
+    },
+    "types": ["node"]
+  },
+  "include": ["src", "scripts"]
+}

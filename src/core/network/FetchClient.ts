@@ -30,6 +30,12 @@ export class FetchClient {
 
         if (!response.ok) {
           const errorText = await response.text();
+          
+          // 429 (Too Many Requests) and 5xx (Server Errors) are retryable
+          if (response.status === 429 || response.status >= 500) {
+             throw new Error(`HTTP_RETRYABLE ${response.status}: ${errorText}`);
+          }
+          
           throw new Error(`HTTP ${response.status}: ${errorText}`);
         }
 
@@ -48,8 +54,9 @@ export class FetchClient {
         // 4xx 错误通常不重试
         const isTimeout = err.name === 'AbortError';
         const isNetworkError = err instanceof TypeError; // fetch network error
+        const isRetryableHttp = err.message && err.message.startsWith('HTTP_RETRYABLE');
         
-        if (isTimeout || isNetworkError) {
+        if (isTimeout || isNetworkError || isRetryableHttp) {
           console.warn(`[FetchClient] Attempt ${attempt + 1} failed: ${err.message}. Retrying...`);
           attempt++;
           // Exponential backoff

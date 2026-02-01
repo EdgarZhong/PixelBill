@@ -3,3 +3,4 @@ export * from './CategoryPlugin';
 export * from './RegexRulePlugin';
 export * from './UserMetaPlugin';
 export * from './LocalAIMetaPlugin';
+export * from './AIEnginePlugin';
