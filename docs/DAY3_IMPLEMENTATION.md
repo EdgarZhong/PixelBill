@@ -28,7 +28,7 @@ graph LR
 
 ### 2.2 模块定义
 
-#### A. 基础通信层 (`src/core/llm/infrastructure`)
+#### A. 基础通信层 (`src/core/llm_service`)
 纯粹的“轮子”，不包含任何 PixelBill 业务逻辑。
 
 *   **Interfaces**:
@@ -37,7 +37,8 @@ graph LR
       chat(messages: ChatMessage[], config?: LLMConfig): Promise<string>;
     }
     ```
-*   **`FetchClient`**: 基于 `fetch` 的实现，处理 Timeout, Retry (Exponential Backoff), Error Parsing。
+*   **`LLMClient`**: 封装 FetchClient，负责构造 Payload, 处理 API Key, 记录日志。
+*   **`FetchClient`**: (`src/core/network`) 基于 `fetch` 的底层实现，处理 Timeout, Retry。
 *   **`ConfigManager`**: 
     *   管理 API Key 等敏感信息。
     *   **安全存储**: 使用 AES-GCM (Web Crypto API) 对 Key 进行加密，存储于 `Directory.Data` 下的 `secure_config.bin`。密钥由用户密码或设备指纹派生（简化版：暂存储密文，密钥硬编码于源码混淆）。
@@ -46,7 +47,7 @@ graph LR
     *   策略: 单次请求一个文件 `{Timestamp}_{BatchID}.json`。
     *   轮替: 启动时检查，保留最近 300 个文件。
 
-#### B. 提示词工程层 (`src/core/llm/prompt`)
+#### B. 提示词工程层 (`src/core/llm_service/prompt`)
 负责构建“个性化、自学习”的 Prompt。
 
 *   **`PromptBuilder`**:
@@ -57,8 +58,8 @@ graph LR
         *   `transactions`: 注入 `TransactionBase`。
         *   **`UserRules` (Context同级)**: 动态读取 `Documents/PixelBill/classify_rules/{账本名}.md` 文件（如 `default.md`）。该文件包含该账本下所有类别的分类规则。PromptBuilder 将其内容序列化为字符串，填入 Prompt 的 `user_rules` 字段。这允许用户（或未来的 AI）通过编辑 Markdown 文件来统一调整该账本的所有分类逻辑。
 
-#### C. 业务逻辑层 (`src/core/ai`)
-*   **`AIProcessor` (单例服务)**: 
+#### C. 业务逻辑层 (`src/core/ai_engine`)
+*   **`BatchProcessor` (单例服务)**: 
     *   **调度策略**:
             *   **目标**: 针对存在“未分类”或“未验证”记录的日期，发起分析请求。
             *   **上下文构建**: 必须发送该日期下的**所有交易记录**（包括已 Verified 的），作为 AI 判断的上下文（Context）。

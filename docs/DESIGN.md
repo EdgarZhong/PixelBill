@@ -256,6 +256,41 @@ PixelBill 奉行“生成式极简主义”与“赛博禅意”的设计哲学�
     *   **分页量**: 20条/页。
     *   **刷新**: Fast Swipe (快速滑动)。采用 `0.2s` 极速转场，保留方向感但拒绝拖泥带水。
 
+### 3.5 标签系统设计规范 (Tag System Specification)
+
+本系统采用 **"严格单一信源" (Strict Single Source of Truth)** 策略，彻底解决分类标签的数据一致性与 UI 显示分裂问题。
+
+#### 1. 数据层逻辑 (Core Logic)
+
+*   **单一信源 (Single Source)**:
+    *   **定义**: `pixelbill.json` 中的 `defined_categories` 数组是系统唯一认可的分类列表。
+    *   **原则**: 严禁在代码中硬编码任何默认分类（如 `meal`, `transport`）。如果 JSON 文件为空或不存在，系统仅初始化基础架构，不预设业务分类。
+
+*   **加载策略 (Loading Strategy)**:
+    *   **动态注入 (Others Injection)**: 仅当 `defined_categories` 非空（即用户定义了至少一个分类）时，系统自动在内存中的分类列表末尾注入 `others` 标签，作为兜底实体分类。
+    *   **隐形状态 (Uncategorized)**: `uncategorized` 是系统级保留状态，**绝不**出现在 `defined_categories` 列表中，由代码逻辑独立维护。
+
+*   **强力清洗 (Aggressive Sanitization)**:
+    *   **时机**: 数据加载/导入阶段（Pre-Arbiter）。
+    *   **规则**: 任何 `category` 字段的值，若既不在 `defined_categories` 中，也不是 `others` 或 `uncategorized`，将被立即视为**非法脏数据**。
+    *   **动作**: 
+        1.  强制重置 `category` 为 `uncategorized`。
+        2.  **清除** 该条目下所有关联的 `user_classification` (人工标记) 和 `ai_classification` (智能标记) 字段，确保脏数据不污染后续的仲裁逻辑。
+
+#### 2. 界面层逻辑 (UI Logic)
+
+*   **标签页排序 (Tab Ordering)**:
+    *   **结构**: `[ ALL ]` + `[ JSON Defined List ]` + `[ OTHERS (if exists) ]` + `[ UNCATEGORIZED ]`。
+    *   **首位**: `ALL` 标签永远固定在首位，作为默认视图。
+    *   **末位**: `UNCATEGORIZED` 标签永远固定在末位（即使当前没有未分类交易），作为数据清洗的入口。
+    *   **中间**: 严格遵循 JSON 文件中定义的顺序。
+
+*   **列表条目显示 (Item Display)**:
+    *   **按需显示**: 交易列表项左侧的 `[TAG]` 仅在 **`ALL` 视图** 下显示。在特定分类视图下（如 `MEAL`），因所有条目同属一类，Tag 自动隐藏以减少视觉噪音。
+    *   **视觉区分**:
+        *   **常规分类**: 显示为 **黄色 (`text-income-yellow`)**，格式 `[CATEGORY]`。
+        *   **未分类**: 显示为 **红色 (`text-expense-red`)**，格式 `[UNCATEGORIZED]`，起到警示与行动召唤 (Call to Action) 的作用。
+
 ## 4. 数据结构 (Data Structure)
 
 ### 4.1 数据模型 (TypeScript Interface)
@@ -393,55 +428,39 @@ export interface LedgerMemory {
             1.  **Switch Memory**: 列出当前目录下所有符合格式的 JSON 文件供切换。
             2.  **New Memory**: 允许输入新文件名并创建空白元数据文件。
 
-### 4.6 伴生元数据仲裁系统 (Associated Metadata Arbitration System)
+### 4.6 仲裁业务规则 (Arbitration Business Rules)
 
-PixelBill 采用 **“插件化仲裁” (Plugin-based Arbitration)** 架构处理多源分类建议。系统不直接修改数据，而是由各方提交“提案”，最终由仲裁者决定。
+本节定义仲裁器的**决策逻辑**与**优先级策略**。关于系统的技术架构、数据流向与循环机制，请严格遵循 **[5. 系统架构](#5-系统架构-system-architecture)** 章节的定义。
 
-#### A. 核心架构 (Core Architecture)
+#### A. 优先级队列 (Priority Strategy)
 
-*   **Raw Data (只读)**: CSV 文件，Single Source of Truth。
-*   **Metadata (读写)**: JSON 文件，存储增强信息。
-*   **Arbitration Layer**: 位于 UI显示 与存储之间的决策层。
+仲裁器遵循严格的 **User > Rule > AI** 优先级：
 
-```mermaid
-graph TD
-    User[UI Interaction] -->|Proposal| Arbiter
-    AI[AI Agent] -->|Proposal| Arbiter
-    Rule[Regex Plugin] -->|Proposal| Arbiter
-    
-    subgraph Metadata Arbiter
-        direction TB
-        Buffer[Proposal Buffer]
-        Strategy[Priority Strategy]
-    end
-    
-    Arbiter -->|Final Patch| Storage[JSON Storage]
-```
+1.  **USER (UserMetaPlugin)**: 
+    *   **权重**: **最高 (Highest)**。
+    *   **行为**: 若存在有效 `user_category`，具有**绝对锁定权**。
+    *   **Verified Lock (黄金数据)**: 
+        *   当 `is_verified: true` 时，该交易被视为人工核验的真值。
+        *   仲裁器直接返回结果，**跳过**所有后续计算（Short-circuit）。
+        *   仅用户显式操作可触发锁定/解锁。
 
-#### B. 优先级策略 (Priority Strategy)
+2.  **RULE (RuleEnginePlugin)**: 
+    *   **权重**: **中等 (Medium)**。
+    *   **行为**: 仅在无 USER 提案（或 USER 未锁定且无值）时生效。
+    *   **机制**: 基于正则表达式引擎的静态匹配。
 
-仲裁者采用**可配置的优先级队列**（默认：User > Rule > AI），通过 **"Pull" (主动调度)** 模式实时从各插件获取提案。
+3.  **AI (AIAgentPlugin)**: 
+    *   **权重**: **最低 (Lowest)**。
+    *   **行为**: 智能兜底。仅在 USER 和 RULE 均未命中时采纳。
+    *   **机制**: 异步注入建议，不阻塞主线程。
 
-1.  **UserMetaPlugin (用户信源插件)**: 
-    *   **触发**: 实时读取 `user_category` 元数据。
-    *   **行为**: 若存在用户分类，生成 `source: USER` 提案。此提案具有**绝对锁定权**。
-    *   **is_verified 机制**: 
-        *   **显式锁定**: `is_verified` 状态**仅**通过用户显式调用 `verifyTransaction` API 触发，**不**随 User 提案自动生效。
-        *   **解除锁定**: 用户可调用 `unverifyTransaction` API 将状态重置为 `false`，此时数据重新接受仲裁。
-        *   **行为**: 
-            *   `true`: 仲裁者直接返回当前分类，跳过所有插件计算。
-            *   `false`: 正常执行 User > Rule > AI 的优先级仲裁。
-        *   **价值**: 锁定的数据将作为“黄金数据集 (Golden Dataset)”，用于未来 AI 模型的训练与微调。
-2.  **System Rule (系统规则)**: 
-    *   **触发**: 正则表达式插件匹配结果。
-    *   **行为**: 仅在无 User 提案时生效。
-3.  **AI Suggestion (AI 建议)**: 
-    *   **触发**: LLM 推理结果。
-    *   **行为**: 兜底建议。
+#### B. 兜底策略 (Fallback Strategy)
 
-在多信源（User/Rule/AI）仲裁体系中，若所有有效信源均静默（如用户清空分类且无规则命中），系统将不再重置为默认值，而是实施‘状态惯性’策略——保留该交易上一次的历史分类；仅当连历史状态也不存在或非法时，才兜底归为 others 。
+若所有有效信源均静默（如用户清空分类、无规则命中、AI 尚未返回）：
+1.  **状态惯性**: 优先保留该交易上一次的历史分类（如有）。
+2.  **最终兜底**: 归为 `Uncategorized` 或 `others`。
 
-#### C. 插件接口规范 (Plugin Interface)
+#### C. 插件接口定义 (Plugin Interface)
 
 ```typescript
 export type ProposalSource = 'USER' | 'RULE_ENGINE' | 'AI_AGENT';
@@ -451,151 +470,226 @@ export interface Proposal {
   source: ProposalSource;
   category?: string;
   reasoning?: string;
-  // confidence: number; // 暂不启用置信度逻辑
   timestamp: number;
 }
 
-// 插件接口
+// 插件接口规范
 export interface ICategoryPlugin {
   name: string;
   version: string;
-  // 核心分析函数
+  // 核心分析函数：返回 Promise 以支持异步（如 AI），但 User/Rule 可同步返回
   analyze(transaction: TransactionBase): Promise<Proposal | null>;
-}
-```
-
-#### D. JSON 热重载与外部数据治理 (JSON Hot-Reload & Data Governance)
-
-为了提供极致的数据掌控力，系统将 **本地 JSON 文件** 视为唯一的、开放的数据库接口。
-
-1.  **机制**:
-    *   **双向同步**: App 启动后，将持续监听（Smart Polling）JSON 文件的 `lastModified` 属性。
-    *   **热重载 (Hot Reload)**: 一旦检测到外部修改（如 VSCode 编辑、脚本批处理），App 将立即重新加载数据，触发完整的仲裁循环，并实时刷新 UI。
-    
-2.  **批量处理场景**:
-    *   无需专用的“导入 API”。
-    *   用户可编写 Python/Node 脚本直接修改 JSON 文件的 `user_category` 或 `ai_category` 字段。
-    *   App 将自动感知这些变更，并将其应用到视图中。这使得利用本地 LLM 进行大规模离线数据清洗成为可能。
-
-#### E. 触发机制与生命周期 (Trigger & Lifecycle)
-
-仲裁器不仅仅是被动比较，还负责管理插件的**调度时机**。不同插件的触发成本与时效性要求不同，需差异化处理。
-
-1.  **UserMetaPlugin (实时/热数据)**
-    *   **触发时机**: 
-        *   **初始化加载**: 应用启动读取 JSON 元数据时。
-        *   **用户交互**: 用户通过 UI 修改 `category` 或 `note` 时（实时触发）。
-        *   **解锁操作**: 用户调用 `unverifyTransaction` 时。
-    *   **调度策略**: **同步 (Synchronous)**。必须立即响应，确保用户操作即时反馈。
-
-2.  **RuleEnginePlugin (本地计算/低成本)**
-    *   **触发时机**: 
-        *   **数据导入**: 新 CSV 记录被解析时。
-        *   **规则变更**: 用户新增或修改正则规则时（触发全量或增量重新仲裁）。
-        *   **Fallback**: 当 User 提案被移除（如清空 `user_category`）时。
-    *   **调度策略**: **即时 (Immediate)**。本地正则匹配速度极快，可在主线程或微任务中完成，无需节流。
-
-3.  **AIAgentPlugin (远程调用/高成本)**
-    *   **状态**: *待完善 (Pending Refinement)* - 具体的触发阈值、防抖策略及上下文构建逻辑尚需进一步设计。
-    *   **触发时机 (Draft)**: 
-        *   **显式请求**: 用户点击“智能分类”按钮（针对单条或多条）。
-        *   **空值兜底 (Lazy)**: 当 User 和 Rule 均返回 `Uncategorized`，且用户开启“自动 AI 补全”配置时。
-        *   **批量作业**: 导入大量新数据后的后台静默队列。
-    *   **调度策略**: **异步 + 队列 + 防抖 (Async Queue & Debounce)**。
-        *   避免对同一笔交易频繁请求。
-        *   支持批量打包请求 (Batch Processing) 以节省 Token。
-        *   **必须**在 UI 上展示“AI 思考中”状态。
-
-#### F. 仲裁核心循环 (Arbitration Loop)
-
-```typescript
-async function arbitrate(tx: Transaction, trigger: TriggerType) {
-  // 1. Check Lock
-  if (tx.is_verified && trigger !== 'USER_UNLOCK') return tx.current_category;
-
-  // 2. User Level (Sync)
-  const userProposal = userPlugin.analyze(tx);
-  if (userProposal) return apply(userProposal);
-
-  // 3. Rule Level (Sync/Fast)
-  const ruleProposal = rulePlugin.analyze(tx);
-  if (ruleProposal) return apply(ruleProposal);
-
-  // 4. AI Level (Async/Costly)
-  if (shouldTriggerAI(trigger, config)) {
-    queueAIJob(tx); // Don't await, return 'Thinking...' or fallback
-    return 'PROCESSING'; 
-  }
-
-  return 'Uncategorized';
 }
 ```
 ## 5. 系统架构 (System Architecture)
 
-### 5.1 分层架构图 (Layered Architecture)
+### 5.1 静态分层视图 (Static Layered View)
 
 本系统遵循 **M-V-VM (Model-View-ViewModel)** 变体架构，结合 React 单向数据流与 File System Access API，实现“本地文件即数据库”的闭环设计。
-
-```mermaid
-graph TD
-    subgraph Persistence ["数据持久层 (Disk)"]
-        JSON["JSON文件 (default.pixcelbill.json)"]
-        CSV["CSV文件 (原始账单)"]
-    end
-
-    subgraph MemoryState ["内存状态层 (React State)"]
-        RawState["rawTransactions (只读)"]
-        MetaState["ledgerMemory (读写)"]
-    end
-
-    subgraph Logic ["业务逻辑层 (Arbiter)"]
-        Arbiter["Global Arbiter (仲裁者)"]
-        Plugin1["Regex Plugin"]
-        Plugin2["UserMeta Plugin"]
-        Arbiter -->|调用| Plugin1
-        Arbiter -->|调用| Plugin2
-    end
-
-    subgraph View ["视图层 (UI)"]
-        Memo["useMemo (合并与仲裁)"]
-        Components["组件: Matrix, List, Charts"]
-        Effect["useEffect (反向同步)"]
-    end
-
-    %% Data Flow
-    CSV -->|解析| RawState
-    JSON -->|加载| MetaState
-    
-    RawState --> Memo
-    MetaState --> Memo
-    
-    Memo -->|发送数据| Arbiter
-    Arbiter -->|返回 Category| Memo
-    
-    Memo -->|渲染| Components
-    
-    %% The Critical Loop
-    Memo -->|依赖| Effect
-    Effect -->|发现不一致更新| MetaState
-    MetaState -->|自动保存| JSON
-```
-
-### 5.2 核心层级职责
 
 | 层级 | 核心对象 | 职责 | 存储方式 |
 | :--- | :--- | :--- | :--- |
 | **L1: Persistence** | `CSV`, `JSON` | 数据的物理载体。JSON 是唯一的“数据库”。 | 硬盘文件 |
 | **L2: State** | `rawTransactions`<br>`ledgerMemory` | React State，应用眼中的“事实”。<br>- `Raw`: 绝对不可变，仅从 CSV 读取。<br>- `Meta`: 可变，存储用户标注、分类结果。 | 内存 (RAM) |
-| **L3: Logic** | `Arbiter`<br>`useMemo` | **纯函数式计算**。输入 Raw + Meta，输出最终 Transaction 列表。不存储数据，只负责即时计算。 | 瞬时计算 (CPU) |
+| **L3: Logic** | `Arbiter`<br>`TagSystem` | **纯函数式计算**。输入 Raw + Meta，输出最终 Transaction 列表。不存储数据，只负责即时计算。 | 瞬时计算 (CPU) |
 | **L4: View** | `UI Components` | 负责将 L3 计算出的结果渲染到屏幕。 | DOM 节点 |
 
-### 5.3 数据流向与死循环防御
+### 5.2 核心循环架构设计 (Core Loop Architecture)
 
-1.  **正向流 (Render)**: `[Raw, Meta]` -> `useMemo (Arbiter)` -> `Final Transactions` -> `UI Rendering`
-2.  **反向流 (Sync)**: `UI Rendering` -> `useEffect` -> `Update Meta` -> `Write JSON`
-3.  **死循环防御**:
-    *   **风险**: `Update Meta` 触发重绘，重绘触发 `useEffect`，`useEffect` 再次 `Update Meta`。
-    *   **策略**: **值收敛 (Value Convergence)**。在 `useEffect` 中严格对比当前 `Storage` 中的值与 `Arbiter` 计算出的值，仅当 **逻辑值 (Category)** 真正不一致时才触发更新，确保一次更新后系统立即达到稳态。
+系统由三个独立但相互协作的循环组成：**渲染循环 (Render Loop)**、**仲裁循环 (Arbitration Loop)** 和 **读写循环 (Persistence Loop)**。
+
+#### 1. 渲染循环 (Render Loop)
+*   **性质**: **同步 (Synchronous)**, **高频 (60fps)**, **只读 (Read-Only)**。
+*   **职责**: 将内存中的 `Enriched Data` 映射为 UI 像素。
+*   **关键特性**:
+    *   **Wait for Arbitration**: 初始加载时，等待仲裁完成才显示内容（骨架屏）。
+    *   **Optimistic UI (乐观更新)**: 针对 **用户手动分类** 场景。当用户在 UI 更改分类时，**不等待** 读写循环完成，也不等待 AI 确认，直接修改内存中的 `Store` 并强制重绘。这保证了“指哪打哪”的零延迟体验。
+
+#### 2. 仲裁循环 (Arbitration Loop)
+*   **性质**: **异步 (Asynchronous)**, **事件驱动 (Event-Driven)**。
+*   **职责**: 决定每一笔交易最终属于哪个分类。
+*   **触发条件 (Triggers)**:
+    *   **Data Ingest**: 导入新的 CSV 原始数据时（全量仲裁）。
+    *   **Strategy Update**: 正则规则库更新、AI 模型切换时（全量仲裁）。
+    *   **Result Injection**: 接收到外部插件（AI/UI/Rule）注入的建议时（增量/局部仲裁）。
+*   **增量仲裁 (Incremental Arbitration)**:
+    *   支持单条或批量 ID 的定向重算，而非每次都全量遍历。
+
+#### 3. 读写循环 (Persistence Loop)
+*   **性质**: **异步 (Asynchronous)**, **防抖 (Debounced)**, **副作用 (Side-Effect)**。
+*   **职责**: 维护内存状态与文件系统 (JSON) 的最终一致性。
+*   **关键特性**:
+    *   **防抖窗口 (Debounce Window)**: **1000ms**。即最后一次数据变更后的 1 秒内若无新变更，才触发写入。这对于合并 AI 引擎的高频流式输出至关重要。
+    *   **值收敛 (Value Convergence)**: 在 `useEffect` 中严格对比当前 `Storage` 中的值与 `Store` 中的值，仅当 **逻辑值 (Category/Notes)** 真正不一致时才触发写入，防止“渲染->写->读->渲染”的死循环。
+
+### 5.3 数据流与同步握手 (Data Flow & Handshake)
+
+系统采用统一的 **Proposal-Arbiter** 模式：无论是用户操作、AI 建议还是规则匹配，都被视为对元数据的“提案 (Proposal)”，必须通过仲裁器统一处理。
+
+#### A. 核心数据流图 (Core Data Flow)
+
+```mermaid
+graph TD
+    %% External Actors
+    User["用户 UI 操作"]
+    Watcher["File Watcher"]
+    AIEngine["AI 分类引擎 (Remote/Worker)"]
+    
+    %% Ingest Gate
+    Ingest["Ingest Interface (Proposal Injection)"]
+    
+    %% Core Memory Store
+    subgraph Store ["内存状态中心"]
+        ProposalCache["Proposal Cache (User/AI)"]
+        MetaData["Metadata (Persistent Fields)"]
+        FinalState["Enriched Transactions (View Model)"]
+    end
+
+    %% Loops
+    subgraph ArbLoop ["仲裁循环 (Arbitration)"]
+        Arbiter["Global Arbiter"]
+    end
+
+    subgraph PersistLoop ["读写循环 (Persistence)"]
+        Writer["Debounced Writer (1000ms)"]
+        FileSystem["*.pixelbill.json"]
+    end
+
+    %% 1. Ingest Flows
+    User -->|"1. User Action (Lock/Categorize)"| Ingest
+    Watcher -->|"2. File Changed (Hot Reload)"| Ingest
+    AIEngine -->|"3. AI Result (Async)"| Ingest
+    
+    Ingest -->|"4. Update Cache"| ProposalCache
+    ProposalCache -->|"5. Trigger Decide"| Arbiter
+    
+    %% 2. Arbitration Flow
+    Arbiter -->|"6. Evaluate Priority"| Arbiter
+    Arbiter -->|"7. Update Final State"| FinalState
+    
+    %% 3. Persistence Logic (Field Mapping)
+    Arbiter -.->|"8. Signal Dirty (If Source=USER/AI)"| Writer
+    Writer -->|"9. Extract Fields"| MetaData
+    MetaData -->|"10. Write JSON"| FileSystem
+```
+
+#### B. 字段持久化策略 (Field Persistence Strategy)
+
+仲裁器的输出 (`FinalDecision`) 不仅用于渲染，还会根据**来源**反向更新 JSON 文件中的特定持久化字段。
+
+**注意**：当前版本**暂不考虑正则规则引擎 (Regex Rule Engine)**，仅处理 User 和 AI 两个维度的冲突。
+
+| 提案来源 (Source) | 触发动作 | 写入目标字段 (`*.pixelbill.json`) | 逻辑说明 |
+| :--- | :--- | :--- | :--- |
+| **USER** | 用户手动修改分类/备注 | `user_category`<br>`user_note` | 用户意图具有最高优先级。**注意**：`user_note` 是独立字段，与分类联动但物理存储分离，始终覆写。 |
+| **USER** | 用户点击 "Verify" 锁定 | `is_verified: true` | 标记为“黄金数据”，锁定仲裁结果。 |
+| **USER** | 用户解锁 | `is_verified: false` | 解除锁定，允许重新仲裁。 |
+| **AI_AGENT** | AI 引擎返回结果 | `ai_category`<br>`ai_reasoning` | 无论当前显示的是什么（可能被 User 覆盖），AI 的建议永远独立存储于此，互不干扰。AI 不再返回置信度，结果直接生效（但在仲裁中优先级低于 User）。 |
+
+#### C. 持久化分流机制 (Persistence Dispatch Mechanism)
+
+这是数据从内存回流到文件系统的关键通路。为了保证 `user_*` 和 `ai_*` 字段的独立性，Writer 必须根据**变更源 (Source)** 进行精确分流，而不是简单地转储最终状态。
+
+**1. 写入触发器 (Write Trigger)**
+当 `Arbiter.ingest(proposal)` 接收到新提案时，若该提案来自 `USER` 或 `AI_AGENT`，系统会生成一个 **变更指令 (Mutation Payload)** 发送给 Writer。
+
+**2. 分流逻辑 (Dispatch Logic)**
+
+Writer 接收到的指令包含：`{ txId, proposal }`。
+
+*   **Case 1: Source === USER**
+    *   **映射规则**:
+        *   `proposal.category` -> 写入 **`user_category`**
+        *   `proposal.reasoning` -> 写入 **`user_note`**
+        *   *(Implicit)* -> 写入 **`is_verified: true`** (需视具体 UI 交互而定，通常手动分类隐含锁定)
+    *   **物理动作**: 读取 JSON -> 定位记录 -> 更新上述字段 -> 保存。
+
+*   **Case 2: Source === AI_AGENT**
+    *   **映射规则**:
+        *   `proposal.category` -> 写入 **`ai_category`**
+        *   `proposal.reasoning` -> 写入 **`ai_reasoning`**
+    *   **安全锁**: 严禁触碰 `user_*` 或 `is_verified` 字段。即使 AI 返回结果，也只能写在自己的字段里。
+
+*   **Case 3: User Verification (Lock/Unlock)**
+    *   **指令**: `{ txId, action: 'VERIFY' | 'UNVERIFY' }`
+    *   **映射规则**:
+        *   `VERIFY` -> 写入 **`is_verified: true`**
+        *   `UNVERIFY` -> 写入 **`is_verified: false`**
+
+**3. 代码实现范式 (Implementation Pattern)**
+
+为实现上述策略，`Arbiter` 必须重构为**纯粹的 Proposal 调度器**，切断对 `transaction.ai_category` 等原始字段的直接依赖。
+
+**3.1 ProposalCache 结构升级**:
+```typescript
+// 内存中的提案缓存表
+interface ProposalCache {
+  [transactionId: string]: {
+    USER?: Proposal;      // 来自 user_category/user_note
+    AI_AGENT?: Proposal;  // 来自 ai_category/ai_reasoning
+    // RULE_ENGINE?: Proposal; // (已废弃/暂不实现)
+  }
+}
+```
+
+**3.2 核心仲裁逻辑 (decide)**:
+```typescript
+// 伪代码：严格按照优先级从 Cache 取值 (无置信度比较)
+function decide(txId: string) {
+  const proposals = cache[txId];
+  
+  // 1. User Layer (Highest)
+  if (proposals.USER) return proposals.USER;
+  
+  // 2. AI Layer (Lowest)
+  // AI 不再提供置信度，只要有结果就采纳（除非被 User 覆盖）
+  if (proposals.AI_AGENT) return proposals.AI_AGENT;
+  
+  return Uncategorized;
+}
+```
+
+**3.3 持久化 Patch 生成**:
+```typescript
+// Writer 接收的不再是整个 Transaction，而是精准的 Patch
+interface PersistencePatch {
+  id: string;
+  updates: Partial<TransactionMeta>; // 仅包含需要变更的字段
+}
+
+// Arbiter 在 ingest 时生成 Patch
+function generatePatch(proposal: Proposal): PersistencePatch {
+  if (proposal.source === 'USER') {
+    return {
+      id: proposal.txId,
+      updates: {
+        user_category: proposal.category,
+        user_note: proposal.reasoning,
+        updated_at: new Date().toISOString()
+      }
+    };
+  }
+  
+  if (proposal.source === 'AI_AGENT') {
+    return {
+      id: proposal.txId,
+      updates: {
+        ai_category: proposal.category,
+        ai_reasoning: proposal.reasoning,
+        updated_at: new Date().toISOString()
+      }
+    };
+  }
+}
+```
+
+#### D. 文件监听与热重载 (Watcher & Hot Reload)
+
+1.  **单一信源**: 系统仅监听唯一的账本文件 `[账本名].pixelbill.json`。
+2.  **被动触发**: 
+    *   本地 AI 插件**不**主动读取文件。
+    *   当外部进程（如 Python 脚本）修改 JSON 时，`File Watcher` 捕获变更 -> 触发 App 重载 -> `LocalAIMetaPlugin` 将新的 `ai_category` 转换为 Proposal -> 注入 Arbiter。
+3.  **循环破除**: Writer 在写入文件时会暂时挂起 Watcher（或通过对比最后修改时间），防止“App 写文件 -> Watcher 报变更 -> App 重读”的死循环。
 
 ## 6. 开发守则 (User Rules)
 
