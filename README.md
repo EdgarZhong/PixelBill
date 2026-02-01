@@ -91,7 +91,7 @@
         # 1. 构建前端并同步资源到 Android 项目
         npm run build
         npx cap sync
-
+    
         # 2. 打开 Android Studio 运行
         npx cap open android
         
@@ -114,25 +114,29 @@
 1.  **UI/Logic 物理隔离**: 
     *   桌面端与移动端拥有完全独立的视图文件（View）和差异化组件（Components）。
     *   严禁在单一组件内部通过大量 `if (isMobile)` 进行面条式渲染。
-2.  **Logic 共享**:
-    *   底层状态管理、数据处理（Parser/Arbiter）、Hooks 逻辑保持单例共享。
+2.  **Core Logic Decoupling (核心逻辑解耦)**:
+    *   **Service Layer**: 引入 `LedgerService` 和 `PersistenceManager` 单例，封装核心业务逻辑与 I/O 操作，严禁耦合在 React 组件生命周期内。
+    *   **View Model**: React 组件仅作为 View Model 订阅 Service 状态，通过 Hooks (`useLedger`) 获取数据，不直接处理底层逻辑。
 3.  **Conditional Entry (条件入口)**:
     *   通过环境变量或运行时检测，在根节点 (`App.tsx`) 决定加载哪套视图系统。
 
 #### 目录结构 (Directory Structure)
 ```
 src/
-  ├── core/              # [SHARED] 核心逻辑 (Arbiter, Plugin, Types)
-  ├── hooks/             # [SHARED] 通用 Hooks
+  ├── core/              # [SHARED] 核心逻辑 (Service, Arbiter, Plugin, Types)
+  │    ├── services/     # Service Layer (LedgerService, PersistenceManager)
+  │    ├── arbiter/      # 仲裁器 (Arbiter)
+  │    └── plugin/       # 插件系统 (AIPlugin, RulePlugin)
+  ├── hooks/             # [SHARED] 通用 Hooks (useLedger, useAppLogic)
   ├── utils/             # [SHARED] 工具函数
   ├── components/
-  │    ├── common/       # [SHARED] 通用原子组件 (DotMatrixText, PixelSlider)
-  │    ├── desktop/      # [DESKTOP] 桌面端特有组件 (Header, ActivityMatrix)
-  │    └── mobile/       # [MOBILE] 移动端特有组件 (Header, ActivityMatrix)
+  │    ├── common/       # [SHARED] 通用原子组件
+  │    ├── desktop/      # [DESKTOP] 桌面端特有组件
+  │    └── mobile/       # [MOBILE] 移动端特有组件
   ├── views/
   │    ├── DesktopApp.tsx  # [DESKTOP] 桌面端主视图容器
   │    └── MobileApp.tsx   # [MOBILE] 移动端主视图容器
-  └── App.tsx            # [ENTRY] 路由分发器 (Router/Dispatcher)
+  └── App.tsx            # [ENTRY] 路由分发器
 ```
 
 #### 分支策略 (Branching Strategy)
@@ -183,7 +187,7 @@ PixelBill 的核心是一个基于优先级的仲裁系统，用于决定每一�
     *   [x] 仲裁器 (Arbiter) 基础逻辑与 Fallback 策略。
     *   [x] 解决 React Render Loop 和 File Watcher IO Loop 问题。
 *   **进行中**:
-    *   [ ] AI 插件实装 (对接 LLM API 或完善离线清洗脚本)。
+    *   [x] AI 插件实装 (对接 LLM API 或完善离线清洗脚本)。
     *   [ ] UI 优化：添加元数据编辑入口与分类仲裁的可视化反馈。
 
 ## 📅 7日冲刺计划 (7-Day Sprint Plan)
@@ -206,9 +210,9 @@ PixelBill 的核心是一个基于优先级的仲裁系统，用于决定每一�
 
 *   **Day 3: AI 插件基础设施 (AI Infrastructure)**
     *   **目标**: 建立 AI 参与账单分类的底层通道。
-    *   [ ] **插件架构**: 开发 `src/core/plugin/AIPlugin.ts`，实现标准的 `ArbiterPlugin` 接口。
-    *   [ ] **API 对接**: 集成 LLM API (OpenAI/DeepSeek)，封装网络请求，处理超时与鉴权。
-    *   [ ] **Prompt 初版**: 设计用于解析中文账单描述的基础 System Prompt，确立输出 JSON 格式。
+    *   [x] **插件架构**: 开发 `src/core/plugin/AIPlugin.ts`，实现标准的 `ArbiterPlugin` 接口。
+    *   [x] **API 对接**: 集成 LLM API (OpenAI/DeepSeek)，封装网络请求，处理超时与鉴权。
+    *   [x] **Prompt 初版**: 设计用于解析中文账单描述的基础 System Prompt，确立输出 JSON 格式。
 
 *   **Day 4: AI 智能优化与闭环 (AI Intelligence)**
     *   **目标**: 提升 AI 准确率，构建“越用越聪明”的反馈循环。
@@ -247,13 +251,32 @@ Day 2 移动端交互重构的实现文档请参阅 [DAY2_IMPLEMENTATION.md](doc
 
 ## 🧪 维护与测试计划 (Maintenance & Testing)
 
-### 1. 边界异常测试 (Boundary Testing)
+### 1. 零侵入 E2E 测试策略 (Zero-Intrusion E2E Testing Strategy)
+
+**核心原则**: 
+> "Do not mock the code; mock the world." (不要为了测试修改代码，而是模拟代码运行的世界)
+
+在 PixelBill 中，我们摒弃了传统的 "Node.js 单元测试驱动业务逻辑" 的方案（因为这需要大量修改业务代码以适配 Node 环境），转而采用 **"浏览器/真机控制台驱动 (Console Driver)"** 模式。
+
+**驱动原生运行时：使用原生数据，复用原生模块/组件，驱动原生数据流，测试原生代码**
+
+#### 最佳实践方案
+1.  **运行环境一致性**: 测试直接在 `npm run dev` (浏览器) 或 `npx cap run android` (真机) 的运行态中进行。
+2.  **无代码修改**: 禁止在 `src/` 业务代码中为了测试暴露私有方法或添加 `.ts` 后缀。
+3.  **驱动方式**:
+    *   利用 JavaScript 的动态特性，在 DevTools Console 中访问全局单例 (如 `ConfigManager`, `LedgerService`)。
+    *   通过脚本模拟用户行为（如调用 `runBatchAnalysis()`），而非直接调用底层函数。
+4.  **数据验证**:
+    *   不注入假数据 (Mock Data)。
+    *   直接操作真实文件系统（或 Mock 文件系统），验证 `default.pixelbill.json` 的物理变更。
+
+### 2. 边界异常测试 (Boundary Testing)
 已通过 `src/scripts/test_boundaries.ts` 验证以下核心逻辑的健壮性：
 - [x] **数据畸形恢复**: 模拟 JSON 字段缺失或类型错误时，Arbiter 能够安全降级到 Fallback 状态，不导致 Crash。
 - [x] **高频并发一致性**: 模拟 1ms 内连续 5 次状态变更，验证时间戳最新的状态最终胜出。
 - [x] **乱序到达防御**: 模拟网络延迟导致旧数据（Timestamp 小）晚于新数据到达，系统正确拒绝旧数据，保护最新状态。
 
-### 2. UI/交互极端情况测试 (UI/UX Extreme Cases)
+### 3. UI/交互极端情况测试 (UI/UX Extreme Cases)
 **[待执行]** 下一阶段需在真实设备或 E2E 环境中验证以下场景：
 - **权限被拒 (Permission Denied)**: 
     - Android 端拒绝文件存储权限后，App 应弹出友好提示并禁用相关功能，而非崩溃。

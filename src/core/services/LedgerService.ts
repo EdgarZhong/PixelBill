@@ -247,34 +247,7 @@ export class LedgerService {
     }
   }
 
-  public async handleMockAndroidInit(dirHandle: StorageDirHandle) {
-     try {
-      console.log('[LedgerService] [Mock] Initializing ledger from mock handle...');
-      
-      let memoryHandle = await getMemoryFileHandle(dirHandle, false);
-      let currentMemory: LedgerMemory = DEFAULT_MEMORY;
 
-      if (memoryHandle) {
-        console.log('[LedgerService] Found existing memory.');
-        currentMemory = await readMemoryFile(memoryHandle);
-      } else {
-        console.log('[LedgerService] Creating default memory...');
-        memoryHandle = await getMemoryFileHandle(dirHandle, true);
-      }
-
-      if (memoryHandle) {
-        this.memoryFileHandle = memoryHandle;
-        this.setState({ 
-            ledgerMemory: currentMemory,
-            memoryFileHandle: memoryHandle
-        });
-        // Trigger recompute if we had raw transactions?
-        // Usually mock init is done at start, so maybe not needed yet.
-      }
-    } catch (error) {
-      console.error('[LedgerService] Failed to init mock ledger:', error);
-    }
-  }
 
   // --- Logic Extraction from useAppLogic ---
 

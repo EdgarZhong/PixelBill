@@ -135,6 +135,9 @@ PixelBill 奉行“生成式极简主义”与“赛博禅意”的设计哲学�
 *   **Layout Projection Integrity (布局投影完整性)**:
     *   **Global Sync**: 任何跨组件的跟随动画（如 Tab Indicator 随内容滚动），必须通过 Layout Projection (`layoutId`) 实现，而非手动计算位置。
     *   **Isolation**: 为避免不必要的重排，仅在真正需要变形的叶子节点使用 `layoutId`，严禁在父容器随意添加 `layout` 属性。
+*   **Core Logic Decoupling (核心逻辑解耦)**:
+    *   **Service Layer**: 核心业务逻辑（如账本管理、持久化）必须封装在独立的 Service/Singleton 中，严禁耦合在 React 组件生命周期内。
+    *   **View Model**: React 组件仅作为 View Model 订阅 Service 状态，不直接处理底层 I/O。
 
 
 ## 3. 功能特性与交互流程 (Features & Interaction)

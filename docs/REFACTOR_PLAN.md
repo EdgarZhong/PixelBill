@@ -121,17 +121,17 @@
 
 ### Step 4: 持久化层 (Persistence Layer)
 
-#### 4.1 实现 `useDebouncedWriter`
-*   **文件**: `src/hooks/useDebouncedWriter.ts` (新建)
+#### 4.1 实现 `PersistenceManager` (Singleton Class)
+*   **文件**: `src/core/services/PersistenceManager.ts`
 *   **任务**:
-    *   **接口**: `submitPatch(patch: PersistencePatch)`。
-    *   **队列管理**: 使用 `Map<string, PersistencePatch>` 存储待写入补丁，新 Patch 覆盖旧 Patch (Last Write Wins per ID)。
-    *   **防抖**: `1000ms` 无操作后触发写入。
-    *   **原子写入**: 
-        *   Clone 当前 `ledgerMemory`。
-        *   应用所有 Patch。
-        *   调用文件系统 API 写入全量 JSON。
-    *   写入后，暂时挂起 FileWatcher 以避免回环。
+    *   **架构**: 采用单例模式，脱离 React 生命周期，确保 I/O 任务的稳定性。
+    *   **接口**: `scheduleWrite(handle: StorageHandle, data: LedgerMemory)`。
+    *   **防抖策略**: `1000ms` 无操作后触发写入。
+    *   **状态管理**: 使用 `pendingData` 存储待写入快照，新请求覆盖旧请求 (Last Write Wins)。
+    *   **执行逻辑**:
+        1.  接收最新的 `LedgerMemory` 全量数据。
+        2.  在 `flush()` 中调用 `fs-storage` 提供的 `writeFile` 接口。
+        3.  错误处理：写入失败时保留 `pendingData` 以备重试。
 
 ### Step 5: 验证与清理 (Verification & Test Plan)
 

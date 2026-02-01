@@ -197,7 +197,6 @@ export function useAppLogic() {
     handleLoadData,
     handleInitLedger: () => service.init(),
     handleImportData: () => fileInputRef.current?.click(),
-    handleMockAndroidInit: (dirHandle: StorageDirHandle) => service.handleMockAndroidInit(dirHandle),
     totalExpense,
     totalIncome,
     TABS
