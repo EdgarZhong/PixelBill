@@ -5009,11 +5009,11 @@
       "transactionStatus": "SUCCESS",
       "remark": "",
       "ai_category": "others",
-      "ai_reasoning": "傍晚18:48支付12元，商户'有凤来仪'信息不明。金额12元，未超过70元的大餐阈值。无明确正餐商户特征（如食堂、面馆），根据规则归为其他。",
+      "ai_reasoning": "该交易为收钱码收款，属于资金流入，非支出行为，因此归入‘others’。",
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-01T10:23:16.219Z"
+      "updated_at": "2026-02-01T14:45:45.834Z"
     },
     "febc11b3ce1eb28a": {
       "id": "febc11b3ce1eb28a",

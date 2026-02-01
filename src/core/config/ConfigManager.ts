@@ -3,32 +3,54 @@ import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
 import { isNative } from '../../utils/fs-storage';
 
 // 安全配置接口
-export interface SecureConfig {
+export interface ProviderConfig {
   apiKey: string;
-  provider: 'openai' | 'deepseek' | 'custom';
   baseUrl: string;
-  model: string;
-  maxTokens: number;
-  temperature: number;
-  enableThinking?: boolean; // 新增思考模式开关
 }
 
-const DEFAULT_CONFIG: SecureConfig = {
-  apiKey: '',
-  provider: 'custom', // 默认为 custom 以适应 ModelScope
-  baseUrl: 'https://api-inference.modelscope.cn/v1',
-  model: 'deepseek-ai/DeepSeek-V3.2',
-  maxTokens: 2000,
-  temperature: 0.3,
-  enableThinking: true
+export interface MultiProviderConfig {
+  providers: Record<string, ProviderConfig>;
+  candidateModels: string[]; // Format: "provider::modelName"
+  globalParams: {
+    maxTokens: number;
+    temperature: number;
+    enableThinking: boolean;
+  };
+}
+
+// 兼容旧代码引用，但实际上建议使用 MultiProviderConfig
+export type SecureConfig = MultiProviderConfig;
+
+const DEFAULT_CONFIG: MultiProviderConfig = {
+  providers: {
+    'modelscope': { apiKey: '', baseUrl: 'https://api-inference.modelscope.cn/v1' },
+    'siliconflow': { apiKey: '', baseUrl: 'https://api.siliconflow.cn/v1' },
+    'deepseek': { apiKey: '', baseUrl: 'https://api.deepseek.com' },
+    'zhipu': { apiKey: '', baseUrl: 'https://open.bigmodel.cn/api/paas/v4' },
+    'custom': { apiKey: '', baseUrl: 'https://api.openai.com/v1' }
+  },
+  candidateModels: ['deepseek::deepseek-chat'],
+  globalParams: {
+    maxTokens: 2000,
+    temperature: 0.3,
+    enableThinking: true
+  }
 };
 
 const CONFIG_FILE_NAME = 'secure_config.bin'; // 使用 .bin 后缀暗示二进制/加密内容
 const MASTER_KEY = 'PixelBill_Local_Device_Key_2024'; // 简化版：硬编码密钥 (在真实 App 中应存储在 Android Keystore / iOS Keychain)
 
+export interface LLMConfig {
+  apiKey: string;
+  baseUrl: string;
+  model: string;
+  maxTokens: number;
+  temperature: number;
+}
+
 export class ConfigManager {
   private static instance: ConfigManager;
-  private currentConfig: SecureConfig | null = null;
+  private currentConfig: MultiProviderConfig | null = null;
   private isInitialized = false;
 
   private constructor() {}
@@ -50,43 +72,83 @@ export class ConfigManager {
       const encryptedData = await this.readFromDisk();
       if (encryptedData) {
         const jsonStr = await CryptoUtils.decrypt(encryptedData, MASTER_KEY);
-        this.currentConfig = JSON.parse(jsonStr);
+        const parsed = JSON.parse(jsonStr);
+        // 简单的迁移逻辑：如果发现是旧结构（含 apiKey 字段），则转换为新结构
+        if ('apiKey' in parsed) {
+             console.log('[ConfigManager] Migrating legacy config...');
+             this.currentConfig = {
+                 ...DEFAULT_CONFIG,
+                 providers: {
+                     ...DEFAULT_CONFIG.providers,
+                     'custom': { apiKey: parsed.apiKey, baseUrl: parsed.baseUrl || DEFAULT_CONFIG.providers.custom.baseUrl }
+                 },
+                 candidateModels: [`custom::${parsed.model || 'default-model'}`],
+                 globalParams: {
+                     maxTokens: parsed.maxTokens || 2000,
+                     temperature: parsed.temperature || 0.3,
+                     enableThinking: parsed.enableThinking ?? true
+                 }
+             };
+        } else {
+            this.currentConfig = parsed;
+        }
         console.log('[ConfigManager] Config loaded and decrypted.');
       } else {
         console.log('[ConfigManager] No config found, using defaults.');
-        this.currentConfig = { ...DEFAULT_CONFIG };
+        this.currentConfig = JSON.parse(JSON.stringify(DEFAULT_CONFIG));
       }
     } catch (e) {
       console.error('[ConfigManager] Failed to load config:', e);
       // Fallback to default but DON'T persist immediately to avoid overwriting potentially recoverable data
-      this.currentConfig = { ...DEFAULT_CONFIG };
+      this.currentConfig = JSON.parse(JSON.stringify(DEFAULT_CONFIG));
     }
 
     this.isInitialized = true;
   }
 
   /**
-   * 获取配置 (如果未初始化会自动初始化)
+   * 获取完整配置 (如果未初始化会自动初始化)
    */
-  public async getConfig(): Promise<SecureConfig> {
+  public async getConfig(): Promise<MultiProviderConfig> {
     if (!this.isInitialized) {
       await this.init();
     }
-    return this.currentConfig || { ...DEFAULT_CONFIG };
+    return this.currentConfig || JSON.parse(JSON.stringify(DEFAULT_CONFIG));
+  }
+
+  /**
+   * 获取当前激活的模型配置 (供 AI 引擎使用)
+   */
+  public async getActiveModelConfig(): Promise<LLMConfig> {
+      const config = await this.getConfig();
+      
+      // 1. 获取首选模型
+      const candidate = config.candidateModels[0] || 'custom::default';
+      const [providerName, modelName] = candidate.split('::');
+      
+      // 2. 获取供应商配置
+      const provider = config.providers[providerName] || config.providers['custom'];
+      
+      if (!provider || !provider.apiKey) {
+          console.warn(`[ConfigManager] Provider ${providerName} not configured or missing API Key.`);
+      }
+
+      return {
+          apiKey: provider?.apiKey || '',
+          baseUrl: provider?.baseUrl || '',
+          model: modelName || 'default',
+          maxTokens: config.globalParams.maxTokens,
+          temperature: config.globalParams.temperature
+      };
   }
 
   /**
    * 保存配置 (加密并写入磁盘)
    */
-  public async saveConfig(config: Partial<SecureConfig>): Promise<void> {
-    const newConfig = { ...this.currentConfig, ...config } as SecureConfig;
+  public async saveConfig(config: Partial<MultiProviderConfig>): Promise<void> {
+    const current = await this.getConfig();
+    const newConfig = { ...current, ...config } as MultiProviderConfig;
     
-    // Validate
-    if (!newConfig.apiKey) {
-      // throw new Error('API Key cannot be empty'); 
-      // Allow saving empty key (clearing it)
-    }
-
     try {
       const jsonStr = JSON.stringify(newConfig);
       const encryptedData = await CryptoUtils.encrypt(jsonStr, MASTER_KEY);

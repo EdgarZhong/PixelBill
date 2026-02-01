@@ -71,16 +71,17 @@ export class BatchProcessor {
       try {
         // 1. Initialize dependencies
         const configManager = ConfigManager.getInstance();
-        const config = await configManager.getConfig();
+        const llmConfig = await configManager.getActiveModelConfig();
         
-        const apiKey = config.apiKey;
-        const baseUrl = config.baseUrl || 'https://api.deepseek.com';
-        const model = config.model || 'deepseek-chat';
+        const apiKey = llmConfig.apiKey;
+        const baseUrl = llmConfig.baseUrl || 'https://api.deepseek.com';
+        const model = llmConfig.model || 'deepseek-chat';
         
         if (!apiKey) {
           // For testing purposes, we might proceed if we want to test flow, but generally strict.
           // throw new Error('API Key not configured');
           // Actually, let's keep it strict.
+          console.warn('[BatchProcessor] API Key not configured for active model:', model);
           throw new Error('API Key not configured');
         }
 
