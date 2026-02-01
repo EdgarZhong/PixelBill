@@ -1,5 +1,5 @@
 import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
-import { isNative } from '../../utils/fs-storage';
+import { isNativePlatform } from '../../utils/fs-storage';
 import { format } from 'date-fns';
 
 export interface LogEntry {
@@ -49,7 +49,7 @@ export class RawLogger {
     const content = JSON.stringify(fullEntry, null, 2);
 
     try {
-      if (isNative) {
+      if (isNativePlatform()) {
         // Ensure dir exists
         try {
           await Filesystem.mkdir({
@@ -84,7 +84,7 @@ export class RawLogger {
    * 日志轮替：保留最新的 N 个文件
    */
   private static async rotateLogs() {
-    if (!isNative) return;
+    if (!isNativePlatform()) return;
 
     try {
       const result = await Filesystem.readdir({

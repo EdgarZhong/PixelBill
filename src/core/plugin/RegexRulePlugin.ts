@@ -22,7 +22,6 @@ export class RegexRulePlugin extends CategoryPlugin {
         return this.createProposal(
           'RULE_ENGINE',
           rule.category,
-          0.9, // 规则匹配通常置信度较高
           `Matched rule: ${rule.reason}`
         );
       }

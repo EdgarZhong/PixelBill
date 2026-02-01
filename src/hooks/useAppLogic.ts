@@ -1,6 +1,8 @@
-import { useRef, useMemo } from 'react';
+import { 
+  useMemo,
+  useRef
+} from 'react';
 import { useLedger } from './useLedger';
-import { LedgerService } from '../core/services/LedgerService';
 import { useFileWatcher, type FileChangeInfo } from './useFileWatcher';
 import { 
   requestDirectoryHandle, 
@@ -51,10 +53,10 @@ export function useAppLogic() {
     service.updateCategory(id, newCategory, newReasoning);
   };
 
-  const setDateRange = (range: { start: Date | null; end: Date | null }) => {
-    // This seems to be local UI state in the old hook, 
-    // but in Service it's computed from transactions.
-    // Wait, dateRange in old hook was state, but updated when transactions loaded.
+  // const setDateRange = (_range: { start: Date | null; end: Date | null }) => {
+  //   // This seems to be local UI state in the old hook, 
+  //   // but in Service it's computed from transactions.
+  // };  // Wait, dateRange in old hook was state, but updated when transactions loaded.
     // The DateRangePicker component might need to set it manually?
     // Let's check DesktopApp... DateRangePicker takes setDateRange.
     // If user picks a range, it filters transactions.
@@ -70,7 +72,7 @@ export function useAppLogic() {
     // I'll assume I can add it or just use a local override if needed?
     // No, if I use local state for dateRange, it will desync from Service's initial value.
     // Better to add it to Service.
-  };
+  // };
 
   const handleLoadData = async (externalHandle?: StorageDirHandle) => {
     if (isFileSystemSupported()) {
@@ -166,7 +168,7 @@ export function useAppLogic() {
   // Mock function for now to prevent TS error until I update Service
   const memoryFileHandle = (service.getState() as any).memoryFileHandle;
 
-  const handleExternalFileChange = (info: FileChangeInfo) => {
+  const handleExternalFileChange = (_info: FileChangeInfo) => {
      // Loopback detection logic moved to Service? 
      // Or just call reload.
      service.reloadMemory();

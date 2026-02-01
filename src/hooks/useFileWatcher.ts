@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { isNative } from '../utils/fs-storage';
+import { isNativePlatform } from '../utils/fs-storage';
 import type { StorageHandle, NativeFileHandle } from '../utils/fs-storage';
 import { Filesystem, Directory } from '@capacitor/filesystem';
 
@@ -30,16 +30,16 @@ export function useFileWatcher(
     // Disable file watching on native devices to save battery and CPU.
     // Cloud Sync (Future) should use a dedicated Event Bus or Push Notification mechanism,
     // not low-level file polling.
-    if (!fileHandle || isNative) {
+    if (!fileHandle || isNativePlatform()) {
       setIsWatching(false);
-      if (isNative) {
+      if (isNativePlatform()) {
         console.log('[FileWatcher] Disabled on native platform for performance.');
       }
       return;
     }
 
     const getMetadata = async (): Promise<number> => {
-      if (isNative) {
+      if (isNativePlatform()) {
         const nativeHandle = fileHandle as NativeFileHandle;
         try {
           const stat = await Filesystem.stat({
@@ -62,7 +62,7 @@ export function useFileWatcher(
     getMetadata().then(mtime => {
       lastModifiedRef.current = mtime;
       setIsWatching(true);
-      console.log('[FileWatcher] Started watching:', isNative ? (fileHandle as NativeFileHandle).path : (fileHandle as FileSystemFileHandle).name);
+      console.log('[FileWatcher] Started watching:', isNativePlatform() ? (fileHandle as NativeFileHandle).path : (fileHandle as FileSystemFileHandle).name);
     }).catch(err => {
       console.warn('[FileWatcher] Init failed:', err);
     });

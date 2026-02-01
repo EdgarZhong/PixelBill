@@ -50,7 +50,7 @@ export class AIEnginePlugin extends CategoryPlugin {
    * Currently returns null as this plugin operates primarily in Batch mode via `runBatchAnalysis`.
    * Real-time single-transaction analysis can be implemented here later.
    */
-  async analyze(transaction: TransactionBase): Promise<Proposal | null> {
+  async analyze(_transaction: TransactionBase): Promise<Proposal | null> {
     return null;
   }
 }

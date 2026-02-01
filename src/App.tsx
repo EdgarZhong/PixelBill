@@ -3,7 +3,7 @@ import { MobileApp } from './views/MobileApp';
 import { useState, useEffect } from 'react';
 import { configManager } from './core/config/ConfigManager';
 import { FetchClient } from './core/network/FetchClient';
-import { generateSystemPrompt } from './core/llm_service/prompt/SystemPrompt';
+// import { generateSystemPrompt } from './core/llm_service/prompt/SystemPrompt';
 
 function App() {
   const [isMobile, setIsMobile] = useState(false);

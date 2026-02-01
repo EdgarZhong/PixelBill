@@ -5,6 +5,7 @@ import { LedgerService } from './core/services/LedgerService';
 import { Filesystem, Directory, Encoding } from '../scripts/mocks/node-filesystem';
 import { Buffer } from 'node:buffer';
 import type { NativeDirHandle } from './utils/fs-storage';
+import { _setNativePlatform, _setFilesystemImpl } from './utils/fs-storage';
 
 // Polyfill for environment
 if (typeof window === 'undefined') {
@@ -36,18 +37,23 @@ async function main() {
   log('------------------------------------------------');
 
   try {
+    // 0. Configure Mock Environment
+    log('[Step 0] Configuring Mock Environment...');
+    _setNativePlatform(true);
+    _setFilesystemImpl(Filesystem);
+
     // 1. Initialize Config (Load API Key)
     log('[Step 1] Initializing Configuration...');
     const configManager = ConfigManager.getInstance();
     await configManager.init();
-    const config = await configManager.getConfig();
+    const llmConfig = await configManager.getActiveModelConfig();
     
-    if (!config.apiKey) {
+    if (!llmConfig.apiKey) {
       console.error('❌ Error: API Key not found in secure_config.bin!');
       log('❌ Error: API Key not found in secure_config.bin!');
       process.exit(1);
     }
-    log('✅ Config Loaded. API Key Present.');
+    log(`✅ Config Loaded. Active Model: ${llmConfig.model}. API Key Present.`);
 
     // 2. Initialize LedgerService
     log('[Step 2] Initializing LedgerService...');
@@ -73,12 +79,18 @@ async function main() {
         log('🔹 No transactions found. Injecting dummy transaction...');
         const dummyTx = {
             id: 'dummy-tx-1',
-            amount: 100,
-            merchant: 'Test Merchant',
-            date: '2025-01-01 10:00:00',
+            time: '2025-01-01 10:00:00',
+            sourceType: 'wechat' as const,
             category: 'uncategorized',
-            originalDate: new Date('2025-01-01T10:00:00'),
-            direction: 'out' as const
+            rawClass: 'TEST_RAW',
+            counterparty: 'Test Merchant',
+            product: 'Test Product',
+            amount: 100,
+            direction: 'out' as const,
+            paymentMethod: 'Test Pay',
+            transactionStatus: 'SUCCESS' as const,
+            remark: 'Test Remark',
+            originalDate: new Date('2025-01-01T10:00:00')
         };
         await ledgerService.ingestRawData([dummyTx]);
         state = ledgerService.getState();

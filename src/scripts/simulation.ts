@@ -7,13 +7,17 @@ import type { Transaction } from '../types';
 const MOCK_TX: Transaction = {
     id: 'test_tx_001',
     amount: 100,
-    type: 'wechat',
-    merchant: 'McDonalds',
-    date: '2023-10-01 12:00:00',
+    sourceType: 'wechat',
+    counterparty: 'McDonalds',
+    time: '2023-10-01 12:00:00',
     originalDate: new Date('2023-10-01T12:00:00'),
     direction: 'out',
-    category: 'others', // Initial raw category
-    desc: 'Lunch'
+    category: 'others',
+    remark: 'Lunch',
+    rawClass: 'General',
+    product: 'Big Mac',
+    paymentMethod: 'Wallet',
+    transactionStatus: 'SUCCESS'
 };
 
 async function runSimulation() {
@@ -33,8 +37,7 @@ async function runSimulation() {
         ai_category: "",
         ai_reasoning: "",
         is_verified: false,
-        updated_at: "",
-        category: "uncategorized"
+        updated_at: ""
     });
     console.log('[Step 1] Hydrated with empty state.');
 

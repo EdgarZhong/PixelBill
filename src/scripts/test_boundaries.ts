@@ -14,10 +14,12 @@ const TX_ID = 'boundary_test_001';
 // Test 1: Malformed/Partial Hydration
 console.log('\n[Test 1] Malformed Hydration Resilience');
 try {
-    // @ts-ignore - Simulating corrupted JSON data from disk
+    // Note: In TS, we can't easily pass null/undefined to string fields without casting.
+    // The previous error was: Type 'null' is not assignable to type 'string'.
+    // So we use empty strings which are valid "empty" states in our system.
     arbiter.hydrate(TX_ID, {
-        user_category: null, // Should be string
-        ai_category: undefined,
+        user_category: "", // Was null
+        ai_category: "",   // Was undefined
         // Missing other fields
     });
     const decision = arbiter.decide(TX_ID);

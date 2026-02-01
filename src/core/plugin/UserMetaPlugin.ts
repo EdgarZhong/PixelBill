@@ -15,7 +15,6 @@ export class UserMetaPlugin extends CategoryPlugin {
       return this.createProposal(
         'USER',
         tx.user_category,
-        1.0, // Confidence is irrelevant but required by base class for now
         tx.user_note || 'User manual input'
       );
     }

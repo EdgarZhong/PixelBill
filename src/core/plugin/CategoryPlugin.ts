@@ -28,7 +28,7 @@ export abstract class CategoryPlugin implements ICategoryPlugin {
     return {
       source,
       category,
-      reasoning,
+      reasoning: reasoning || '',
       timestamp: Date.now(),
     };
   }

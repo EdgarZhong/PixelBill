@@ -1,11 +1,11 @@
-import { parseFiles } from '../../utils/parser';
+
 import { 
   getAutoDirectoryHandle,
   getMemoryFileHandle, 
   readMemoryFile, 
   writeMemoryFile, 
   DEFAULT_MEMORY, 
-  isNative
+  isNativePlatform
 } from '../../utils/fs-storage';
 import type { StorageHandle, StorageDirHandle } from '../../utils/fs-storage';
 import type { Transaction } from '../../types';
@@ -145,7 +145,7 @@ export class LedgerService {
 
   public async init() {
     // Android Auto-Init
-    if (isNative) {
+    if (isNativePlatform()) {
       await this.handleInitLedgerNative();
     }
   }
@@ -207,7 +207,7 @@ export class LedgerService {
     }
   }
 
-  public async loadData(externalHandle?: StorageDirHandle) {
+  public async loadData(_externalHandle?: StorageDirHandle) {
     // This replaces handleLoadData
     // ... implementation logic ...
     // For brevity, assuming this is called by UI with handle

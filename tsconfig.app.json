@@ -24,5 +24,11 @@
     "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": true
   },
-  "include": ["src"]
+  "include": ["src"],
+  "exclude": [
+    "src/scripts",
+    "src/test_ai_trigger.ts",
+    "src/**/*.test.ts",
+    "src/**/*.spec.ts"
+  ]
 }

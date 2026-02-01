@@ -1,5 +1,5 @@
 import type { ICategoryPlugin, Proposal, ProposalSource } from '../plugin/types';
-import type { FullTransactionRecord, LedgerMemory, TransactionMeta } from '../../types/metadata';
+import type { FullTransactionRecord, TransactionMeta } from '../../types/metadata';
 
 interface ProposalCache {
   [transactionId: string]: {
@@ -128,7 +128,7 @@ export class Arbiter {
     if (Object.keys(updates).length > 0) {
       // Calculate final decision to keep category in sync (View Model)
       const finalDecision = this.decide(txId);
-      updates.category = finalDecision.category;
+      (updates as any).category = finalDecision.category;
 
       this.onPatchGenerated({ id: txId, updates });
     }

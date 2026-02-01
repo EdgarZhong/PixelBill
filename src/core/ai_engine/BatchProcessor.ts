@@ -7,7 +7,7 @@ import {
   getMemoryFileHandle, 
   readMemoryFile 
 } from '../../utils/fs-storage';
-import type { LedgerMemory, FullTransactionRecord } from '../../types/metadata';
+import type { FullTransactionRecord } from '../../types/metadata';
 import type { Proposal } from '../plugin/types';
 import type { AIStatus, AIProgress, ProcessingResult } from './types';
 import { format, parseISO, compareDesc } from 'date-fns';

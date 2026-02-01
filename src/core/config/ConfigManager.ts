@@ -1,6 +1,6 @@
 import { CryptoUtils } from '../../utils/crypto';
 import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
-import { isNative } from '../../utils/fs-storage';
+import { isNativePlatform } from '../../utils/fs-storage';
 
 // 安全配置接口
 export interface ProviderConfig {
@@ -166,7 +166,7 @@ export class ConfigManager {
   // --- Low Level Disk IO ---
 
   private async readFromDisk(): Promise<string | null> {
-    if (isNative) {
+    if (isNativePlatform()) {
       try {
         const result = await Filesystem.readFile({
           path: CONFIG_FILE_NAME,
@@ -187,7 +187,7 @@ export class ConfigManager {
   }
 
   private async writeToDisk(data: string): Promise<void> {
-    if (isNative) {
+    if (isNativePlatform()) {
       await Filesystem.writeFile({
         path: CONFIG_FILE_NAME,
         data: data,

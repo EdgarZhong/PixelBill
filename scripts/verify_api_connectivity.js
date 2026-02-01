@@ -60,20 +60,44 @@ async function main() {
     const configStr = decrypt(encryptedData, MASTER_KEY);
     const config = JSON.parse(configStr);
     
-    console.log(`      Provider: ${config.provider}`);
-    console.log(`      Model: ${config.model}`);
-    console.log(`      BaseURL: ${config.baseUrl}`);
-    console.log(`      Thinking Mode: ${config.enableThinking ? 'Enabled' : 'Disabled'}`);
+    // 解析 MultiProviderConfig
+    let activeCandidate = 'deepseek::deepseek-chat';
+    if (config.candidateModels && config.candidateModels.length > 0) {
+        activeCandidate = config.candidateModels[0];
+    } else if (config.provider) {
+        // Fallback for legacy config structure (should not happen with new setup script but good for safety)
+        activeCandidate = `${config.provider}::${config.model}`;
+        // Polyfill providers if missing
+        if (!config.providers) {
+             config.providers = {
+                 [config.provider]: { apiKey: config.apiKey, baseUrl: config.baseUrl }
+             };
+        }
+    }
 
-    if (!config.apiKey) {
-      throw new Error('API Key 为空');
+    const [providerName, modelName] = activeCandidate.split('::');
+    const providerConfig = config.providers ? config.providers[providerName] : null;
+    const globalParams = config.globalParams || {};
+
+    if (!providerConfig) {
+        throw new Error(`Provider '${providerName}' not found in configuration.`);
+    }
+
+    console.log(`      Active Candidate: ${activeCandidate}`);
+    console.log(`      Provider: ${providerName}`);
+    console.log(`      Model: ${modelName}`);
+    console.log(`      BaseURL: ${providerConfig.baseUrl}`);
+    console.log(`      Thinking Mode: ${globalParams.enableThinking ? 'Enabled' : 'Disabled'}`);
+
+    if (!providerConfig.apiKey) {
+      throw new Error(`API Key for ${providerName} is empty.`);
     }
 
     // 3. 发起测试请求
     console.log('\n[2/3] 正在发送测试请求...');
     
     const requestBody = JSON.stringify({
-      model: config.model,
+      model: modelName,
       messages: [
         {
           role: 'system',
@@ -88,26 +112,25 @@ async function main() {
       response_format: {
         type: 'json_object'
       },
-      // 如果启用了思考模式，且是 DeepSeek 模型，可能需要特殊参数 (ModelScope 通常通过 headers 或 extra_body 支持)
-      // 这里根据 ModelScope 文档尝试通过 extra_body 传递 enable_thinking
-      extra_body: config.enableThinking ? {
+      // 如果启用了思考模式，且是 DeepSeek 模型，可能需要特殊参数
+      extra_body: globalParams.enableThinking ? {
         enable_thinking: true
       } : undefined
     });
 
-    const url = new URL(config.baseUrl);
+    const url = new URL(providerConfig.baseUrl);
     const options = {
       hostname: url.hostname,
       path: url.pathname + '/chat/completions', // 假设是 OpenAI 兼容接口
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${config.apiKey}`
+        'Authorization': `Bearer ${providerConfig.apiKey}`
       }
     };
 
     // 处理路径: 如果 baseUrl 已经包含 /v1 等，需要正确拼接
-    if (config.baseUrl.endsWith('/')) {
+    if (providerConfig.baseUrl.endsWith('/')) {
         options.path = url.pathname + 'chat/completions';
     } else {
         // 简单处理：假设 baseUrl 是 https://.../v1

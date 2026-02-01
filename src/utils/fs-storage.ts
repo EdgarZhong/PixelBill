@@ -32,19 +32,26 @@ export const DEFAULT_MEMORY: LedgerMemory = {
 
 // --- Platform Check ---
 
-export const isNative = Capacitor.isNativePlatform();
+let isNativeOverride: boolean | null = null;
+let FilesystemImpl = Filesystem;
+
+export const isNativePlatform = () => isNativeOverride ?? Capacitor.isNativePlatform();
+
+// Test Helpers
+export const _setNativePlatform = (val: boolean) => { isNativeOverride = val; };
+export const _setFilesystemImpl = (impl: any) => { FilesystemImpl = impl; };
 
 export const isFileSystemSupported = () => {
-  if (isNative) return true;
+  if (isNativePlatform()) return true;
   return 'showDirectoryPicker' in window;
 };
 
 // --- Main Functions ---
 
 export const getAutoDirectoryHandle = async (): Promise<StorageDirHandle> => {
-  if (isNative) {
+  if (isNativePlatform()) {
     try {
-      const status = await Filesystem.requestPermissions();
+      const status = await FilesystemImpl.requestPermissions();
       if (status.publicStorage !== 'granted') {
         console.warn('Storage permission might be denied:', status);
       }
@@ -52,7 +59,7 @@ export const getAutoDirectoryHandle = async (): Promise<StorageDirHandle> => {
       // Ensure PixelBill directory exists in Documents
       const pixelBillDir = 'PixelBill';
       try {
-        await Filesystem.mkdir({
+        await FilesystemImpl.mkdir({
           path: pixelBillDir,
           directory: Directory.Documents,
           recursive: true
@@ -76,11 +83,11 @@ export const getAutoDirectoryHandle = async (): Promise<StorageDirHandle> => {
 };
 
 export const requestDirectoryHandle = async (): Promise<StorageDirHandle> => {
-  if (isNative) {
+  if (isNativePlatform()) {
     // On Android, we default to the Documents directory.
     // We first request permissions to ensure we can access it.
     try {
-      const status = await Filesystem.requestPermissions();
+      const status = await FilesystemImpl.requestPermissions();
       if (status.publicStorage !== 'granted') {
         // Check if we effectively have permission (sometimes 'granted' is not returned but it works)
         // But throwing here is safer to prompt UI feedback
@@ -110,7 +117,7 @@ export const getMemoryFileHandle = async (
   dirHandle: StorageDirHandle,
   create: boolean = false
 ): Promise<StorageHandle | null> => {
-  if (isNative) {
+  if (isNativePlatform()) {
     const nativeDir = dirHandle as NativeDirHandle;
     // Handle path joining safely
     const filePath = nativeDir.path 
@@ -119,7 +126,7 @@ export const getMemoryFileHandle = async (
     
     try {
       // Check if exists
-      await Filesystem.stat({
+      await FilesystemImpl.stat({
         path: filePath,
         directory: Directory.Documents
       });
@@ -151,10 +158,10 @@ export const getMemoryFileHandle = async (
 };
 
 export const readMemoryFile = async (fileHandle: StorageHandle): Promise<LedgerMemory> => {
-  if (isNative) {
+  if (isNativePlatform()) {
     const nativeHandle = fileHandle as NativeFileHandle;
     try {
-      const result = await Filesystem.readFile({
+      const result = await FilesystemImpl.readFile({
         path: nativeHandle.path,
         directory: Directory.Documents,
         encoding: Encoding.UTF8
@@ -183,9 +190,9 @@ export const writeMemoryFile = async (
   fileHandle: StorageHandle,
   data: LedgerMemory
 ): Promise<void> => {
-  if (isNative) {
+  if (isNativePlatform()) {
     const nativeHandle = fileHandle as NativeFileHandle;
-    await Filesystem.writeFile({
+    await FilesystemImpl.writeFile({
       path: nativeHandle.path,
       data: JSON.stringify(data, null, 2),
       directory: Directory.Documents,
@@ -202,7 +209,7 @@ export const writeMemoryFile = async (
 // Helper for recursive native scanning
 async function scanNativeDir(path: string, fileList: File[]): Promise<File[]> {
   try {
-    const result = await Filesystem.readdir({
+    const result = await FilesystemImpl.readdir({
       path: path,
       directory: Directory.Documents
     });
@@ -213,7 +220,7 @@ async function scanNativeDir(path: string, fileList: File[]): Promise<File[]> {
       if (file.type === 'file') {
         if (file.name.toLowerCase().endsWith('.csv')) {
           // Read content
-          const readResult = await Filesystem.readFile({
+          const readResult = await FilesystemImpl.readFile({
             path: fullPath,
             directory: Directory.Documents,
             encoding: Encoding.UTF8
@@ -240,7 +247,7 @@ export const scanForCSVFiles = async (
   dirHandle: StorageDirHandle,
   fileList: File[] = []
 ): Promise<File[]> => {
-  if (isNative) {
+  if (isNativePlatform()) {
     const nativeDir = dirHandle as NativeDirHandle;
     return await scanNativeDir(nativeDir.path, fileList);
   } else {
