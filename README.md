@@ -9,16 +9,15 @@
 ## ✨ 核心特性
 
 *   **本地优先 (Local-First)**: 基于 File System Access API 实现，数据完全存储在用户本地的 JSON 文件中，无服务器交互，隐私绝对安全。
-*   **智能导入**: 自动识别并解析微信支付 (UTF-8) 和支付宝 (GBK) 的 CSV 账单文件，无需手动转码。
+*   **智能导入**: 自动识别并解析微信支付和支付宝的 CSV 账单文件，无需手动转码。
 *   **生成式可视化**:
     *   **活跃度矩阵**: 动态展示最近 14 天的消费热力，像素高度与透明度随消费额动态生成。
     *   **心理账户点阵**: 使用非线性的 5 级像素点阵来直观呈现金额量级，而非枯燥的数字。
 *   **多信源仲裁系统 (Arbiter)**: 
     *   内置强大的分类仲裁器，支持多插件协作。
-    *   **UserMetaPlugin**: 最高优先级，实时响应并持久化用户的分类操作。
-    *   **LocalAIMetaPlugin**: 读取本地 AI 预处理数据参与仲裁。（暂时）
-    *   **AIPlugin**: 调用 AI 模型（如 GPT-4o）进行分类建议。（待实现，一个微型Agent，能够基于反馈和账单上下文不断改进分类经验，提高个性化分类准确率）
-    *   **RegexRulePlugin**: 基于正则表达式的规则匹配插件（可以由专业用户自行扩展开发）。
+    *   **UserMetaPlugin**: 最高优先级，负责加载用户已存在的手动分类记录（不直接处理交互，交互由 UI 触发 Arbiter 写入）。
+    *   **AIEnginePlugin**: 异步后台智能引擎，基于上下文进行批量化分类分析。
+    *   **RegexRulePlugin**: 预留扩展位，供极客用户自定义正则规则（默认低优先级）。
     *   **Fallback 机制**: 确保在所有插件失效时保留历史分类，防止数据丢失。
 *   **JSON 即数据库**: 采用 `Raw Data` + `Meta Data` 分层架构，支持使用外部编辑器直接修改 JSON 文件来干预应用数据。
 
@@ -139,12 +138,6 @@ src/
   └── App.tsx            # [ENTRY] 路由分发器
 ```
 
-#### 分支策略 (Branching Strategy)
-*   **Single Branch (main)**: 
-    *   不再维护长期的 `desktop` 或 `mobile` 分支。
-    *   通过代码物理隔离实现两条业务线的并行开发。
-    *   `main` 分支始终保持可编译、可运行的双模状态。
-
 
 ### 数据流与仲裁器设计 (The Arbiter)
 
@@ -153,9 +146,9 @@ PixelBill 的核心是一个基于优先级的仲裁系统，用于决定每一�
 1.  **Ingest**: 导入 CSV 流水，转换为标准化的 `TransactionBase` 对象。
 2.  **Arbiter**: 遍历交易，并行询问所有注册插件。
 3.  **Plugins**:
-    *   `UserMetaPlugin`: 检查 `*.pixelbill.json` 中是否有用户手动标记的记录 (Priority: HIGH)。
-    *   `LocalAIMetaPlugin`: 检查元数据中是否有 AI 预填充的建议 (Priority: MEDIUM)。
-    *   `RegexRulePlugin` (Disabled): 正则规则匹配 (Priority: LOW)。
+    *   `UserMetaPlugin`: 读取 `*.pixelbill.json` 中的 `user_category` 字段，确保用户手动分类具有最高优先级 (Priority: HIGH)。
+    *   `AIEnginePlugin`: 异步后台运行，批量分析数据并提交智能分类提案 (Priority: MEDIUM)。
+    *   `RegexRulePlugin`: 正则规则匹配，预留给高级用户扩展 (Priority: LOW)。
 4.  **Decision**: 仲裁器根据优先级选出最佳提案 (Proposal)，生成最终视图。
 
 ### 元数据存储
