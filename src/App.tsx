@@ -3,10 +3,13 @@ import { MobileApp } from './views/MobileApp';
 import { useState, useEffect } from 'react';
 import { configManager } from './core/config/ConfigManager';
 import { FetchClient } from './core/network/FetchClient';
+import { AnimatePresence } from 'framer-motion';
+import { SplashScreen } from './components/SplashScreen';
 // import { generateSystemPrompt } from './core/llm_service/prompt/SystemPrompt';
 
 function App() {
   const [isMobile, setIsMobile] = useState(false);
+  const [showSplash, setShowSplash] = useState(true);
 
   // Monitor window resize and determine layout based on viewport width
   useEffect(() => {
@@ -24,6 +27,17 @@ function App() {
     return () => window.removeEventListener('resize', checkIsMobile);
   }, []);
 
+  // Handle Splash Screen Logic
+  useEffect(() => {
+    // Force splash screen to stay for at least 1.5s to ensure "No Flash" and "Data Warming"
+    // This replaces the manual delay we added in useLedger.ts
+    const timer = setTimeout(() => {
+      setShowSplash(false);
+    }, 1500);
+    
+    return () => clearTimeout(timer);
+  }, []);
+
   // --- Debug / Console Testing Exposure ---
   useEffect(() => {
     // Expose internal tools to window for console testing
@@ -32,78 +46,25 @@ function App() {
       window.__DEBUG_TOOLS__ = {
         configManager,
         FetchClient,
-        // testLLM: async (question: string = '1+1=?') => {
-        //   try {
-        //     console.log('[Debug] Starting LLM Test...');
-        //     const config = await configManager.getConfig();
-        //     console.log('[Debug] Config loaded:', { ...config, apiKey: '***' });
-            
-        //     if (!config.apiKey) {
-        //       console.error('[Debug] No API Key found in config!');
-        //       return;
-        //     }
-
-        //     const requestBody = {
-        //       model: config.model,
-        //       messages: [
-        //         { 
-        //           role: 'system', 
-        //           content: PIXEL_BILL_SYSTEM_PROMPT 
-        //         },
-        //         { role: 'user', content: question }
-        //       ],
-        //       stream: false,
-        //       response_format: { type: 'json_object' },
-        //       extra_body: config.enableThinking ? { enable_thinking: true } : undefined
-        //     };
-
-        //     const url = config.baseUrl.endsWith('/') 
-        //       ? `${config.baseUrl}chat/completions` 
-        //       : `${config.baseUrl}/chat/completions`;
-              
-        //     const cleanUrl = url.replace('//chat', '/chat'); // Fix double slashes
-
-        //     console.log(`[Debug] POST ${cleanUrl}`);
-            
-        //     const response = await FetchClient.request<any>(cleanUrl, {
-        //       method: 'POST',
-        //       headers: {
-        //         'Content-Type': 'application/json',
-        //         'Authorization': `Bearer ${config.apiKey}`
-        //       },
-        //       body: JSON.stringify(requestBody)
-        //     });
-
-        //     console.log('[Debug] Raw Response:', response);
-            
-        //     if (response.choices && response.choices.length > 0) {
-        //       const msg = response.choices[0].message;
-        //       console.log('\n================ AI RESPONSE ================');
-        //       if (msg.reasoning_content) {
-        //         console.log('%c[Thinking Process]:', 'color: orange; font-weight: bold;');
-        //         console.log(msg.reasoning_content);
-        //         console.log('---------------------------------------------');
-        //       }
-        //       console.log('%c[Final Content]:', 'color: #4ade80; font-weight: bold;'); // pixel-green
-        //       console.log(msg.content);
-        //       console.log('=============================================\n');
-        //     } else {
-        //       console.warn('[Debug] No choices in response');
-        //     }
-
-        //     return response;
-        //   } catch (e) {
-        //     console.error('[Debug] LLM Test Failed:', e);
-        //     throw e;
-        //   }
-        // }
       };
-      console.log('🔧 Debug Tools Exposed: window.__DEBUG_TOOLS__.testLLM()');
     }
   }, []);
 
-  // Return appropriate layout based on current viewport
-  return isMobile ? <MobileApp /> : <DesktopApp />;
+  return (
+    <div className="relative w-full h-full">
+      {/* 1. Main App Layer (Base Layer) */}
+      {/* It is always rendered in the background to ensure "No Flash" when splash exits */}
+      <div className="absolute inset-0 z-0">
+        {isMobile ? <MobileApp /> : <DesktopApp />}
+      </div>
+
+      {/* 2. Splash Screen Overlay Layer */}
+      {/* High z-index ensures it covers everything */}
+      <AnimatePresence>
+        {showSplash && <SplashScreen key="splash" />}
+      </AnimatePresence>
+    </div>
+  );
 }
 
 export default App;

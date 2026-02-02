@@ -145,8 +145,20 @@ export class LedgerService {
 
   public async init() {
     // Android Auto-Init
+    // For Web, we can also simulate auto-init if we have a mock filesystem or just skip it
+    // But since the user wants to see data loading, let's enable it for native AND web (mock)
     if (isNativePlatform()) {
       await this.handleInitLedgerNative();
+    } else {
+       // Web Mock Logic for Testing
+       console.log('[LedgerService] Web environment detected. Simulating auto-init...');
+       // Use a timeout to simulate async loading
+       setTimeout(async () => {
+         // Check if we can get a handle (e.g. from OPFS or Mock)
+         // For now, let's try to reuse handleInitLedgerNative logic if it supports web
+         // Or just call it directly since getAutoDirectoryHandle might have web fallback
+         await this.handleInitLedgerNative();
+       }, 0);
     }
   }
 

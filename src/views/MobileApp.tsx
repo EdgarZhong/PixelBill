@@ -382,26 +382,96 @@ export function MobileApp() {
           isLoading={isLoading} 
           onInitLedger={handleInitLedger}
           onImportData={handleImportData}
+          hasData={transactions.length > 0}
         />
         <main className="animate-fade-in">
           {/* 统计栏 - 移动端网格布局 */}
           <div className="grid grid-cols-2 gap-4 mb-3 border-b border-gray-800 pb-3">
-            <div className="text-center p-2 bg-card/30 border border-white/5 rounded-sm">
+            <div className="text-center p-2 bg-card/30 border border-white/5 rounded-sm h-[54px] flex flex-col justify-center">
               <div className="text-dim text-[10px] mb-1">TOTAL_EXPENSE</div>
-              <div className="text-xl font-bold text-expense-red truncate">
-                -¥{totalExpense.toFixed(0)}
+              <div className="truncate relative h-7 w-full flex items-center justify-center">
+                <AnimatePresence mode="popLayout">
+                  {transactions.length > 0 ? (
+                    <motion.span 
+                      key="value"
+                      initial={{ opacity: 0, scale: 1.05, filter: 'blur(4px) brightness(2)' }}
+                      animate={{ opacity: 1, scale: 1, filter: 'blur(0px) brightness(1)' }}
+                      exit={{ opacity: 0 }}
+                      transition={{ duration: 0.4, ease: "easeOut" }}
+                      className="text-xl font-bold text-expense-red absolute"
+                    >
+                      -¥{totalExpense.toFixed(0)}
+                    </motion.span>
+                  ) : (
+                    <motion.span 
+                      key="awaiting"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 0.5 }}
+                      exit={{ opacity: 0, scale: 0.95, transition: { duration: 0.1 } }}
+                      className="text-[10px] text-expense-red animate-pulse-slow font-mono block absolute"
+                    >
+                      [AWAITING_DATA]
+                    </motion.span>
+                  )}
+                </AnimatePresence>
               </div>
             </div>
-            <div className="text-center p-2 bg-card/30 border border-white/5 rounded-sm">
+            <div className="text-center p-2 bg-card/30 border border-white/5 rounded-sm h-[54px] flex flex-col justify-center">
               <div className="text-dim text-[10px] mb-1">TOTAL_INCOME</div>
-              <div className="text-xl font-bold text-income-yellow truncate">
-                +¥{totalIncome.toFixed(0)}
+              <div className="truncate relative h-7 w-full flex items-center justify-center">
+                <AnimatePresence mode="popLayout">
+                  {transactions.length > 0 ? (
+                    <motion.span 
+                      key="value"
+                      initial={{ opacity: 0, scale: 1.05, filter: 'blur(4px) brightness(2)' }}
+                      animate={{ opacity: 1, scale: 1, filter: 'blur(0px) brightness(1)' }}
+                      exit={{ opacity: 0 }}
+                      transition={{ duration: 0.4, ease: "easeOut" }}
+                      className="text-xl font-bold text-income-yellow absolute"
+                    >
+                      +¥{totalIncome.toFixed(0)}
+                    </motion.span>
+                  ) : (
+                    <motion.span 
+                      key="awaiting"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 0.5 }}
+                      exit={{ opacity: 0, scale: 0.95, transition: { duration: 0.1 } }}
+                      className="text-[10px] text-income-yellow animate-pulse-slow font-mono block absolute"
+                    >
+                      [AWAITING_DATA]
+                    </motion.span>
+                  )}
+                </AnimatePresence>
               </div>
             </div>
-            <div className="text-center p-2 bg-card/30 border border-white/5 rounded-sm">
+            <div className="text-center p-2 bg-card/30 border border-white/5 rounded-sm h-[54px] flex flex-col justify-center">
               <div className="text-dim text-[10px] mb-1">TXN_COUNT</div>
-              <div className="text-xl font-bold text-gray-200">
-                {filteredTransactions.length}
+              <div className="truncate relative h-7 w-full flex items-center justify-center">
+                <AnimatePresence mode="popLayout">
+                  {transactions.length > 0 ? (
+                    <motion.span 
+                      key="value"
+                      initial={{ opacity: 0, scale: 1.05, filter: 'blur(4px) brightness(2)' }}
+                      animate={{ opacity: 1, scale: 1, filter: 'blur(0px) brightness(1)' }}
+                      exit={{ opacity: 0 }}
+                      transition={{ duration: 0.4, ease: "easeOut" }}
+                      className="text-xl font-bold text-gray-200 absolute"
+                    >
+                      {filteredTransactions.length}
+                    </motion.span>
+                  ) : (
+                    <motion.span 
+                      key="awaiting"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 0.5 }}
+                      exit={{ opacity: 0, scale: 0.95, transition: { duration: 0.1 } }}
+                      className="text-[10px] text-gray-200 animate-pulse-slow font-mono block absolute"
+                    >
+                      [AWAITING_DATA]
+                    </motion.span>
+                  )}
+                </AnimatePresence>
               </div>
             </div>
             <div className="w-full h-full">
@@ -417,8 +487,8 @@ export function MobileApp() {
               ) : (
                 <div className="flex flex-col items-center justify-start w-full h-full bg-card/30 border border-white/5 rounded-sm p-2">
                   <div className="text-dim text-[10px] mb-1 font-mono tracking-wider">DATA_RANGE</div>
-                  <div className="text-dim opacity-50 text-[10px] font-mono">
-                    NO DATA
+                  <div className="relative flex items-center justify-center font-mono text-sm gap-1.5 h-6">
+                     <span className="text-[10px] opacity-50 animate-pulse-slow font-mono">[AWAITING_DATA]</span>
                   </div>
                 </div>
               )}
@@ -476,13 +546,39 @@ export function MobileApp() {
                 onTouchStart={stopScrollAnimation}
                 onScroll={isOverflowing ? handleScroll : undefined}
               >
-                {extendedTabs.map((f, index) => {
+                {isLoading || transactions.length === 0 ? (
+                   // Ghost Tabs (Skeleton) - Morphing into Real Tabs
+                   <AnimatePresence mode="popLayout">
+                     <motion.div 
+                       key="ghost-container"
+                       className="flex gap-3"
+                       exit={{ opacity: 0, transition: { duration: 0.2 } }}
+                     >
+                       {Array.from({ length: 3 }).map((_, i) => (
+                         <div 
+                           key={`ghost-${i}`}
+                           className="h-[26px] bg-white/5 rounded-sm animate-pulse-slow flex-shrink-0"
+                           style={{ width: [60, 80, 60][i] + 'px' }} 
+                         />
+                       ))}
+                     </motion.div>
+                   </AnimatePresence>
+                ) : (
+                  extendedTabs.map((f, index) => {
                   // 对于扩展列表中的唯一键，我们需要复合键
                   // index 在这里是可靠的
                   
                   // 只要是当前选中的 filter，就显示指示器
                   const isSelected = filter === f;
                   const isActiveInstance = index === activeTabIndex;
+
+                  // Ripple Effect Calculation
+                  // Center index for the visible set (assuming standard set is in the middle for initial load)
+                  // We approximate center based on TABS length
+                  const centerIndex = Math.floor(extendedTabs.length / 2); 
+                  const dist = Math.abs(index - centerIndex);
+                  // Max delay 0.3s
+                  const delay = Math.min(dist * 0.05, 0.3);
 
                   // 核心修复：
                   // 为了实现跨组（无限滚动边界）的平滑动画，必须使用全局唯一的 layoutId
@@ -495,15 +591,18 @@ export function MobileApp() {
                   return (
                     <motion.button
                       key={`${f}-${index}`}
-                      onClick={() => handleTabChangeWithCenter(f, index)}
+                      initial={{ opacity: 0, scale: 0.9 }}
                       animate={{ 
+                        opacity: 1, 
                         scale: isSelected ? 1.1 : 1,
                         color: isSelected ? '#10B981' : '#9CA3AF'
                       }}
                       transition={{ 
-                        duration: 0.6, 
-                        ease: [0.25, 1, 0.5, 1] 
+                        opacity: { duration: 0.4, delay: delay, ease: "easeOut" },
+                        scale: { duration: 0.6, ease: [0.25, 1, 0.5, 1] },
+                        color: { duration: 0.3 }
                       }}
+                      onClick={() => handleTabChangeWithCenter(f, index)}
                       className="pb-2 px-3 text-[10px] relative font-pixel tracking-tight whitespace-nowrap flex-shrink-0"
                     >
                       {f.toUpperCase()}
@@ -516,7 +615,7 @@ export function MobileApp() {
                       )}
                     </motion.button>
                   );
-                })}
+                }))}
               </div>
               
               {/* 渐变边缘 - 仅当溢出时显示 */}

@@ -277,7 +277,7 @@ export const ActivityMatrix: React.FC<ActivityMatrixProps> = ({ transactions, on
                           opacity: isActive ? 1 : 0.1,
                           width: isActive ? "100%" : "70%"
                         }}
-                        transition={{ delay: index * 0.05 + i * 0.01 }}
+                        transition={{ delay: index * 0.05 + (isActive ? i * 0.01 : (19 - i) * 0.01) }}
                         className={`h-1 md:h-1.5 rounded-[1px] transition-colors duration-300 ${
                           isActive 
                             ? `${isSelected ? 'shadow-none' : 'shadow-[0_0_2px_rgba(0,0,0,0.5)]'}

@@ -54,7 +54,7 @@ export const TransactionItem: React.FC<TransactionItemProps> = ({
           <div 
             className={clsx(
               "w-2.5 h-2.5 transition-transform duration-300",
-              isActive ? "rotate-45" : "group-hover:rotate-45",
+              isActive ? "rotate-45" : "",
               t.sourceType === 'wechat' ? 'bg-pixel-green' : 'bg-alipay-blue'
             )}
           />

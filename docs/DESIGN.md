@@ -68,14 +68,25 @@ PixelBill 奉行“生成式极简主义”与“赛博禅意”的设计哲学�
 
 ### 2.5 动效与交互 (Motion & Interaction)
 
-*   **Breathing & Glow (呼吸与光晕)**: 
-    *   **Cycle**: 4秒 (4s) 慢速呼吸周期，模拟电子设备的待机状态。
-    *   **Text Glow**: 标题 "BILL" 采用 `drop-shadow` 动画，在 50% 透明度时收缩光晕，100% 时扩散光晕。
-    *   **Box Glow**: Logo 像素块采用 `box-shadow` 动画，产生真实的“发光元件”质感。
+*   **Breathing & Glow (呼吸与光晕)**:
+    *   **Global Heartbeat (全局心跳)**: 所有持续性呼吸动画（Logo, Text Glow, Loading Skeletons）必须统一使用 `4s` 周期 (`cubic-bezier(0.4, 0, 0.6, 1)`)。
+    *   **Synchronization (同步)**: 禁止使用不同频率的呼吸动画混杂。Skeleton 屏的脉冲 (`pulse-slow`) 必须与 Header Logo 的 `box-glow` 保持同频，营造“系统待机”的整体生命感。
+    *   **Implementation**: 统一使用 Tailwind 的 `animate-pulse-slow`, `animate-box-glow`, `animate-text-glow` 类。
 *   **Glitch (故障)**: 在活跃度矩阵中引入极低概率的随机位移或透明度抖动，模拟老式显示器的信号不稳定感。
 *   **Micro-interactions**:
-    *   **Hover**: 列表项悬停时，左侧指示器旋转 45 度，边框高亮。
-    *   **Load**: 数据加载时，使用类似终端打字机或数据流解码的动画。
+    *   **Data Emergence (数据浮现)**: 采用 **"In-place Morphing & Activation" (原地演变与激活)** 策略。
+        *   **Core Logic**: 界面骨架（DOM 结构）坚如磐石，严禁布局抖动 (Layout Shift)。数据加载表现为“容器”被“内容”填充并激活的过程。
+        *   **Stats Panel (统计面板)**: **Pulse Switch (脉冲切换)**。
+            *   面板容器高度固定不变。
+            *   `AWAITING_DATA` 占位符原地淡出 (Opacity 1->0)。
+            *   真实数值在**同一坐标**原地淡入 (Opacity 0->1)，伴随微弱的 **Overexposure (过曝)** 效果 (Brightness 1.5 -> 1.0)，模拟能量注入瞬间。
+        *   **Transaction List (交易列表)**: **Scanline Cascade (扫描线级联)**。
+            *   列表容器保持静止，骨架行 (Skeleton Row) 不消失位移。
+            *   采用 **Row-by-Row Replacement (逐行替换)**：从上至下，骨架条被真实数据条原地替换。
+            *   **Light Flow (光流)**: 通过极快的时间差 (Stagger 0.03s) 形成从上至下的激活波浪，仿佛屏幕刷新扫描线扫过。
+        *   **Filter Tabs (标签栏)**: **Ripple Expansion (涟漪扩散)**。
+            *   Ghost Tabs (虚影) 原地变形为真实 Tabs。
+            *   **Center-Out (中心扩散)**: 激活信号从当前选中的标签开始，向左右两侧呈涟漪状扩散点亮，模拟信号源的传播。
 *   **Animation Standards (动画规范)**:
     *   **No Bounce Policy (无弹性原则)**: 金融数据界面追求精准与理性，**严禁使用 Spring (弹簧) 物理效果**。所有过渡必须是确定性的 (Deterministic) 贝塞尔曲线，避免任何回弹或震荡。
     *   **Structural Layer (结构层)**: `0.6s` `[0.25, 1, 0.5, 1]` (EaseOutQuart-like)。用于 Tab 切换、页面进出、大模块位移。此曲线特点是**极速启动、优雅停车**，确保用户意图被立即响应，同时视觉落点平滑。

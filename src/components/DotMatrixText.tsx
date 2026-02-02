@@ -1,28 +1,28 @@
 import React from 'react';
 
-// 4x5 Dot Matrix Patterns for letters
+// 3x5 or 4x5 Dot Matrix Patterns for letters
 // 1 = dot, 0 = empty
 const CHAR_PATTERNS: Record<string, number[][]> = {
   P: [
-    [1, 1, 1, 0],
-    [1, 0, 0, 1],
-    [1, 1, 1, 0],
-    [1, 0, 0, 0],
-    [1, 0, 0, 0],
+    [1, 1, 1],
+    [1, 0, 1],
+    [1, 1, 1],
+    [1, 0, 0],
+    [1, 0, 0],
   ],
   X: [
-    [1, 0, 0, 1],
-    [0, 1, 1, 0],
-    [0, 0, 0, 0], // Middle empty or cross
-    [0, 1, 1, 0],
-    [1, 0, 0, 1],
+    [1, 0, 1],
+    [1, 0, 1],
+    [0, 1, 0],
+    [1, 0, 1],
+    [1, 0, 1],
   ],
   E: [
-    [1, 1, 1, 0],
-    [1, 0, 0, 0],
-    [1, 1, 1, 0],
-    [1, 0, 0, 0],
-    [1, 1, 1, 0],
+    [1, 1, 1],
+    [1, 0, 0],
+    [1, 1, 1],
+    [1, 0, 0],
+    [1, 1, 1],
   ],
   B: [
     [1, 1, 1, 0],
@@ -32,55 +32,21 @@ const CHAR_PATTERNS: Record<string, number[][]> = {
     [1, 1, 1, 0],
   ],
   I: [
-    [1, 1, 1, 0], // I usually is centered or full width? Let's stick to 3 wide for I in 4x5 grid or just a line
-    [0, 1, 0, 0], // Actually 4x5 grid usually:
-    [0, 1, 0, 0],
-    [0, 1, 0, 0],
-    [1, 1, 1, 0],
+    [1, 1, 1],
+    [0, 1, 0],
+    [0, 1, 0],
+    [0, 1, 0],
+    [1, 1, 1],
   ],
   L: [
-    [1, 0, 0, 0],
-    [1, 0, 0, 0],
-    [1, 0, 0, 0],
-    [1, 0, 0, 0],
-    [1, 1, 1, 0], // 3 wide
+    [1, 0, 0],
+    [1, 0, 0],
+    [1, 0, 0],
+    [1, 0, 0],
+    [1, 1, 1],
   ],
   // Add more if needed, currently only need B, I, L
 };
-
-// Refined X pattern
-CHAR_PATTERNS['X'] = [
-    [1, 0, 0, 1],
-    [0, 1, 1, 0],
-    [0, 0, 0, 0], // Center point handled by adjacent
-    [0, 1, 1, 0],
-    [1, 0, 0, 1],
-];
-// Actually let's make X better
-CHAR_PATTERNS['X'] = [
-    [1, 0, 0, 1],
-    [1, 0, 0, 1],
-    [0, 1, 1, 0],
-    [1, 0, 0, 1],
-    [1, 0, 0, 1],
-];
-// Re-refine X for 4x5
-CHAR_PATTERNS['X'] = [
-    [1, 0, 0, 1],
-    [0, 1, 1, 0],
-    [0, 1, 1, 0],
-    [0, 1, 1, 0],
-    [1, 0, 0, 1],
-];
-
-// Refined I pattern to match style
-CHAR_PATTERNS['I'] = [
-    [1, 1, 1, 0],
-    [0, 1, 0, 0],
-    [0, 1, 0, 0],
-    [0, 1, 0, 0],
-    [1, 1, 1, 0],
-];
 
 interface DotMatrixCharProps {
   char: string;
@@ -90,11 +56,11 @@ interface DotMatrixCharProps {
 
 const DotMatrixChar: React.FC<DotMatrixCharProps> = ({ char, className = '', size = 'sm' }) => {
   const pattern = CHAR_PATTERNS[char.toUpperCase()] || [
-    [1, 1, 1, 1],
-    [1, 0, 0, 1],
-    [1, 0, 0, 1],
-    [1, 0, 0, 1],
-    [1, 1, 1, 1],
+    [1, 1, 1],
+    [1, 0, 1],
+    [1, 0, 1],
+    [1, 0, 1],
+    [1, 1, 1],
   ]; // Default box for unknown
 
   const sizeClasses = {
@@ -105,12 +71,16 @@ const DotMatrixChar: React.FC<DotMatrixCharProps> = ({ char, className = '', siz
 
   const { gap, dot: dotSize } = sizeClasses[size];
 
+  // Dynamically determine columns based on pattern width
+  const cols = pattern[0]?.length || 3;
+  const gridColsClass = cols === 4 ? 'grid-cols-4' : 'grid-cols-3';
+
   return (
-    <div className={`grid grid-cols-4 ${gap} ${className}`}>
+    <div className={`grid ${gridColsClass} ${gap} ${className} flex-shrink-0`}>
       {pattern.flat().map((dot, index) => (
         <div
           key={index}
-          className={`${dotSize} rounded-full ${
+          className={`${dotSize} rounded-full flex-shrink-0 ${
             dot ? 'bg-current opacity-100' : 'bg-transparent'
           }`}
         />
@@ -121,7 +91,7 @@ const DotMatrixChar: React.FC<DotMatrixCharProps> = ({ char, className = '', siz
 
 export const DotMatrixText: React.FC<{ text: string; className?: string; size?: 'sm' | 'md' | 'lg' }> = ({ text, className, size = 'sm' }) => {
   return (
-    <div className={`flex ${size === 'lg' ? 'gap-5' : size === 'md' ? 'gap-4' : 'gap-3'} ${className}`}>
+    <div className={`flex flex-shrink-0 ${size === 'lg' ? 'gap-5' : size === 'md' ? 'gap-4' : 'gap-3'} ${className}`}>
       {text.split('').map((char, i) => (
         <DotMatrixChar key={i} char={char} size={size} />
       ))}

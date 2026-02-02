@@ -7,9 +7,10 @@ interface HeaderProps {
   isLoading: boolean;
   onInitLedger?: () => void;
   onImportData?: () => void;
+  hasData?: boolean;
 }
 
-export const Header: React.FC<HeaderProps> = ({ onLoadData, isLoading, onInitLedger, onImportData }) => {
+export const Header: React.FC<HeaderProps> = ({ onLoadData, isLoading, onInitLedger, onImportData, hasData = true }) => {
   const handleLoadClick = async () => {
     await triggerHaptic(HapticFeedbackLevel.MEDIUM);
     onLoadData();
@@ -35,11 +36,11 @@ export const Header: React.FC<HeaderProps> = ({ onLoadData, isLoading, onInitLed
           </div>
 
           {/* Custom Dot Matrix "PIXEL BILL" */}
-          <div className="flex gap-3 items-center leading-none h-[32px]">
-            <h1 className="text-3xl font-pixel tracking-tighter text-gray-100 pt-[4px]">
+          <div className="flex gap-3 items-center leading-none h-[32px] flex-shrink-0">
+            <h1 className="text-3xl font-pixel tracking-tighter text-gray-100 pt-[4px] flex-shrink-0">
               PIXEL
             </h1>
-            <div className="text-pixel-green animate-text-glow cursor-default">
+            <div className="text-pixel-green animate-text-glow cursor-default flex-shrink-0">
               <DotMatrixText text="BILL" size="md" />
             </div>
           </div>
@@ -75,7 +76,7 @@ export const Header: React.FC<HeaderProps> = ({ onLoadData, isLoading, onInitLed
           {/* Import Button */}
           <button 
             onClick={handleImportData}
-            disabled={isLoading}
+            disabled={isLoading || !hasData}
             className="
               flex-1
               relative overflow-hidden group

@@ -3,7 +3,7 @@ import type { Transaction } from '../types';
 import { Pagination } from './Pagination';
 import { TransactionItem } from './TransactionItem';
 import { triggerHaptic, HapticFeedbackLevel } from '../utils/haptics';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, type Variants } from 'framer-motion';
 
 interface TransactionListProps {
   transactions: Transaction[];
@@ -86,25 +86,26 @@ export const TransactionList: React.FC<TransactionListProps> = ({
 
   // Animation variants for page transitions
   const variants = {
-    enter: (direction: number) => ({
-      x: direction > 0 ? '100%' : '-100%',
+    enter: (_direction: number) => ({
       opacity: 0,
-      filter: 'blur(4px)',
+      filter: 'blur(2px)',
       zIndex: 1,
       position: 'relative' as const
     }),
     center: {
       zIndex: 2,
-      x: 0,
       opacity: 1,
       filter: 'blur(0px)',
-      position: 'relative' as const
+      position: 'relative' as const,
+      transition: {
+        staggerChildren: 0.03, // Stagger effect for items
+        duration: 0.4
+      }
     },
-    exit: (direction: number) => ({
+    exit: (_direction: number) => ({
       zIndex: 0,
-      x: direction < 0 ? '100%' : '-100%',
       opacity: 0,
-      filter: 'blur(8px)',
+      filter: 'blur(4px)',
       position: 'absolute' as const,
       top: 0,
       left: 0,
@@ -116,22 +117,42 @@ export const TransactionList: React.FC<TransactionListProps> = ({
   const SkeletonItem = () => (
     <div className="flex items-start py-3 border-b border-gray-900/50 opacity-50 pointer-events-none select-none">
       <div className="w-6 flex justify-center pt-1">
-        <div className="w-3 h-3 bg-gray-700" />
+        <div className="w-3 h-3 bg-gray-700 animate-pulse" />
       </div>
       <div className="flex-1 min-w-0 pl-2">
-        <div className="w-32 h-5 bg-gray-700/50 mb-1" />
-        <div className="w-20 h-4 bg-gray-800/50" />
+        <div className="w-32 h-5 bg-gray-700/50 mb-1 animate-pulse" />
+        <div className="w-20 h-4 bg-gray-800/50 animate-pulse" />
       </div>
       <div className="w-20 flex flex-col items-end gap-1">
-        <div className="w-16 h-5 bg-gray-700/50" />
+        <div className="w-16 h-5 bg-gray-700/50 animate-pulse" />
         <div className="flex gap-1">
           {Array.from({ length: 5 }).map((_, j) => (
-            <div key={j} className="w-1.5 h-1.5 bg-gray-800" />
+            <div key={j} className="w-1.5 h-1.5 bg-gray-800 animate-pulse" />
           ))}
         </div>
       </div>
     </div>
   );
+  
+  // Item animation variants (for staggered entrance)
+  const itemVariants: Variants = {
+    enter: { 
+      opacity: 0, 
+      filter: 'blur(2px)',
+      backgroundColor: 'rgba(255, 255, 255, 0.1)' // Initial flash state
+    },
+    center: { 
+      opacity: 1, 
+      filter: 'blur(0px)',
+      backgroundColor: 'rgba(255, 255, 255, 0)', // Fade out flash
+      transition: { 
+        opacity: { duration: 0.4, ease: [0.25, 1, 0.5, 1] as const },
+        filter: { duration: 0.4, ease: [0.25, 1, 0.5, 1] as const },
+        backgroundColor: { duration: 0.2, ease: "easeOut" }
+      }
+    },
+    exit: { opacity: 0 }
+  };
 
   const displayItems = [...paginatedTransactions];
   // Fill remaining slots with skeleton items to maintain fixed height (20 items)
@@ -160,19 +181,21 @@ export const TransactionList: React.FC<TransactionListProps> = ({
             initial="enter"
             animate="center"
             exit="exit"
-            transition={{ duration: 0.2, ease: [0.25, 0.1, 0.25, 1.0] }}
           >
             {displayItems.map((t) => (
               (t as any).isSkeleton ? (
-                <SkeletonItem key={t.id} />
+                <motion.div key={t.id} variants={itemVariants}>
+                  <SkeletonItem />
+                </motion.div>
               ) : (
-                <TransactionItem
-                  key={t.id}
-                  transaction={t}
-                  onClick={onTransactionClick}
-                  isActive={t.id === activeTransactionId}
-                  currentFilter={currentFilter}
-                />
+                <motion.div key={t.id} variants={itemVariants}>
+                  <TransactionItem
+                    transaction={t}
+                    onClick={onTransactionClick}
+                    isActive={t.id === activeTransactionId}
+                    currentFilter={currentFilter}
+                  />
+                </motion.div>
               )
             ))}
             

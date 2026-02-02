@@ -17,11 +17,11 @@ export const Header: React.FC<HeaderProps> = ({ onLoadData, isLoading }) => {
           </div>
 
           {/* Custom Dot Matrix "PIXEL BILL" */}
-          <div className="flex gap-5 items-center leading-none h-[44px]">
-            <h1 className="text-4xl font-pixel tracking-tighter text-gray-100 pt-[4px]">
+          <div className="flex gap-5 items-center leading-none h-[44px] flex-shrink-0">
+            <h1 className="text-4xl font-pixel tracking-tighter text-gray-100 pt-[4px] flex-shrink-0">
               PIXEL
             </h1>
-            <div className="text-pixel-green animate-text-glow cursor-default -translate-y-[2px]">
+            <div className="text-pixel-green animate-text-glow cursor-default -translate-y-[2px] flex-shrink-0">
               <DotMatrixText text="BILL" size="lg" />
             </div>
           </div>

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Device } from '@capacitor/device';
+import { isNativePlatform } from '../utils/fs-storage';
 
 interface SafeAreaInsets {
   top: number;
@@ -23,11 +23,10 @@ export function useSafeArea() {
   useEffect(() => {
     const detectSafeArea = async () => {
       try {
-        // Get device info to detect if running on Android
-        const deviceInfo = await Device.getInfo();
+        const isWeb = !isNativePlatform();
         
         // For web, use CSS env() variables for safe area
-        if (deviceInfo.platform === 'web') {
+        if (isWeb) {
           // These are set automatically by the browser for notch-aware devices
           const top = getCSSVariableValue('safe-area-inset-top');
           const bottom = getCSSVariableValue('safe-area-inset-bottom');
