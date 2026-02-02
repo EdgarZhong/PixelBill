@@ -30,10 +30,10 @@
       "remark": "/",
       "ai_category": "meal",
       "ai_reasoning": "正餐时间段的肉夹馍餐饮消费，金额合理",
-      "user_category": "",
+      "user_category": "meal",
       "user_note": "Manual Test Update",
-      "is_verified": false,
-      "updated_at": "2026-02-01 10:09:23"
+      "is_verified": true,
+      "updated_at": "2026-02-02T08:44:34.268Z"
     },
     "d4db723dbb333a5a": {
       "id": "d4db723dbb333a5a",
@@ -52,8 +52,8 @@
       "ai_reasoning": "午餐时间段的川菜正餐消费",
       "user_category": "meal",
       "user_note": "Manual Test Update",
-      "is_verified": false,
-      "updated_at": "2026-02-01 10:09:23"
+      "is_verified": true,
+      "updated_at": "2026-02-02T08:44:46.260Z"
     },
     "c971f228f8207480": {
       "id": "c971f228f8207480",
@@ -279,7 +279,7 @@
       "id": "676542bf99a1ff08",
       "time": "2026-01-03 13:38:05",
       "sourceType": "alipay",
-      "category": "others",
+      "category": "shopping",
       "rawClass": "日用百货",
       "counterparty": "文昊超市",
       "product": "收钱码收款",
@@ -290,10 +290,10 @@
       "remark": "",
       "ai_category": "others",
       "ai_reasoning": "超市购物消费",
-      "user_category": "",
+      "user_category": "shopping",
       "user_note": "",
-      "is_verified": false,
-      "updated_at": "2026-02-01 10:09:23"
+      "is_verified": true,
+      "updated_at": "2026-02-02T08:45:36.382Z"
     },
     "efafd8a3c3683178": {
       "id": "efafd8a3c3683178",
@@ -410,10 +410,10 @@
       "remark": "",
       "ai_category": "meal",
       "ai_reasoning": "推测为夜宵时段的小吃正餐",
-      "user_category": "",
+      "user_category": "meal",
       "user_note": "",
-      "is_verified": false,
-      "updated_at": "2026-02-01 10:09:23"
+      "is_verified": true,
+      "updated_at": "2026-02-02T08:45:04.747Z"
     },
     "13038ef0147526c1": {
       "id": "13038ef0147526c1",
@@ -6989,7 +6989,7 @@
       "transactionStatus": "SUCCESS",
       "remark": "/",
       "ai_category": "meal",
-      "ai_reasoning": "午餐时段（12:11），校园卡支付，金额符合正餐特征",
+      "ai_reasoning": "午餐时段（12:11），校园卡支付，金额符合正餐特��",
       "user_category": "",
       "user_note": "",
       "is_verified": false,

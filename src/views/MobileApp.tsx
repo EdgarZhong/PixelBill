@@ -8,6 +8,7 @@ import { useSafeArea, injectSafeAreaCSS } from '../hooks/useSafeArea';
 import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { isSameDay } from 'date-fns';
 import type { Transaction } from '../types';
+import { TransactionDetailView } from './TransactionDetailView';
 import { CategoryDict } from '../types/metadata';
 import { format } from 'date-fns';
 
@@ -40,7 +41,17 @@ export function MobileApp() {
   const activeTransactionId = selectedTransaction?.id || (isDetailAnimating ? lastSelectedId : null);
   
   const safeArea = useSafeArea();
-  const detailPageRef = useRef<HTMLDivElement | null>(null);
+
+  // Sync selectedTransaction with latest data from store to ensure UI updates
+  useEffect(() => {
+    if (selectedTransaction) {
+      const updated = transactions.find(t => t.id === selectedTransaction.id);
+      if (updated && updated !== selectedTransaction) {
+        setSelectedTransaction(updated);
+      }
+    }
+  }, [transactions, selectedTransaction]);
+
 
   const handleTransactionSelect = (t: Transaction | null) => {
     if (t) {
@@ -56,7 +67,6 @@ export function MobileApp() {
     setSelectedTransaction(t);
   };
   const tabContainerRef = useRef<HTMLDivElement>(null);
-  const detailTouchStartRef = useRef<{ x: number; y: number; timestamp: number } | null>(null);
   // 修改 ref 类型以支持 Framer Motion controls
   const animationFrameRef = useRef<number | null>(null);
   
@@ -69,41 +79,6 @@ export function MobileApp() {
   useEffect(() => {
     injectSafeAreaCSS(safeArea);
   }, [safeArea]);
-
-  // 处理边缘滑动手势以返回（类似全面屏手势）
-  const handleDetailPageTouchStart = useCallback((e: React.TouchEvent) => {
-    const touch = e.touches[0];
-    detailTouchStartRef.current = {
-      x: touch.clientX,
-      y: touch.clientY,
-      timestamp: Date.now()
-    };
-  }, []);
-
-  const handleDetailPageTouchEnd = useCallback((e: React.TouchEvent) => {
-    if (!detailTouchStartRef.current) return;
-
-    const endTouch = e.changedTouches[0];
-    const deltaX = endTouch.clientX - detailTouchStartRef.current.x;
-    const deltaY = Math.abs(endTouch.clientY - detailTouchStartRef.current.y);
-    const timeDelta = Date.now() - detailTouchStartRef.current.timestamp;
-    const screenWidth = window.innerWidth;
-
-    // 检测边缘滑动手势（返回手势）
-    // 从左边缘向右滑动 或 从右边缘向左滑动
-    const fromLeftEdge = detailTouchStartRef.current.x < 50 && deltaX > 50;
-    const fromRightEdge = detailTouchStartRef.current.x > screenWidth - 50 && deltaX < -50;
-
-    if (
-      (fromLeftEdge || fromRightEdge) && // 从左或右边缘
-      deltaY < 50 && // 垂直移动很少
-      timeDelta < 300 // 快速手势
-    ) {
-      handleTransactionSelect(null);
-    }
-
-    detailTouchStartRef.current = null;
-  }, []);
 
   // 自定义平滑滚动函数，使用 ease-out-quart 缓动
   const smoothScrollTo = useCallback((element: HTMLElement, target: number, duration: number) => {
@@ -368,7 +343,10 @@ export function MobileApp() {
         }}
       >
         {/* 隐藏的 CSV 选择输入框 (Mobile: 文件选择器) */}
+        <label htmlFor="hidden-file-input" className="sr-only">Upload File</label>
         <input
+          id="hidden-file-input"
+          name="file-upload"
           type="file"
           ref={fileInputRef}
           onChange={handleFileChange}
@@ -657,106 +635,10 @@ export function MobileApp() {
       {/* 详情页覆盖层 */}
       <AnimatePresence onExitComplete={() => setIsDetailAnimating(false)}>
         {selectedTransaction && (
-          <motion.div
-            ref={detailPageRef}
-            onTouchStart={handleDetailPageTouchStart}
-            onTouchEnd={handleDetailPageTouchEnd}
-            className="fixed inset-0 z-50 bg-background text-primary font-mono overflow-x-hidden overflow-y-auto"
-            style={{
-              paddingTop: `max(1rem, ${safeArea.top}px)`,
-              paddingBottom: `max(1rem, ${safeArea.bottom}px)`,
-              paddingLeft: `max(1rem, ${safeArea.left}px)`,
-              paddingRight: `max(1rem, ${safeArea.right}px)`
-            }}
-            initial={{
-              x: '100%'
-            }}
-            animate={{
-              x: 0
-            }}
-            exit={{
-              x: '100%'
-            }}
-            transition={{
-              duration: 0.4,
-              ease: [0.4, 0.0, 0.2, 1]
-            }}
-          >
-            <div className="w-full max-w-full">
-              {/* 带有返回按钮的标题 */}
-              <div className="flex items-center gap-4 mb-8">
-                <button
-                  onClick={() => handleTransactionSelect(null)}
-                  className="text-dim hover:text-white transition-colors text-2xl"
-                >
-                  ←
-                </button>
-                <h1 className="text-xl font-bold text-primary flex-1">交易详情</h1>
-              </div>
-
-              {/* 详情内容 */}
-              <div className="space-y-4 pb-20">
-                {/* 金额 - 大显示 */}
-                <div className="p-4 bg-card border border-gray-800 rounded">
-                  <div className="text-dim text-xs mb-2">金额</div>
-                  <div className={`text-3xl font-bold ${selectedTransaction.direction === 'in' ? 'text-income-yellow' : 'text-expense-red'}`}>
-                    {selectedTransaction.direction === 'in' ? '+' : '-'}¥{selectedTransaction.amount.toFixed(2)}
-                  </div>
-                </div>
-
-                {/* 分类 */}
-                <div className="p-4 bg-card border border-gray-800 rounded">
-                  <div className="text-dim text-xs mb-2">分类</div>
-                  <div className="text-lg text-income-yellow font-bold">
-                    {CategoryDict[selectedTransaction.category] || selectedTransaction.category.toUpperCase()}
-                  </div>
-                </div>
-
-                {/* 时间 */}
-                <div className="p-4 bg-card border border-gray-800 rounded">
-                  <div className="text-dim text-xs mb-2">时间</div>
-                  <div className="text-primary">{format(selectedTransaction.originalDate, 'yyyy-MM-dd HH:mm:ss')}</div>
-                </div>
-
-                {/* 商品/服务 */}
-                <div className="p-4 bg-card border border-gray-800 rounded">
-                  <div className="text-dim text-xs mb-2">商品/服务</div>
-                  <div className="text-primary break-words">{selectedTransaction.product}</div>
-                </div>
-
-                {/* 交易方 */}
-                <div className="p-4 bg-card border border-gray-800 rounded">
-                  <div className="text-dim text-xs mb-2">交易方</div>
-                  <div className="text-primary break-words">{selectedTransaction.counterparty}</div>
-                </div>
-
-                {/* 来源 */}
-                <div className="p-4 bg-card border border-gray-800 rounded">
-                  <div className="text-dim text-xs mb-2">来源</div>
-                  <div className={selectedTransaction.sourceType === 'wechat' ? 'text-pixel-green' : 'text-alipay-blue'}>
-                    {selectedTransaction.sourceType === 'wechat' ? '微信' : '支付宝'}
-                  </div>
-                </div>
-
-                {/* 原始分类 */}
-                <div className="p-4 bg-card border border-gray-800 rounded">
-                  <div className="text-dim text-xs mb-2">原始分类</div>
-                  <div className="text-dim text-sm">{selectedTransaction.rawClass}</div>
-                </div>
-
-                {/* 交易 ID */}
-                <div className="p-4 bg-card border border-gray-800 rounded">
-                  <div className="text-dim text-xs mb-2">交易ID</div>
-                  <div className="text-dim text-[10px] break-all font-mono">{selectedTransaction.id}</div>
-                </div>
-              </div>
-
-              {/* 页脚 */}
-              <footer className="mt-16 mb-8 text-center text-dim text-[10px] font-mono opacity-40">
-                <p>TRANSACTION_DETAIL_VIEW</p>
-              </footer>
-            </div>
-          </motion.div>
+          <TransactionDetailView 
+            transaction={selectedTransaction} 
+            onClose={() => handleTransactionSelect(null)} 
+          />
         )}
       </AnimatePresence>
     </>
