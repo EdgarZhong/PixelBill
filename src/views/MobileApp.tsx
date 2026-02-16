@@ -632,18 +632,22 @@ export function MobileApp() {
             onClose={() => handleTransactionSelect(null)}
             onUpdate={(updatedTransaction) => {
               if (updatedTransaction.id) {
+                const categoryChanged = updatedTransaction.category !== selectedTransaction?.category;
+                const noteChanged = updatedTransaction.user_note !== selectedTransaction?.user_note;
+
                 // 1. Handle Category/Note changes
-                if (updatedTransaction.category !== selectedTransaction?.category || 
-                    updatedTransaction.user_note !== selectedTransaction?.user_note) {
+                if (categoryChanged || noteChanged) {
                   updateCategory(
                     updatedTransaction.id,
                     updatedTransaction.category,
                     updatedTransaction.user_note
                   );
+                  // Return early to prevent auto-verification side effects
+                  return;
                 }
 
                 // 2. Handle Verification changes
-                // If verification status explicitly changed, or if we need to ensure it's set
+                // Only call this if category/note didn't change
                 if (updatedTransaction.is_verified !== selectedTransaction?.is_verified) {
                   setVerification(
                     updatedTransaction.id,

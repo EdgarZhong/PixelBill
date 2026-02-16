@@ -19,7 +19,7 @@
       "id": "5110f45d20aab6c3",
       "time": "2026-01-05 19:08:17",
       "sourceType": "wechat",
-      "category": "entertainment",
+      "category": "meal",
       "rawClass": "商户消费",
       "counterparty": "袁记肉夹馍西工大店",
       "product": "袁记肉夹馍西工大店",
@@ -30,10 +30,10 @@
       "remark": "/",
       "ai_category": "meal",
       "ai_reasoning": "正餐时间段的肉夹馍餐饮消费，金额合理",
-      "user_category": "entertainment",
+      "user_category": "meal",
       "user_note": "Manual Test Update，111",
       "is_verified": true,
-      "updated_at": "2026-02-16T14:14:47.029Z"
+      "updated_at": "2026-02-16T15:34:16.787Z"
     },
     "d4db723dbb333a5a": {
       "id": "d4db723dbb333a5a",
@@ -51,15 +51,15 @@
       "ai_category": "meal",
       "ai_reasoning": "午餐时间段的川菜正餐消费",
       "user_category": "meal",
-      "user_note": "Manual Test Update",
+      "user_note": "Manual Test Update222",
       "is_verified": false,
-      "updated_at": "2026-02-01 10:09:23"
+      "updated_at": "2026-02-16T15:53:09.008Z"
     },
     "c971f228f8207480": {
       "id": "c971f228f8207480",
       "time": "2026-01-04 19:28:23",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "travel",
       "rawClass": "商户消费",
       "counterparty": "美团",
       "product": "益禾堂-美团App-26010411100400001306048035259624",
@@ -70,10 +70,10 @@
       "remark": "/",
       "ai_category": "others",
       "ai_reasoning": "益禾堂属于奶茶饮品，非正餐",
-      "user_category": "",
+      "user_category": "travel",
       "user_note": "",
-      "is_verified": false,
-      "updated_at": "2026-02-16T12:17:52.077Z"
+      "is_verified": true,
+      "updated_at": "2026-02-16T15:01:09.560Z"
     },
     "56424a1161b0e4d3": {
       "id": "56424a1161b0e4d3",
@@ -112,8 +112,8 @@
       "ai_reasoning": "对应瑞幸咖啡的退款，归为饮品类",
       "user_category": "",
       "user_note": "",
-      "is_verified": false,
-      "updated_at": "2026-02-01 10:09:23"
+      "is_verified": true,
+      "updated_at": "2026-02-16T15:13:24.089Z"
     },
     "7006a3f03fbc189a": {
       "id": "7006a3f03fbc189a",
@@ -1765,7 +1765,7 @@
       "product": "/",
       "amount": 5,
       "direction": "out",
-      "paymentMethod": "北京银行储蓄卡(6453)",
+      "paymentMethod": "北���银行储蓄卡(6453)",
       "transactionStatus": "SUCCESS",
       "remark": "/",
       "ai_category": "others",
@@ -7009,7 +7009,7 @@
       "transactionStatus": "SUCCESS",
       "remark": "/",
       "ai_category": "meal",
-      "ai_reasoning": "午餐时段（12:08），校园卡支付，金额符合正餐特征",
+      "ai_reasoning": "午餐时段（12:08），��园卡支付，金额符合正餐特征",
       "user_category": "",
       "user_note": "",
       "is_verified": false,
@@ -7429,7 +7429,7 @@
       "transactionStatus": "SUCCESS",
       "remark": "",
       "ai_category": "meal",
-      "ai_reasoning": "午餐时段（12:36），知名餐饮连锁，判定为午餐",
+      "ai_reasoning": "午餐时段（12:36��，知名餐饮连锁，判定为午餐",
       "user_category": "",
       "user_note": "",
       "is_verified": false,
@@ -7872,8 +7872,8 @@
       "ai_reasoning": "零食消费，非正餐",
       "user_category": "",
       "user_note": "",
-      "is_verified": false,
-      "updated_at": "2026-02-01 10:09:23"
+      "is_verified": true,
+      "updated_at": "2026-02-16T15:16:43.268Z"
     },
     "613c3931cff786d7": {
       "id": "613c3931cff786d7",

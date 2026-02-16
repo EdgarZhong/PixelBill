@@ -82,12 +82,14 @@ export function DetailPage({ transaction, categories, onClose, onUpdate }: Detai
   if (!transaction) return null;
 
   const hasAIData = !!(transaction.ai_category && transaction.ai_reasoning);
+  // 用户是否覆盖了AI分类 (如果用户有分类且不同于AI分类)
+  const isOverridden = !!transaction.user_category && transaction.user_category !== transaction.ai_category;
 
   return (
     <motion.div
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
-      className="fixed inset-0 z-50 bg-background text-primary font-mono overflow-x-hidden overflow-y-auto"
+      className="fixed inset-0 z-50 bg-background bg-dot-matrix text-primary font-mono overflow-x-hidden overflow-y-auto"
       style={{
         paddingTop: `max(1rem, ${safeArea.top}px)`,
         paddingBottom: `max(1rem, ${safeArea.bottom}px)`,
@@ -117,7 +119,7 @@ export function DetailPage({ transaction, categories, onClose, onUpdate }: Detai
         {/* 详情内容 */}
         <div className="space-y-4 pb-20">
           {/* 金额 - 大显示 */}
-          <div className="p-4 bg-card border border-gray-800 rounded">
+          <div className="p-4 bg-card border border-gray-800 rounded-sm">
             <div className="text-dim text-xs mb-2">金额</div>
             <div className={`text-3xl font-bold ${transaction.direction === 'in' ? 'text-income-yellow' : 'text-expense-red'}`}>
               {transaction.direction === 'in' ? '+' : '-'}¥{transaction.amount.toFixed(2)}
@@ -125,9 +127,10 @@ export function DetailPage({ transaction, categories, onClose, onUpdate }: Detai
           </div>
 
           {/* AI Diagnosis Panel */}
-          <div className="border border-gray-800 bg-card/50 rounded overflow-hidden">
-            <div className="bg-gray-900/50 px-3 py-1.5 border-b border-gray-800 flex items-center justify-between">
-              <span className="text-[10px] text-dim font-bold tracking-wider">AI DIAGNOSIS</span>
+          <div className="border border-gray-800 bg-card/50 rounded-sm overflow-hidden">
+            {/* Header: Dark Blue Style (统一 AI & USER) */}
+            <div className="bg-[#1a2e25] px-3 py-2 border-b border-gray-800 flex items-center justify-between h-8">
+              <span className="text-[10px] text-pixel-green/80 font-bold tracking-wider uppercase">AI DIAGNOSIS</span>
               {!hasAIData && (
                 <span className="text-[10px] text-pixel-green/50 animate-pulse">[AWAITING_DATA]</span>
               )}
@@ -135,90 +138,108 @@ export function DetailPage({ transaction, categories, onClose, onUpdate }: Detai
             <div className="p-3 space-y-3">
               {/* Detected Category */}
               <div>
-                <div className="text-[10px] text-dim mb-1">DETECTED</div>
+                <div className="text-[10px] text-dim mb-1 font-bold tracking-wider uppercase">DETECTED</div>
                 {hasAIData ? (
-                  <div className="text-sm text-pixel-green font-bold">
+                  <div className={`text-sm font-bold font-mono ${isOverridden ? 'text-dim line-through opacity-50' : 'text-income-yellow'}`}>
                     [{transaction.ai_category?.toUpperCase()}]
                   </div>
                 ) : (
-                  <div className="h-5 w-24 bg-white/5 rounded animate-pulse" />
+                  <div className="h-5 w-24 bg-white/5 rounded-sm animate-pulse" />
                 )}
               </div>
 
               {/* Reasoning */}
               <div>
-                <div className="text-[10px] text-dim mb-1">REASON</div>
+                <div className="text-[10px] text-dim mb-1 font-bold tracking-wider uppercase">REASON</div>
                 {hasAIData ? (
-                  <div className="text-xs text-gray-400 leading-relaxed">
+                  <div className="text-xs text-gray-400 leading-relaxed font-mono">
                     {transaction.ai_reasoning}
                   </div>
                 ) : (
                   <div className="space-y-1.5">
-                    <div className="h-3 w-full bg-white/5 rounded animate-pulse" />
-                    <div className="h-3 w-3/4 bg-white/5 rounded animate-pulse" />
+                    <div className="h-3 w-full bg-white/5 rounded-sm animate-pulse" />
+                    <div className="h-3 w-3/4 bg-white/5 rounded-sm animate-pulse" />
                   </div>
                 )}
               </div>
             </div>
           </div>
 
-          {/* 分类 */}
-          <div className="p-4 bg-card border border-gray-800 rounded">
-            <div className="text-dim text-xs mb-2">分类</div>
-            <CategorySelector
-              category={transaction.category}
-              isLocked={transaction.is_verified}
-              onToggleLock={handleToggleLock}
-              onSelect={handleCategorySelect}
-              categories={categories}
-            />
-          </div>
+          {/* USER EDIT (Combined Category & Note) */}
+          <div className="border border-gray-800 bg-card rounded-sm overflow-hidden">
+            {/* Header: Dark Green Style (Unified) */}
+            <div className="bg-[#1a2e25] px-3 py-2 border-b border-gray-800 flex items-center h-8">
+              <span className="text-[10px] text-pixel-green/80 font-bold tracking-wider uppercase">USER EDIT</span>
+            </div>
+            
+            <div className="p-4 space-y-4">
+              {/* Category Section */}
+              <div>
+                <div className="text-dim text-[10px] font-bold tracking-wider uppercase mb-2">CATEGORY</div>
+                <CategorySelector
+                  category={transaction.category}
+                  isLocked={transaction.is_verified}
+                  onToggleLock={handleToggleLock}
+                  onSelect={handleCategorySelect}
+                  categories={categories}
+                />
+              </div>
 
-          {/* 备注 (Note) */}
-          <div className="p-4 bg-card border border-gray-800 rounded">
-            <div className="text-dim text-xs mb-2">备注</div>
-            <NoteEditor
-              note={transaction.user_note || ''}
-              isLocked={transaction.is_verified}
-              onSave={handleNoteSave}
-            />
-          </div>
-
-          {/* 时间 */}
-          <div className="p-4 bg-card border border-gray-800 rounded">
-            <div className="text-dim text-xs mb-2">时间</div>
-            <div className="text-primary">{format(transaction.originalDate, 'yyyy-MM-dd HH:mm:ss')}</div>
-          </div>
-
-          {/* 商品/服务 */}
-          <div className="p-4 bg-card border border-gray-800 rounded">
-            <div className="text-dim text-xs mb-2">商品/服务</div>
-            <div className="text-primary break-words">{transaction.product}</div>
-          </div>
-
-          {/* 交易方 */}
-          <div className="p-4 bg-card border border-gray-800 rounded">
-            <div className="text-dim text-xs mb-2">交易方</div>
-            <div className="text-primary break-words">{transaction.counterparty}</div>
-          </div>
-
-          {/* 来源 */}
-          <div className="p-4 bg-card border border-gray-800 rounded">
-            <div className="text-dim text-xs mb-2">来源</div>
-            <div className={transaction.sourceType === 'wechat' ? 'text-pixel-green' : 'text-alipay-blue'}>
-              {transaction.sourceType === 'wechat' ? '微信' : '支付宝'}
+              {/* Note Section */}
+              <div>
+                <div className="text-dim text-[10px] font-bold tracking-wider uppercase mb-2">NOTE</div>
+                <NoteEditor
+                  note={transaction.user_note || ''}
+                  isLocked={transaction.is_verified}
+                  onSave={handleNoteSave}
+                />
+              </div>
             </div>
           </div>
 
-          {/* 原始分类 */}
-          <div className="p-4 bg-card border border-gray-800 rounded">
-            <div className="text-dim text-xs mb-2">原始分类</div>
-            <div className="text-dim text-sm">{transaction.rawClass}</div>
+          {/* TIME */}
+          <div className="p-4 bg-card border border-gray-800 rounded-sm">
+            <div className="text-dim text-[10px] font-bold tracking-wider uppercase mb-2">TIME</div>
+            <div className="text-primary font-mono text-sm">{format(transaction.originalDate, 'yyyy-MM-dd HH:mm:ss')}</div>
           </div>
 
-          {/* 交易 ID */}
-          <div className="p-4 bg-card border border-gray-800 rounded">
-            <div className="text-dim text-xs mb-2">交易ID</div>
+          {/* PRODUCT */}
+          <div className="p-4 bg-card border border-gray-800 rounded-sm">
+            <div className="text-dim text-[10px] font-bold tracking-wider uppercase mb-2">PRODUCT</div>
+            <div className="text-primary break-words font-mono text-sm">{transaction.product}</div>
+          </div>
+
+          {/* COUNTERPARTY */}
+          <div className="p-4 bg-card border border-gray-800 rounded-sm">
+            <div className="text-dim text-[10px] font-bold tracking-wider uppercase mb-2">COUNTERPARTY</div>
+            <div className="text-primary break-words font-mono text-sm">{transaction.counterparty}</div>
+          </div>
+
+          {/* SOURCE */}
+          <div className="p-4 bg-card border border-gray-800 rounded-sm">
+            <div className="text-dim text-[10px] font-bold tracking-wider uppercase mb-2">SOURCE</div>
+            <div className={`font-mono text-sm ${transaction.sourceType === 'wechat' ? 'text-pixel-green' : 'text-alipay-blue'}`}>
+              {transaction.sourceType === 'wechat' ? 'WECHAT' : 'ALIPAY'}
+            </div>
+          </div>
+
+          {/* RAW CLASS */}
+          <div className="p-4 bg-card border border-gray-800 rounded-sm">
+            <div className="text-dim text-[10px] font-bold tracking-wider uppercase mb-2">RAW CLASS</div>
+            <div className="text-dim font-mono text-sm">{transaction.rawClass}</div>
+          </div>
+
+          {/* ORIGINAL ID */}
+          {transaction.originalId && (
+            <div className="p-4 bg-card border border-gray-800 rounded-sm">
+              <div className="text-dim text-[10px] font-bold tracking-wider uppercase mb-2">ORIGINAL ID</div>
+              <div className="text-dim text-[10px] break-all font-mono">{transaction.originalId}</div>
+            </div>
+          )}
+
+          {/* TRANSACTION ID */}
+          <div className="p-4 bg-card border border-gray-800 rounded-sm">
+            <div className="text-dim text-[10px] font-bold tracking-wider uppercase mb-2">TRANSACTION ID</div>
             <div className="text-dim text-[10px] break-all font-mono">{transaction.id}</div>
           </div>
         </div>

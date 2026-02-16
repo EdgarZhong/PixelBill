@@ -167,69 +167,43 @@ export const VerticalCategoryPicker: React.FC<VerticalCategoryPickerProps> = ({
   
   // 7. Sync with External Prop
   useEffect(() => {
-    // Skip if scrolling or if the prop hasn't actually changed (avoid redundant work)
-    if (isUserScrolling.current || selectedCategory === lastSelectedProp.current) {
-        // Just update the ref if we skipped
-        if (selectedCategory !== lastSelectedProp.current) {
-            lastSelectedProp.current = selectedCategory;
-            // Also update visual to match strict sync if needed? 
-            // If user is scrolling, we DON'T update visual from prop.
+    // Initial scroll or prop update
+    if (containerRef.current && categories.length > 0) {
+        // Find target index
+        const categoryIndex = categories.indexOf(selectedCategory);
+        if (categoryIndex !== -1) {
+            // Target the middle set
+            const targetIndex = categories.length + categoryIndex;
+            const targetScroll = targetIndex * ITEM_HEIGHT;
+            
+            // If it's the first render or far away, jump
+            // Otherwise smooth scroll (handled by the other logic below if needed, 
+            // but for initial mount we want instant jump)
+            
+            // We can just set scrollTop directly here for simplicity and robustness
+            if (!isUserScrolling.current) {
+                containerRef.current.scrollTop = targetScroll;
+                // Also update visual category to match
+                setVisualCategory(selectedCategory);
+                lastSelectedProp.current = selectedCategory;
+            }
         }
-        return;
     }
-
-    lastSelectedProp.current = selectedCategory;
-    setVisualCategory(selectedCategory);
-
-    if (!containerRef.current || categories.length === 0) return;
-
-    // Calculate target position for the Middle Set (Core)
-    const categoryIndex = categories.indexOf(selectedCategory);
-    if (categoryIndex === -1) return;
-
-    // Target is in the middle set (Set 2)
-    // Index = categories.length (Set 1) + categoryIndex
-    const targetIndex = categories.length + categoryIndex;
-    const targetScroll = targetIndex * ITEM_HEIGHT;
-    
-    const container = containerRef.current;
-    
-    // If distance is large, jump; else smooth scroll
-    if (Math.abs(container.scrollTop - targetScroll) > ITEM_HEIGHT * 3) {
-        container.scrollTop = targetScroll;
-    } else {
-        smoothScrollTo(container, targetScroll, 300);
-    }
-    
-  }, [selectedCategory, categories, ITEM_HEIGHT, smoothScrollTo]);
-
-  // Cleanup
-  useEffect(() => {
-      return () => {
-          if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current);
-          if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
-      };
-  }, []);
+  }, [selectedCategory, categories, ITEM_HEIGHT]); // Simplified dependency
 
   return (
     <div className="relative w-full flex items-center justify-center py-4">
-      {/* 选中项的高亮背景指示器 (可选) */}
-      {/* <div 
-        className="absolute w-full bg-white/5 pointer-events-none rounded-lg"
-        style={{ height: ITEM_HEIGHT, top: '50%', transform: 'translateY(-50%)' }}
-      /> */}
-
       <div
         ref={containerRef}
         className="w-full overflow-y-auto scrollbar-hide snap-y snap-mandatory touch-pan-y"
         style={{ 
             height: CONTAINER_HEIGHT,
-            scrollBehavior: 'auto' // Important: Disable native smooth scroll to control it via JS
+            scrollBehavior: 'auto' 
         }}
         onScroll={handleScroll}
         onTouchStart={handleTouchStart}
-        onMouseDown={handleTouchStart} // For desktop testing
-        onWheel={() => { isUserScrolling.current = true; }} // Treat wheel as user interaction
+        onMouseDown={handleTouchStart} 
+        onWheel={() => { isUserScrolling.current = true; }}
       >
         {/* Top Padding for centering */}
         <div style={{ height: (CONTAINER_HEIGHT - ITEM_HEIGHT) / 2 }} />
@@ -243,25 +217,23 @@ export const VerticalCategoryPicker: React.FC<VerticalCategoryPickerProps> = ({
               className="flex items-center justify-center cursor-pointer snap-center"
               style={{ height: ITEM_HEIGHT }}
               onClick={() => {
-                 // Clicking an item snaps to it and selects it
-                 isUserScrolling.current = false; // Reset lock
+                 isUserScrolling.current = false;
                  if (cat !== selectedCategory) {
                      onSelect(cat);
                  } else {
-                     // If already selected but off-center, snap to it
                      snapToCenter();
                  }
               }}
               animate={{
-                scale: isSelected ? 1.1 : 0.9,
-                opacity: isSelected ? 1 : 0.3,
-                color: isSelected ? '#10B981' : '#6B7280', // pixel-green vs dim
+                scale: isSelected ? 1.1 : 1.0,
+                opacity: isSelected ? 1 : 0.5,
+                color: isSelected ? '#10B981' : '#6B7280',
               }}
               transition={{
                 duration: 0.2
               }}
             >
-              <span className={`text-sm font-mono tracking-wider font-bold ${isSelected ? 'text-pixel-green' : 'text-dim'}`}>
+              <span className={`text-sm font-pixel tracking-wider font-bold ${isSelected ? 'text-pixel-green' : 'text-dim'}`}>
                 {cat.toUpperCase()}
               </span>
             </motion.div>

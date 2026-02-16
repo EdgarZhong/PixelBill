@@ -120,12 +120,11 @@ export class Arbiter {
 
     // Dispatch Logic (Design 5.3.C)
     if (proposal.source === 'USER') {
-      const isClearing = !proposal.category || proposal.category.trim() === '';
       updates = {
         user_category: proposal.category,
         user_note: proposal.reasoning,
-        updated_at: new Date().toISOString(),
-        is_verified: !isClearing // True if setting value, False if clearing
+        updated_at: new Date().toISOString()
+        // FIX: Do NOT auto-lock on edit. is_verified is handled separately.
       };
     } else if (proposal.source === 'AI_AGENT') {
       updates = {
