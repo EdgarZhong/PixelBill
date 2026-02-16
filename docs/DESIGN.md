@@ -305,6 +305,46 @@ PixelBill 奉行“生成式极简主义”与“赛博禅意”的设计哲学�
         *   **常规分类**: 显示为 **黄色 (`text-income-yellow`)**，格式 `[CATEGORY]`。
         *   **未分类**: 显示为 **红色 (`text-expense-red`)**，格式 `[UNCATEGORIZED]`，起到警示与行动召唤 (Call to Action) 的作用。
 
+### 3.6 AI 引擎交互与控制 (AI Engine Interaction & Control)
+
+本模块定义了移动端 AI 引擎的控制流与视觉反馈系统，遵循 "Soft Stop"（软停止）与 "Decoupled Feedback"（解耦反馈）的设计原则。
+
+#### 1. 设计哲学 (Philosophy)
+*   **Soft Stop (软停止)**: 用户的停止指令是绝对的，但数据的完整性也是绝对的。停止操作不应导致正在进行的网络请求被丢弃，而应优雅地完成当前“原子任务”后退出。
+*   **Decoupled Feedback (解耦反馈)**: UI 将“用户的控制状态”与“引擎的工作状态”分离。用户点击停止后，按钮立即响应（归还控制权），但工作指示灯（光环）会持续到后台真正停机（任务完成）。
+
+#### 2. 控制单元 (Control Unit - Mobile)
+*   **位置**: Header 小字行 ("GENERATIVE FINANCIAL TRACKER") 的**绝对右侧**，与文字保持水平中轴对齐，紧贴右侧屏幕边缘 Padding。
+*   **形态**: 
+    *   **透明底抽象图标**: 不使用文字，仅使用抽象符号（如神经网络节点/火花）。
+    *   **无形变**: 状态切换时不改变图标形状，仅改变颜色与光效。
+*   **视觉状态**:
+    *   **Idle (静默)**: 暗淡灰色 (`text-dim` / `opacity-50`)。
+    *   **Working (工作)**: 
+        *   颜色: 翡翠绿 (`text-pixel-green`)。
+        *   动效: **同步呼吸流光 (Sync Breathing)**，与全局 4s 心跳保持一致。
+
+#### 3. 视觉反馈：光环系统 (The Aura System)
+*   **载体**: `TransactionList` 容器边缘。
+*   **状态表现**:
+    *   **Flowing (处理中)**: 
+        *   **主要效果**: 绿色光环沿列表边缘顺时针流动，象征 AI 正在扫描数据。
+        *   **内流常态**: 即使在流动间隙，光环常态也必须保持**向内流动的微弱高光 (Inward Flowing Highlight)**仿佛能量正不断被吸入黑洞中心，增强视觉引力。
+    *   **Pulse (落袋)**: 每当一批（一天）数据分类完成并写入 Ledger 时，光环执行一次**向内收缩的高光闪烁 (Imploding Pulse)**，如同列表“吞噬”了新的数据能量。
+    *   **Extinguish (熄灭)**: 仅当后台引擎完全停止（包括完成 Soft Stop 的最后一批数据）时，光环才彻底消失。
+
+#### 4. 控制流逻辑 (Control Flow)
+1.  **Start**: 用户点击按钮 -> 按钮变绿呼吸 -> 列表光环亮起 -> 引擎启动。
+2.  **Processing**: 引擎按“天”为单位批量处理 -> 每日处理完毕 -> 触发 Pulse 闪烁 -> 自动进入下一日。
+3.  **Stop (User Action)**: 
+    *   用户点击停止。
+    *   **Immediate Feedback**: 按钮**立即**变回暗淡灰色 (Idle)，确认用户指令。
+    *   **Graceful Shutdown**: 
+        *   若当前有正在进行的 LLM 请求，**不中断**，**不丢弃**。
+        *   列表光环**保持流动**（提示用户：后台正在收尾）。
+        *   等待当前请求返回 -> 写入 Ledger -> 触发最后一次 Pulse 闪烁。
+    *   **Final Stop**: 引擎检测到停止标志 -> 退出循环 -> 列表光环熄灭。
+
 ## 4. 数据结构 (Data Structure)
 
 ### 4.1 数据模型 (TypeScript Interface)
