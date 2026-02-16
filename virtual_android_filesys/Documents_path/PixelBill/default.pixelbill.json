@@ -19,7 +19,7 @@
       "id": "5110f45d20aab6c3",
       "time": "2026-01-05 19:08:17",
       "sourceType": "wechat",
-      "category": "meal",
+      "category": "entertainment",
       "rawClass": "商户消费",
       "counterparty": "袁记肉夹馍西工大店",
       "product": "袁记肉夹馍西工大店",
@@ -30,10 +30,10 @@
       "remark": "/",
       "ai_category": "meal",
       "ai_reasoning": "正餐时间段的肉夹馍餐饮消费，金额合理",
-      "user_category": "",
-      "user_note": "Manual Test Update",
-      "is_verified": false,
-      "updated_at": "2026-02-01 10:09:23"
+      "user_category": "entertainment",
+      "user_note": "Manual Test Update，111",
+      "is_verified": true,
+      "updated_at": "2026-02-16T14:14:47.029Z"
     },
     "d4db723dbb333a5a": {
       "id": "d4db723dbb333a5a",
@@ -73,7 +73,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-01 10:09:23"
+      "updated_at": "2026-02-16T12:17:52.077Z"
     },
     "56424a1161b0e4d3": {
       "id": "56424a1161b0e4d3",
@@ -259,7 +259,7 @@
       "id": "4fd565613c3b2f30",
       "time": "2026-01-03 20:00:43",
       "sourceType": "wechat",
-      "category": "meal",
+      "category": "others",
       "rawClass": "商户消费",
       "counterparty": "云上南山咖啡",
       "product": "美团/大众点评点餐订单-01034719803632182918741",
@@ -270,10 +270,10 @@
       "remark": "/",
       "ai_category": "others",
       "ai_reasoning": "咖啡店消费，判定为饮品或休闲支出",
-      "user_category": "meal",
-      "user_note": "一条的金额和时间明显是正餐，云上南山咖啡有售卖简餐。",
+      "user_category": "",
+      "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-01 10:09:23"
+      "updated_at": "2026-02-16T13:20:13.832Z"
     },
     "676542bf99a1ff08": {
       "id": "676542bf99a1ff08",
@@ -5190,10 +5190,10 @@
       "remark": "/",
       "ai_category": "",
       "ai_reasoning": "",
-      "user_category": "",
+      "user_category": "uncategorized",
       "user_note": "",
-      "is_verified": false,
-      "updated_at": "2026-02-01 00:53:44"
+      "is_verified": true,
+      "updated_at": "2026-02-16T13:18:09.436Z"
     },
     "8ab6f462e76bc104": {
       "id": "8ab6f462e76bc104",
@@ -5219,7 +5219,7 @@
       "id": "012f39a33b98c322",
       "time": "2025-11-27 18:46:48",
       "sourceType": "alipay",
-      "category": "uncategorized",
+      "category": "snack",
       "rawClass": "餐饮美食",
       "counterparty": "杨国福(长安区东大村店)",
       "product": "支付码:283411134752375691(杨国福(长安区东大村店))(879105812004370)",
@@ -5230,10 +5230,10 @@
       "remark": "",
       "ai_category": "",
       "ai_reasoning": "",
-      "user_category": "",
+      "user_category": "snack",
       "user_note": "",
-      "is_verified": false,
-      "updated_at": "2026-02-01 00:53:44"
+      "is_verified": true,
+      "updated_at": "2026-02-16T12:19:24.124Z"
     },
     "19d9519b82122fda": {
       "id": "19d9519b82122fda",
@@ -10505,7 +10505,7 @@
       "product": "地铁_火器营_2025-10-08 08:25:13_丰台站_2025-10-08 08:53:33",
       "amount": 5,
       "direction": "out",
-      "paymentMethod": "工商银行储蓄卡(3625)",
+      "paymentMethod": "���商银���储蓄卡(3625)",
       "transactionStatus": "SUCCESS",
       "remark": "",
       "ai_category": "",

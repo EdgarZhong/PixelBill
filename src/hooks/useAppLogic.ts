@@ -53,6 +53,10 @@ export function useAppLogic() {
     service.updateCategory(id, newCategory, newReasoning);
   };
 
+  const setVerification = (id: string, isVerified: boolean) => {
+    service.setVerification(id, isVerified);
+  };
+
   // const setDateRange = (_range: { start: Date | null; end: Date | null }) => {
   //   // This seems to be local UI state in the old hook, 
   //   // but in Service it's computed from transactions.
@@ -185,6 +189,7 @@ export function useAppLogic() {
     filter,
     handleTabChange,
     updateCategory,
+    setVerification,
     direction,
     dateRange,
     setDateRange: (range: { start: Date | null; end: Date | null }) => {

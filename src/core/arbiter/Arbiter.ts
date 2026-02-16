@@ -99,6 +99,20 @@ export class Arbiter {
     }
   }
 
+  /**
+   * Directly toggle verification status without affecting category
+   */
+  public toggleVerification(txId: string, isVerified: boolean) {
+    if (!this.onPatchGenerated) return;
+
+    const updates: Partial<FullTransactionRecord> = {
+      is_verified: isVerified,
+      updated_at: new Date().toISOString()
+    };
+
+    this.onPatchGenerated({ id: txId, updates });
+  }
+
   private dispatchPersistence(txId: string, proposal: Proposal) {
     if (!this.onPatchGenerated) return;
 
@@ -106,11 +120,12 @@ export class Arbiter {
 
     // Dispatch Logic (Design 5.3.C)
     if (proposal.source === 'USER') {
+      const isClearing = !proposal.category || proposal.category.trim() === '';
       updates = {
         user_category: proposal.category,
         user_note: proposal.reasoning,
         updated_at: new Date().toISOString(),
-        is_verified: true // Implicit verify on user action
+        is_verified: !isClearing // True if setting value, False if clearing
       };
     } else if (proposal.source === 'AI_AGENT') {
       updates = {

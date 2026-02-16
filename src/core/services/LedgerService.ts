@@ -457,6 +457,10 @@ export class LedgerService {
     // We don't need to manually setState here.
   }
 
+  public setVerification(id: string, isVerified: boolean) {
+    globalArbiter.toggleVerification(id, isVerified);
+  }
+
   public setFilter(filter: string) {
     // Calculate direction
     const TABS = this.state.TABS;

@@ -92,6 +92,7 @@ const parseWeChatCSV = async (csvText: string): Promise<Transaction[]> => {
 
     transactions.push({
       id: id,
+      originalId: tradeNo,
       originalDate: date,
       time: format(date, 'yyyy-MM-dd HH:mm:ss'), // 生成标准时间字符串
       sourceType: 'wechat',
@@ -166,6 +167,7 @@ const parseAlipayCSV = async (csvText: string): Promise<Transaction[]> => {
 
     transactions.push({
       id: id,
+      originalId: tradeNo,
       originalDate: date,
       time: format(date, 'yyyy-MM-dd HH:mm:ss'),
       sourceType: 'alipay',

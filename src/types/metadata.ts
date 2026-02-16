@@ -20,6 +20,7 @@ export const CategoryDict: Record<string, string> = {
 // 基础交易数据结构 (JSON 友好，存储用)
 export interface TransactionBase {
   readonly id: string;           // 唯一标识 (SHA-256)
+  readonly originalId?: string;  // 原始交易单号 (微信/支付宝)
   readonly time: string;         // 交易时间 (YYYY-MM-DD HH:mm:ss)
   readonly sourceType: SourceType; // 来源
   readonly category: CategoryType; // 统一后的分类
