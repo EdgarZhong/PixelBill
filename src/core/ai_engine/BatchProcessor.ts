@@ -12,12 +12,24 @@ import type { Proposal } from '../plugin/types';
 import type { AIStatus, AIProgress, ProcessingResult } from './types';
 import { format, parseISO, compareDesc } from 'date-fns';
 
+export interface DayCompletedEvent {
+  date: string;
+  processedTxsCount: number;
+  success: boolean;
+  error?: string;
+}
+
+export type BatchProcessorEventMap = {
+  'status': { status: AIStatus, progress: AIProgress };
+  'dayCompleted': DayCompletedEvent;
+};
+
 export class BatchProcessor {
   private static instance: BatchProcessor;
   private mutex = new AsyncMutex();
   private status: AIStatus = 'IDLE';
   private progress: AIProgress = { total: 0, current: 0, currentDate: '' };
-  private listeners: ((status: AIStatus, progress: AIProgress) => void)[] = [];
+  private eventListeners: { [K in keyof BatchProcessorEventMap]?: ((data: BatchProcessorEventMap[K]) => void)[] } = {};
   private shouldStop = false;
   private proposalHandler?: (txId: string, proposal: Proposal) => void;
 
@@ -35,12 +47,37 @@ export class BatchProcessor {
   }
 
   public subscribe(listener: (status: AIStatus, progress: AIProgress) => void) {
-    this.listeners.push(listener);
-    // Emit current state immediately
-    listener(this.status, this.progress);
+    return this.on('status', (data) => {
+      listener(data.status, data.progress);
+    });
+  }
+
+  public on<K extends keyof BatchProcessorEventMap>(event: K, listener: (data: BatchProcessorEventMap[K]) => void) {
+    if (!this.eventListeners[event]) {
+      this.eventListeners[event] = [];
+    }
+    this.eventListeners[event]!.push(listener);
+
+    // Emit current state immediately if subscribing to status
+    if (event === 'status') {
+      // Cast to match the specific event type
+      (listener as any)({ status: this.status, progress: this.progress });
+    }
+    
     return () => {
-      this.listeners = this.listeners.filter(l => l !== listener);
+      const listeners = this.eventListeners[event];
+      if (!listeners) {
+        return;
+      }
+      this.eventListeners[event] = listeners.filter(l => l !== listener) as typeof listeners;
     };
+  }
+
+  private emit<K extends keyof BatchProcessorEventMap>(event: K, data: BatchProcessorEventMap[K]) {
+    const listeners = this.eventListeners[event];
+    if (listeners) {
+      listeners.forEach(l => l(data));
+    }
   }
 
   private updateState(status: AIStatus, progress?: Partial<AIProgress>) {
@@ -48,11 +85,15 @@ export class BatchProcessor {
     if (progress) {
       this.progress = { ...this.progress, ...progress };
     }
-    this.listeners.forEach(l => l(this.status, this.progress));
+    this.emit('status', { status: this.status, progress: this.progress });
   }
 
   public stop() {
     this.shouldStop = true;
+  }
+
+  public get isStopping() {
+    return this.shouldStop;
   }
 
   /**
@@ -163,9 +204,22 @@ export class BatchProcessor {
             
             result.processedCount++;
 
+            this.emit('dayCompleted', {
+              date: dateStr,
+              processedTxsCount: dayTxs.length,
+              success: true
+            });
+
           } catch (e: any) {
             console.error(`Failed to process date ${dateStr}:`, e);
             result.errors.push(`${dateStr}: ${e.message}`);
+            
+            this.emit('dayCompleted', {
+              date: dateStr,
+              processedTxsCount: txsByDate[dateStr]?.length || 0,
+              success: false,
+              error: e.message
+            });
           }
         }
 

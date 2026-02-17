@@ -1,0 +1,8 @@
+- [x] AI 引擎能正确触发 `dayCompleted` 事件
+- [x] Header 控制按钮在点击 "Start" 后变为绿色并开始呼吸 (4s 周期)
+- [x] Header 控制按钮在点击 "Stop" 后 **立即** 变回灰色 (Idle 状态)
+- [x] TransactionList 外围的 Aura 光环在引擎运行时显示并流动 (Flowing)
+- [x] 当一天的数据处理完成时，Aura 光环执行一次向内收缩的闪烁 (Pulse)
+- [x] 点击停止后，Aura 光环 **保持流动**，直到后台任务真正结束
+- [x] 引擎完全停止后，Aura 光环熄灭 (Extinguish)
+- [x] 故障状态下按钮变为黄色，且点击能显示错误信息

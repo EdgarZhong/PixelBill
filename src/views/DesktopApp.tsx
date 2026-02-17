@@ -75,8 +75,12 @@ export function DesktopApp() {
           />
 
           <Header 
-            onLoadData={onHeaderClick} 
-            isLoading={isLoading} 
+            aiStatus={isLoading ? 'ANALYZING' : 'IDLE'} 
+            onAIAction={(action) => {
+              if (action === 'START') {
+                onHeaderClick();
+              }
+            }}
           />
 
           <main className="animate-fade-in">

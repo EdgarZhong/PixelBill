@@ -8,6 +8,8 @@ import { useAppLogic } from '../hooks/useAppLogic';
 import { useSafeArea, injectSafeAreaCSS } from '../hooks/useSafeArea';
 import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { isSameDay } from 'date-fns';
+import { BatchProcessor } from '../core/ai_engine/BatchProcessor';
+import { LedgerService } from '../core/services/LedgerService';
 import type { Transaction } from '../types';
 import { format } from 'date-fns';
 
@@ -48,6 +50,129 @@ export function MobileApp() {
   
   const safeArea = useSafeArea();
 
+  const [aiStatus, setAiStatus] = useState<'IDLE' | 'ANALYZING' | 'STOPPING' | 'ERROR'>('IDLE');
+  const [pulseTrigger, setPulseTrigger] = useState<number>(0);
+  const [auraActive, setAuraActive] = useState(false);
+  const [delayedTransactions, setDelayedTransactions] = useState<Transaction[]>(filteredTransactions);
+  const aiStatusRef = useRef(aiStatus);
+  const lastPulseAtRef = useRef(0);
+  const prevAiStatusRef = useRef(aiStatus);
+  const stopPulseArmedRef = useRef(false);
+  const stopPulseConsumedRef = useRef(false);
+  const delayTimeoutRef = useRef<number | null>(null);
+  const auraOffTimeoutRef = useRef<number | null>(null);
+
+  const handleAIAction = useCallback(async () => {
+    if (aiStatus === 'IDLE' || aiStatus === 'ERROR') {
+      if (transactions.length === 0) {
+        handleLoadData();
+      } else {
+        // Trigger AI Analysis directly if data is present
+        try {
+          await BatchProcessor.getInstance().run();
+        } catch (e) {
+          console.error("AI Engine failed to start:", e);
+        }
+      }
+    } else if (aiStatus === 'ANALYZING') {
+      BatchProcessor.getInstance().stop();
+      setAiStatus('STOPPING');
+    }
+  }, [aiStatus, handleLoadData, transactions.length]);
+
+  useEffect(() => {
+    aiStatusRef.current = aiStatus;
+  }, [aiStatus]);
+
+  const triggerPulse = useCallback(() => {
+    const now = Date.now();
+    lastPulseAtRef.current = now;
+    setPulseTrigger(now);
+  }, []);
+  
+  const scheduleAuraOff = useCallback((delayMs: number) => {
+    if (auraOffTimeoutRef.current) {
+      window.clearTimeout(auraOffTimeoutRef.current);
+    }
+    auraOffTimeoutRef.current = window.setTimeout(() => {
+      setAuraActive(false);
+      auraOffTimeoutRef.current = null;
+    }, delayMs);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (auraOffTimeoutRef.current) {
+        window.clearTimeout(auraOffTimeoutRef.current);
+        auraOffTimeoutRef.current = null;
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    const previous = prevAiStatusRef.current;
+
+    if (aiStatus === 'ANALYZING') {
+      setAuraActive(true);
+      stopPulseArmedRef.current = false;
+      stopPulseConsumedRef.current = false;
+    }
+
+    if (aiStatus === 'STOPPING') {
+      setAuraActive(true);
+      stopPulseArmedRef.current = true;
+      stopPulseConsumedRef.current = false;
+    }
+
+    if (aiStatus === 'IDLE' && (previous === 'ANALYZING' || previous === 'STOPPING')) {
+      const shouldPulse = !stopPulseConsumedRef.current;
+      if (shouldPulse) {
+        const now = Date.now();
+        if (now - lastPulseAtRef.current > 200) {
+          triggerPulse();
+        }
+      }
+      scheduleAuraOff(140);
+      stopPulseArmedRef.current = false;
+      stopPulseConsumedRef.current = true;
+    }
+
+    if (aiStatus === 'ERROR') {
+      setAuraActive(false);
+      stopPulseArmedRef.current = false;
+      stopPulseConsumedRef.current = false;
+    }
+
+    prevAiStatusRef.current = aiStatus;
+  }, [aiStatus, triggerPulse, scheduleAuraOff]);
+
+  useEffect(() => {
+    const processor = BatchProcessor.getInstance();
+    const ledgerService = LedgerService.getInstance();
+    
+    const unsubscribeStatus = processor.on('status', ({ status }) => {
+      if (status === 'ANALYZING' && processor.isStopping) {
+        setAiStatus('STOPPING');
+      } else {
+        setAiStatus(status);
+      }
+    });
+
+    const unsubscribeBeforePatch = ledgerService.subscribeBeforePatch(() => {
+      triggerPulse();
+      if (aiStatusRef.current === 'STOPPING' && stopPulseArmedRef.current) {
+        scheduleAuraOff(140);
+        stopPulseArmedRef.current = false;
+        stopPulseConsumedRef.current = true;
+      }
+    });
+
+    return () => {
+      unsubscribeStatus();
+      unsubscribeBeforePatch();
+    };
+  }, []);
+
   const handleTransactionSelect = (t: Transaction | null) => {
     if (t) {
       const scrollY = window.scrollY;
@@ -68,6 +193,29 @@ export function MobileApp() {
   const displayTransactions = selectedDate
     ? filteredTransactions.filter(t => isSameDay(t.originalDate, selectedDate))
     : filteredTransactions;
+
+  useEffect(() => {
+    if (delayTimeoutRef.current) {
+      window.clearTimeout(delayTimeoutRef.current);
+      delayTimeoutRef.current = null;
+    }
+
+    const shouldDelay = aiStatus !== 'IDLE' && Date.now() - lastPulseAtRef.current < 1200;
+    if (shouldDelay) {
+      delayTimeoutRef.current = window.setTimeout(() => {
+        setDelayedTransactions(displayTransactions);
+        delayTimeoutRef.current = null;
+      }, 760);
+      return () => {
+        if (delayTimeoutRef.current) {
+          window.clearTimeout(delayTimeoutRef.current);
+          delayTimeoutRef.current = null;
+        }
+      };
+    }
+
+    setDelayedTransactions(displayTransactions);
+  }, [displayTransactions, aiStatus]);
 
   // 在组件挂载和更新时注入安全区域 CSS 变量
   useEffect(() => {
@@ -347,11 +495,12 @@ export function MobileApp() {
         />
 
         <Header 
-          onLoadData={handleLoadData} 
           isLoading={isLoading} 
           onInitLedger={handleInitLedger}
           onImportData={handleImportData}
           hasData={transactions.length > 0}
+          aiStatus={aiStatus}
+          onAIAction={handleAIAction}
         />
         <main className="animate-fade-in">
           {/* 统计栏 - 移动端网格布局 */}
@@ -608,11 +757,13 @@ export function MobileApp() {
               exit="exit"
             >
               <TransactionList 
-                transactions={displayTransactions}
+                transactions={delayedTransactions}
                 onTransactionClick={handleTransactionSelect}
                 isMobile={true}
                 activeTransactionId={activeTransactionId}
                 currentFilter={filter}
+                enableAura={auraActive}
+                pulseTrigger={pulseTrigger}
               />
             </motion.div>
           </AnimatePresence>

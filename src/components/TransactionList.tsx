@@ -4,6 +4,7 @@ import { Pagination } from './Pagination';
 import { TransactionItem } from './TransactionItem';
 import { triggerHaptic, HapticFeedbackLevel } from '../utils/haptics';
 import { motion, AnimatePresence, type Variants } from 'framer-motion';
+import { AuraOverlay, type AuraOverlayHandle } from './AuraOverlay';
 
 interface TransactionListProps {
   transactions: Transaction[];
@@ -11,6 +12,8 @@ interface TransactionListProps {
   isMobile?: boolean;
   activeTransactionId?: string | null;
   currentFilter?: string;
+  enableAura?: boolean;
+  pulseTrigger?: number; // Timestamp to trigger pulse animation
 }
 
 export const TransactionList: React.FC<TransactionListProps> = ({ 
@@ -18,13 +21,29 @@ export const TransactionList: React.FC<TransactionListProps> = ({
   onTransactionClick, 
   isMobile = false, 
   activeTransactionId,
-  currentFilter = 'ALL'
+  currentFilter = 'ALL',
+  enableAura = false,
+  pulseTrigger
 }) => {
   const [currentPage, setCurrentPage] = useState(1);
   const [direction, setDirection] = useState(0);
   const listTopRef = useRef<HTMLDivElement>(null);
   const listContainerRef = useRef<HTMLDivElement>(null);
   const touchStartRef = useRef<{ x: number; y: number; timestamp: number } | null>(null);
+  const auraRef = useRef<AuraOverlayHandle>(null);
+  const lastPulseRef = useRef<number>(pulseTrigger ?? 0);
+  
+  // Effect to trigger pulse when pulseTrigger prop changes
+  useEffect(() => {
+    if (!pulseTrigger || pulseTrigger <= 0) {
+      return;
+    }
+    if (lastPulseRef.current === pulseTrigger) {
+      return;
+    }
+    lastPulseRef.current = pulseTrigger;
+    auraRef.current?.pulse();
+  }, [pulseTrigger]);
   
   const ITEMS_PER_PAGE = 20;
   
@@ -39,6 +58,7 @@ export const TransactionList: React.FC<TransactionListProps> = ({
     const newDirection = page > currentPage ? 1 : -1;
     setDirection(newDirection);
     setCurrentPage(page);
+    // Pulse triggered by AI Engine only, removed from here
   };
 
   const paginatedTransactions = transactions.slice(
@@ -73,11 +93,13 @@ export const TransactionList: React.FC<TransactionListProps> = ({
         triggerHaptic(HapticFeedbackLevel.LIGHT);
         setDirection(-1);
         setCurrentPage(prev => prev - 1);
+        // Pulse triggered by AI Engine only
       } else if (deltaX < 0 && currentPage < totalPages) {
         // Swipe left - next page
         triggerHaptic(HapticFeedbackLevel.LIGHT);
         setDirection(1);
         setCurrentPage(prev => prev + 1);
+        // Pulse triggered by AI Engine only
       }
     }
 
@@ -162,54 +184,56 @@ export const TransactionList: React.FC<TransactionListProps> = ({
 
   return (
     <div className="font-mono text-sm" ref={listTopRef}>
-      <div className="flex justify-between items-center mb-6 text-dim text-xs uppercase tracking-wider">
+      <div className="flex justify-between items-center mb-6 text-dim text-xs uppercase tracking-wider px-3">
         <div className="w-6 text-center">Src</div>
         <div className="flex-1 pl-2">Details</div>
         <div className="w-20 text-right">Amount</div>
       </div>
 
-      <div className="relative overflow-hidden" style={{ height: 'calc(20 * 68px + 20px)' }}> {/* Approx height for 20 items */}
-        <AnimatePresence mode="popLayout" custom={direction} initial={false}>
-          <motion.div 
-            key={currentPage}
-            ref={listContainerRef}
-            className="space-y-1 touch-pan-y w-full"
-            onTouchStart={handleTouchStart}
-            onTouchEnd={handleTouchEnd}
-            custom={direction}
-            variants={variants}
-            initial="enter"
-            animate="center"
-            exit="exit"
-          >
-            {displayItems.map((t) => (
-              (t as any).isSkeleton ? (
-                <motion.div key={t.id} variants={itemVariants}>
-                  <SkeletonItem />
-                </motion.div>
-              ) : (
-                <motion.div key={t.id} variants={itemVariants}>
-                  <TransactionItem
-                    transaction={t}
-                    onClick={onTransactionClick}
-                    isActive={t.id === activeTransactionId}
-                    currentFilter={currentFilter}
-                  />
-                </motion.div>
-              )
-            ))}
-            
-            {/* Show message only if truly empty (all skeletons) */}
-            {transactions.length === 0 && (
-              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                 <div className="text-center py-8 text-dim text-xs bg-background/80 px-4 rounded border border-gray-800">
-                    AWAITING_DATA_STREAM...
-                 </div>
-              </div>
-            )}
-          </motion.div>
-        </AnimatePresence>
-      </div>
+      <AuraOverlay isActive={enableAura} ref={auraRef}>
+        <div className="relative overflow-hidden px-3" style={{ height: 'calc(20 * 68px + 20px)' }}>
+          <AnimatePresence mode="popLayout" custom={direction} initial={false}>
+            <motion.div 
+              key={currentPage}
+              ref={listContainerRef}
+              className="space-y-1 touch-pan-y w-full"
+              onTouchStart={handleTouchStart}
+              onTouchEnd={handleTouchEnd}
+              custom={direction}
+              variants={variants}
+              initial="enter"
+              animate="center"
+              exit="exit"
+            >
+              {displayItems.map((t) => (
+                (t as any).isSkeleton ? (
+                  <motion.div key={t.id} variants={itemVariants}>
+                    <SkeletonItem />
+                  </motion.div>
+                ) : (
+                  <motion.div key={t.id} variants={itemVariants}>
+                    <TransactionItem
+                      transaction={t}
+                      onClick={onTransactionClick}
+                      isActive={t.id === activeTransactionId}
+                      currentFilter={currentFilter}
+                    />
+                  </motion.div>
+                )
+              ))}
+              
+              {/* Show message only if truly empty (all skeletons) */}
+              {transactions.length === 0 && (
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                   <div className="text-center py-8 text-dim text-xs bg-background/80 px-4 rounded border border-gray-800">
+                      AWAITING_DATA_STREAM...
+                   </div>
+                </div>
+              )}
+            </motion.div>
+          </AnimatePresence>
+        </div>
+      </AuraOverlay>
       
       {/* Pagination */}
       {totalPages > 1 && (

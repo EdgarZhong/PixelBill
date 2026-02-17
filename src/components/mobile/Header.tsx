@@ -1,19 +1,37 @@
 import React from 'react';
 import { DotMatrixText } from '../DotMatrixText';
 import { triggerHaptic, HapticFeedbackLevel } from '../../utils/haptics';
+import { Cpu } from 'lucide-react';
 
 interface HeaderProps {
-  onLoadData: () => void;
   isLoading: boolean;
   onInitLedger?: () => void;
   onImportData?: () => void;
   hasData?: boolean;
+  aiStatus?: 'IDLE' | 'ANALYZING' | 'STOPPING' | 'ERROR';
+  onAIAction?: () => void;
 }
 
-export const Header: React.FC<HeaderProps> = ({ onLoadData, isLoading, onInitLedger, onImportData, hasData = true }) => {
-  const handleLoadClick = async () => {
+export const Header: React.FC<HeaderProps> = ({ 
+  isLoading, 
+  onInitLedger, 
+  onImportData, 
+  hasData = true,
+  aiStatus = 'IDLE',
+  onAIAction
+}) => {
+  const getAIStatusColor = () => {
+    switch (aiStatus) {
+      case 'ANALYZING': return 'text-green-500 animate-pulse drop-shadow-[0_0_8px_rgba(16,185,129,0.8)]';
+      case 'STOPPING': return 'text-yellow-500 drop-shadow-[0_0_8px_rgba(234,179,8,0.8)]';
+      case 'ERROR': return 'text-red-500 drop-shadow-[0_0_8px_rgba(239,68,68,0.8)]';
+      default: return 'text-gray-600';
+    }
+  };
+
+  const handleAIAction = async () => {
     await triggerHaptic(HapticFeedbackLevel.MEDIUM);
-    onLoadData();
+    onAIAction?.();
   };
 
   const handleInitLedger = async () => {
@@ -48,11 +66,20 @@ export const Header: React.FC<HeaderProps> = ({ onLoadData, isLoading, onInitLed
       </div>
       
       {/* Subtitle Decoration */}
-      <div className="text-[10px] text-dim tracking-[0.2em] font-mono opacity-60">
-        GENERATIVE FINANCIAL TRACKER
+      <div className="flex justify-between items-center w-full">
+        <div className="text-[10px] text-dim tracking-[0.2em] font-mono opacity-60">
+          GENERATIVE FINANCIAL TRACKER
+        </div>
+        <button 
+          onClick={handleAIAction}
+          disabled={aiStatus === 'STOPPING'}
+          className="p-3 -mr-3 active:opacity-70 transition-opacity"
+        >
+          <Cpu size={24} className={getAIStatusColor()} />
+        </button>
       </div>
 
-      {onInitLedger && onImportData ? (
+      {onInitLedger && onImportData && (
         <div className="flex gap-3 w-full">
           {/* Ledger Button */}
           <button 
@@ -93,25 +120,6 @@ export const Header: React.FC<HeaderProps> = ({ onLoadData, isLoading, onInitLed
             <span className="relative z-10">{isLoading ? 'LOADING...' : '[ADD_SOURCE]'}</span>
           </button>
         </div>
-      ) : (
-        <button 
-          onClick={handleLoadClick}
-          disabled={isLoading}
-          className="
-            w-full
-            relative overflow-hidden group
-            flex justify-center items-center gap-3 px-5 py-3
-            font-pixel text-xs tracking-tight
-            border border-gray-800
-            bg-card 
-            transition-all duration-300
-            disabled:opacity-50 disabled:cursor-default
-            enabled:hover:border-gray-600 enabled:hover:bg-white/5 enabled:hover:text-pixel-green
-          "
-        >
-          <div className={`w-1.5 h-1.5 ${isLoading ? 'bg-income-yellow animate-spin' : 'bg-pixel-green group-hover:shadow-[0_0_8px_rgba(16,185,129,0.8)]'}`}></div>
-          <span className="relative z-10">{isLoading ? 'PROCESSING_STREAM...' : '[LOAD_DATA_SOURCE]'}</span>
-        </button>
       )}
     </header>
   );

@@ -43,6 +43,7 @@ export class LedgerService {
   private static instance: LedgerService;
   private state: LedgerState = { ...DEFAULT_STATE };
   private listeners: Set<() => void> = new Set();
+  private beforePatchListeners: Set<() => void> = new Set();
   private memoryFileHandle: StorageHandle | null = null;
   private transactionCache: Map<string, {
     raw: Transaction;
@@ -72,6 +73,11 @@ export class LedgerService {
     return () => this.listeners.delete(listener);
   }
 
+  public subscribeBeforePatch(listener: () => void): () => void {
+    this.beforePatchListeners.add(listener);
+    return () => this.beforePatchListeners.delete(listener);
+  }
+
   public getState(): LedgerState {
     return this.state;
   }
@@ -87,6 +93,10 @@ export class LedgerService {
 
   private notify() {
     this.listeners.forEach(listener => listener());
+  }
+
+  private notifyBeforePatch() {
+    this.beforePatchListeners.forEach(listener => listener());
   }
 
   // --- Initialization & Setup ---
@@ -111,6 +121,11 @@ export class LedgerService {
       if (!record) {
         console.warn('[LedgerService] Record not found for patch:', patch.id);
         return;
+      }
+
+      const hasAiUpdates = patch.updates.ai_category !== undefined || patch.updates.ai_reasoning !== undefined;
+      if (hasAiUpdates) {
+        this.notifyBeforePatch();
       }
 
       const newRecord = { ...record, ...patch.updates };

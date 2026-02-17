@@ -1,5 +1,7 @@
-- [x] User Edit & AI Diagnosis Headers match in Height & Color
-- [x] Header Color is "Grayscale Theme Green"
-- [x] Category Text: Locked = Green Solid, Unlocked = Green Breathing (4s)
-- [x] Note Text: Locked = Gray, Unlocked = Green Breathing (4s)
-- [x] Original ID is visible in Detail Page (after data fix)
+- [x] 翻页或切换标签不再触发光环脉冲
+- [x] 光环显示为完整的暗绿色轨道
+- [x] 光环上有 3-4 段高亮绿色光流在顺时针流动
+- [x] 光流具有柔和的边缘和逸散光效
+- [x] 移动端 Header 的 AI 图标尺寸变大，易于点击
+- [x] AI 图标在工作状态下有明显的绿色光晕
+- [x] AI 图标在停止/错误状态下有对应的黄色/红色光晕
