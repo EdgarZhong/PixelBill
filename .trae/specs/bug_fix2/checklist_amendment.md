@@ -1,0 +1,4 @@
+- [x] Lock Button is visible in Category Selector
+- [x] Clicking Lock Button toggles lock state
+- [x] Changing Category does NOT auto-lock (is_verified remains false)
+- [x] Changing Note does NOT auto-lock (is_verified remains false)

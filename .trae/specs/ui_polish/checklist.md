@@ -1,0 +1,11 @@
+- [x] User Edit Card combines Category and Note
+- [x] User Edit Card has Dark Blue Header (`USER EDIT`)
+- [x] All Titles are ENGLISH and Uppercase
+- [x] Font sizes are standardized (Title 10px, Body xs/sm)
+- [x] Category Trigger has NO pulse animation
+- [x] Note Trigger has NO pulse animation
+- [x] Note Save Button has NO circle background
+- [x] Lock Button background matches card (No color mismatch)
+- [x] AI Label is Yellow (if active)
+- [x] AI Label is Dim/Gray (if overridden by user)
+- [x] `ORIGINAL_ID` is visible

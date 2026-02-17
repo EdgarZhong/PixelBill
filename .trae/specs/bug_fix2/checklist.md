@@ -1,0 +1,11 @@
+- [x] modifying Category/Note does NOT auto-lock
+- [x] `originalId` is visible in Detail Page
+- [x] Category Selector Trigger style matches spec (White Border + Green Breathing Text)
+- [x] Category Selector Panel style matches `DateRangePicker` (Translucent, Blur, Shadow)
+- [x] Vertical Carousel uses `font-pixel` (Press Start 2P)
+- [x] Vertical Carousel matches Main Tabs style (Scale, Opacity)
+- [x] Vertical Carousel has NO bottom green bar
+- [x] Note Editor Panel matches `DateRangePicker` style
+- [x] Note Editor has Save button at Bottom-Right
+- [x] Detail Page has `bg-dot-matrix` background
+- [x] Detail Page cards use `rounded-sm`

@@ -1,0 +1,5 @@
+- [x] User Edit & AI Diagnosis Headers match in Height & Color
+- [x] Header Color is "Grayscale Theme Green"
+- [x] Category Text: Locked = Green Solid, Unlocked = Green Breathing (4s)
+- [x] Note Text: Locked = Gray, Unlocked = Green Breathing (4s)
+- [x] Original ID is visible in Detail Page (after data fix)

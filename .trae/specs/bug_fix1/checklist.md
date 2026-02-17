@@ -1,0 +1,10 @@
+- [x] `Transaction` type includes `originalId`
+- [x] CSV Parser correctly populates `originalId`
+- [x] Detail Page displays `originalId`
+- [x] Clicking Lock Icon ONLY toggles `is_verified` (Data is PRESERVED on unlock)
+- [x] Editing Category/Note does NOT auto-lock
+- [x] Changes are saved ONLY when Secondary Panel closes
+- [x] Closing Secondary Panel restores page interaction IMMEDIATELY (No dead overlay)
+- [x] Vertical Carousel scrolls smoothly (No Jitter)
+- [x] Visual Style is Clean Modern Pixel (No Blur/CRT/Glow)
+- [x] Animations are Smooth (Ease), not Bouncy (Spring)

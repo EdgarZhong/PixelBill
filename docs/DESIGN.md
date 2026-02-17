@@ -72,7 +72,7 @@ PixelBill 奉行“生成式极简主义”与“赛博禅意”的设计哲学�
     *   **Global Heartbeat (全局心跳)**: 所有持续性呼吸动画（Logo, Text Glow, Loading Skeletons）必须统一使用 `4s` 周期 (`cubic-bezier(0.4, 0, 0.6, 1)`)。
     *   **Synchronization (同步)**: 禁止使用不同频率的呼吸动画混杂。Skeleton 屏的脉冲 (`pulse-slow`) 必须与 Header Logo 的 `box-glow` 保持同频，营造“系统待机”的整体生命感。
     *   **Implementation**: 统一使用 Tailwind 的 `animate-pulse-slow`, `animate-box-glow`, `animate-text-glow` 类。
-*   **Glitch (故障)**: 在活跃度矩阵中引入极低概率的随机位移或透明度抖动，模拟老式显示器的信号不稳定感。
+*   **Glitch (故障)**: 在活跃度矩阵中引入极低概率的随机位移或透明度抖动。
 *   **Micro-interactions**:
     *   **Data Emergence (数据浮现)**: 采用 **"In-place Morphing & Activation" (原地演变与激活)** 策略。
         *   **Core Logic**: 界面骨架（DOM 结构）坚如磐石，严禁布局抖动 (Layout Shift)。数据加载表现为“容器”被“内容”填充并激活的过程。
@@ -319,17 +319,17 @@ PixelBill 奉行“生成式极简主义”与“赛博禅意”的设计哲学�
     *   **透明底抽象图标**: 不使用文字，仅使用抽象符号（如神经网络节点/火花）。
     *   **无形变**: 状态切换时不改变图标形状，仅改变颜色与光效。
 *   **视觉状态**:
-    *   **Idle (静默)**: 暗淡灰色 (`text-dim` / `opacity-50`)。
+    *   **Idle (静默)**: 暗淡灰色 (`text-dim` / `opacity-50`)+白色勾边。
     *   **Working (工作)**: 
         *   颜色: 翡翠绿 (`text-pixel-green`)。
         *   动效: **同步呼吸流光 (Sync Breathing)**，与全局 4s 心跳保持一致。
+    *   **故障 (Fault)**: 若AI引擎报错并停止运行，按钮变为黄色常亮。点击后，顶部弹窗（二级面板式，注意参考datarangepicker的展开样式）显示错误信息，按钮恢复为灰色。
 
 #### 3. 视觉反馈：光环系统 (The Aura System)
-*   **载体**: `TransactionList` 容器边缘。
+*   **载体**: `TransactionList` 容器外侧，等宽的圆角矩形环。**新组件不得影响TransactionList已有的布局与样式。**
 *   **状态表现**:
     *   **Flowing (处理中)**: 
-        *   **主要效果**: 绿色光环沿列表边缘顺时针流动，象征 AI 正在扫描数据。
-        *   **内流常态**: 即使在流动间隙，光环常态也必须保持**向内流动的微弱高光 (Inward Flowing Highlight)**仿佛能量正不断被吸入黑洞中心，增强视觉引力。
+        *   **主要效果**: 绿色光环浮现，间隔的，向内散射的绿色高光环段，沿列表边缘顺时针流动，象征 AI 正在扫描数据。
     *   **Pulse (落袋)**: 每当一批（一天）数据分类完成并写入 Ledger 时，光环执行一次**向内收缩的高光闪烁 (Imploding Pulse)**，如同列表“吞噬”了新的数据能量。
     *   **Extinguish (熄灭)**: 仅当后台引擎完全停止（包括完成 Soft Stop 的最后一批数据）时，光环才彻底消失。
 
@@ -462,27 +462,7 @@ export interface LedgerMemory {
             *   **Path**: 合并后的完整账本数据存储在公共 `Documents/PixelBill/default.pixelbill.json`。
             *   **Permission Logic**: 利用 Android Scoped Storage 机制，App 拥有**对自己创建的文件**的完全读写权限，因此无需申请宽泛的 `READ_EXTERNAL_STORAGE` 权限即可正常工作。
 
-### 4.5 记忆胶囊 (Memory Capsule)**（尚未实现）**
-
-作为伴生元数据系统的核心组件，它不仅是状态指示器，更是高级数据管理的**隐式入口**。
-
-*   **位置**: 页面底部 (Footer) 居中，保持低调。
-*   **形态**: 极简胶囊形状 (Pill Shape)，类似电子设备的指示灯或物理接口。
-*   **状态反馈 (Visual Feedback)**:
-    *   **Disconnected**: 灰色轮廓/空心，无呼吸。表示尚未关联目录。
-    *   **Connected**: 绿色实心点 + 4s 周期呼吸。表示已锁定元数据文件。
-    *   **Saving**: 快速闪烁或颜色瞬变 (Yellow/White)。
-*   **交互逻辑 (Interaction)**:
-    *   **Hover**: 
-        *   显示当前连接的文件名 (e.g., `pixel_bill_memory.json`)。
-        *   如果是默认创建的文件，提示“Default Memory”。
-    *   **Click**: 
-        *   **Action**: 唤起 **Memory Manager** (悬浮菜单或极简面板)。
-        *   **Options**:
-            1.  **Switch Memory**: 列出当前目录下所有符合格式的 JSON 文件供切换。
-            2.  **New Memory**: 允许输入新文件名并创建空白元数据文件。
-
-### 4.6 仲裁业务规则 (Arbitration Business Rules)
+### 4.5 仲裁业务规则 (Arbitration Business Rules)
 
 本节定义仲裁器的**决策逻辑**与**优先级策略**。关于系统的技术架构、数据流向与循环机制，请严格遵循 **[5. 系统架构](#5-系统架构-system-architecture)** 章节的定义。
 
