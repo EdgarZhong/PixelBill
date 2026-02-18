@@ -29,6 +29,7 @@ export function MobileApp() {
     handleInitLedger,
     handleImportData,
     updateCategory,
+    setUserNote,
     setVerification,
     ledgerMemory,
     totalExpense,
@@ -59,30 +60,9 @@ export function MobileApp() {
   const prevAiStatusRef = useRef(aiStatus);
   const stopPulseArmedRef = useRef(false);
   const stopPulseConsumedRef = useRef(false);
+  const hadAiPatchRef = useRef(false);
   const delayTimeoutRef = useRef<number | null>(null);
   const auraOffTimeoutRef = useRef<number | null>(null);
-
-  const handleAIAction = useCallback(async () => {
-    if (aiStatus === 'IDLE' || aiStatus === 'ERROR') {
-      if (transactions.length === 0) {
-        handleLoadData();
-      } else {
-        // Trigger AI Analysis directly if data is present
-        try {
-          await BatchProcessor.getInstance().run();
-        } catch (e) {
-          console.error("AI Engine failed to start:", e);
-        }
-      }
-    } else if (aiStatus === 'ANALYZING') {
-      BatchProcessor.getInstance().stop();
-      setAiStatus('STOPPING');
-    }
-  }, [aiStatus, handleLoadData, transactions.length]);
-
-  useEffect(() => {
-    aiStatusRef.current = aiStatus;
-  }, [aiStatus]);
 
   const triggerPulse = useCallback(() => {
     const now = Date.now();
@@ -100,6 +80,59 @@ export function MobileApp() {
     }, delayMs);
   }, []);
 
+  const applyAiStatus = useCallback((nextStatus: 'IDLE' | 'ANALYZING' | 'STOPPING' | 'ERROR') => {
+    const previous = prevAiStatusRef.current;
+
+    if (nextStatus === 'ANALYZING') {
+      setAuraActive(true);
+      stopPulseArmedRef.current = false;
+      stopPulseConsumedRef.current = false;
+      hadAiPatchRef.current = false;
+    }
+
+    if (nextStatus === 'STOPPING') {
+      setAuraActive(true);
+      stopPulseArmedRef.current = true;
+      stopPulseConsumedRef.current = false;
+    }
+
+    if (nextStatus === 'IDLE' && (previous === 'ANALYZING' || previous === 'STOPPING')) {
+      scheduleAuraOff(140);
+      stopPulseArmedRef.current = false;
+      stopPulseConsumedRef.current = true;
+      hadAiPatchRef.current = false;
+    }
+
+    if (nextStatus === 'ERROR') {
+      setAuraActive(false);
+      stopPulseArmedRef.current = false;
+      stopPulseConsumedRef.current = false;
+      hadAiPatchRef.current = false;
+    }
+
+    prevAiStatusRef.current = nextStatus;
+    aiStatusRef.current = nextStatus;
+    setAiStatus(nextStatus);
+  }, [scheduleAuraOff]);
+
+  const handleAIAction = useCallback(async () => {
+    if (aiStatus === 'IDLE' || aiStatus === 'ERROR') {
+      if (transactions.length === 0) {
+        handleLoadData();
+      } else {
+        // Trigger AI Analysis directly if data is present
+        try {
+          await BatchProcessor.getInstance().run();
+        } catch (e) {
+          console.error("AI Engine failed to start:", e);
+        }
+      }
+    } else if (aiStatus === 'ANALYZING') {
+      BatchProcessor.getInstance().stop();
+      applyAiStatus('STOPPING');
+    }
+  }, [aiStatus, applyAiStatus, handleLoadData, transactions.length]);
+
   useEffect(() => {
     return () => {
       if (auraOffTimeoutRef.current) {
@@ -110,55 +143,19 @@ export function MobileApp() {
   }, []);
 
   useEffect(() => {
-    const previous = prevAiStatusRef.current;
-
-    if (aiStatus === 'ANALYZING') {
-      setAuraActive(true);
-      stopPulseArmedRef.current = false;
-      stopPulseConsumedRef.current = false;
-    }
-
-    if (aiStatus === 'STOPPING') {
-      setAuraActive(true);
-      stopPulseArmedRef.current = true;
-      stopPulseConsumedRef.current = false;
-    }
-
-    if (aiStatus === 'IDLE' && (previous === 'ANALYZING' || previous === 'STOPPING')) {
-      const shouldPulse = !stopPulseConsumedRef.current;
-      if (shouldPulse) {
-        const now = Date.now();
-        if (now - lastPulseAtRef.current > 200) {
-          triggerPulse();
-        }
-      }
-      scheduleAuraOff(140);
-      stopPulseArmedRef.current = false;
-      stopPulseConsumedRef.current = true;
-    }
-
-    if (aiStatus === 'ERROR') {
-      setAuraActive(false);
-      stopPulseArmedRef.current = false;
-      stopPulseConsumedRef.current = false;
-    }
-
-    prevAiStatusRef.current = aiStatus;
-  }, [aiStatus, triggerPulse, scheduleAuraOff]);
-
-  useEffect(() => {
     const processor = BatchProcessor.getInstance();
     const ledgerService = LedgerService.getInstance();
     
     const unsubscribeStatus = processor.on('status', ({ status }) => {
       if (status === 'ANALYZING' && processor.isStopping) {
-        setAiStatus('STOPPING');
+        applyAiStatus('STOPPING');
       } else {
-        setAiStatus(status);
+        applyAiStatus(status);
       }
     });
 
     const unsubscribeBeforePatch = ledgerService.subscribeBeforePatch(() => {
+      hadAiPatchRef.current = true;
       triggerPulse();
       if (aiStatusRef.current === 'STOPPING' && stopPulseArmedRef.current) {
         scheduleAuraOff(140);
@@ -171,7 +168,7 @@ export function MobileApp() {
       unsubscribeStatus();
       unsubscribeBeforePatch();
     };
-  }, []);
+  }, [applyAiStatus, scheduleAuraOff, triggerPulse]);
 
   const handleTransactionSelect = (t: Transaction | null) => {
     if (t) {
@@ -201,20 +198,17 @@ export function MobileApp() {
     }
 
     const shouldDelay = aiStatus !== 'IDLE' && Date.now() - lastPulseAtRef.current < 1200;
-    if (shouldDelay) {
-      delayTimeoutRef.current = window.setTimeout(() => {
-        setDelayedTransactions(displayTransactions);
+    const delayMs = shouldDelay ? 760 : 0;
+    delayTimeoutRef.current = window.setTimeout(() => {
+      setDelayedTransactions(displayTransactions);
+      delayTimeoutRef.current = null;
+    }, delayMs);
+    return () => {
+      if (delayTimeoutRef.current) {
+        window.clearTimeout(delayTimeoutRef.current);
         delayTimeoutRef.current = null;
-      }, 760);
-      return () => {
-        if (delayTimeoutRef.current) {
-          window.clearTimeout(delayTimeoutRef.current);
-          delayTimeoutRef.current = null;
-        }
-      };
-    }
-
-    setDelayedTransactions(displayTransactions);
+      }
+    };
   }, [displayTransactions, aiStatus]);
 
   // 在组件挂载和更新时注入安全区域 CSS 变量
@@ -263,9 +257,7 @@ export function MobileApp() {
   }, []);
 
   // 检查标签是否超出容器宽度
-  const [isOverflowing, setIsOverflowing] = useState(false);
-  // 追踪当前激活标签的具体索引（0 到 3N-1），确保 layoutId 唯一
-  // Fix: Ensure setActiveTabIndex is defined
+  const isOverflowing = TABS.length > 5;
   const [activeTabIndex, setActiveTabIndex] = useState<number>(-1);
 
   // 扩展标签列表以实现无限循环效果：[Buffer][Core][Buffer]
@@ -276,36 +268,19 @@ export function MobileApp() {
     return [...TABS, ...TABS, ...TABS];
   }, [TABS, isOverflowing]);
 
-  // 将 activeTabIndex 与外部来源或初始化的 filter 同步
-  useEffect(() => {
+  const derivedActiveTabIndex = useMemo(() => {
     const baseIndex = TABS.indexOf(filter);
-    if (baseIndex === -1) return;
+    if (baseIndex === -1) return -1;
+    return isOverflowing ? baseIndex + TABS.length : baseIndex;
+  }, [TABS, filter, isOverflowing]);
 
-    // 如果 activeTabIndex 无效或指向不同的标签，则重置它
+  const resolvedActiveTabIndex = useMemo(() => {
     const currentTabAtActiveIndex = extendedTabs[activeTabIndex];
-    if (currentTabAtActiveIndex !== filter) {
-      // 如果溢出，默认为中间组（Core），否则为唯一组
-      const defaultIndex = isOverflowing ? baseIndex + TABS.length : baseIndex;
-      setActiveTabIndex(defaultIndex);
+    if (currentTabAtActiveIndex === filter) {
+      return activeTabIndex;
     }
-  }, [filter, TABS, isOverflowing, extendedTabs, activeTabIndex]);
-
-  const checkOverflow = useCallback(() => {
-    if (tabContainerRef.current) {
-      // 如果我们已经使用了扩展标签，我们需要检查 CORE 内容（1x）是否会溢出
-      // 近似值：如果 scrollWidth > clientWidth * 3，则肯定溢出
-      // 但对于初始检查（扩展之前），标准检查适用。
-      // 这里我们简化：如果 TABS.length > 5，为了像素设计的安全性，假设溢出
-      setIsOverflowing(TABS.length > 5); 
-    }
-  }, [TABS]);
-
-  useEffect(() => {
-    checkOverflow();
-    window.addEventListener('resize', checkOverflow);
-    document.fonts.ready.then(checkOverflow);
-    return () => window.removeEventListener('resize', checkOverflow);
-  }, [checkOverflow, TABS]);
+    return derivedActiveTabIndex;
+  }, [activeTabIndex, derivedActiveTabIndex, extendedTabs, filter]);
 
   // 使用自定义平滑滚动将选定的标签居中显示在视口中
   const centerTab = useCallback((tabIndex: number) => {
@@ -410,9 +385,9 @@ export function MobileApp() {
     // 可视化基于 'filter' 更新。
     // 我们只需要触发滚动到该标签的“中间”表示形式。
     
-    const tabIndex = TABS.indexOf(newTab as any);
+    const tabIndex = TABS.indexOf(newTab);
     if (tabIndex !== -1) {
-      handleTabChange(newTab as any);
+      handleTabChange(newTab);
       setActiveTabIndex(index);
       // centerTab 将由 useEffect 在 filter 更改时调用，
       // 但为了点击的即时反馈，我们在这里也设置它
@@ -688,7 +663,7 @@ export function MobileApp() {
                   
                   // 只要是当前选中的 filter，就显示指示器
                   const isSelected = filter === f;
-                  const isActiveInstance = index === activeTabIndex;
+                  const isActiveInstance = index === resolvedActiveTabIndex;
 
                   // Ripple Effect Calculation
                   // Center index for the visible set (assuming standard set is in the middle for initial load)
@@ -786,8 +761,9 @@ export function MobileApp() {
                 const categoryChanged = updatedTransaction.category !== selectedTransaction?.category;
                 const noteChanged = updatedTransaction.user_note !== selectedTransaction?.user_note;
 
-                // 1. Handle Category/Note changes
-                if (categoryChanged || noteChanged) {
+                // 1. Handle Category changes
+                if (categoryChanged) {
+                  // 用户明确修改分类时，写入 user_category 与 user_note
                   updateCategory(
                     updatedTransaction.id,
                     updatedTransaction.category,
@@ -797,8 +773,17 @@ export function MobileApp() {
                   return;
                 }
 
-                // 2. Handle Verification changes
-                // Only call this if category/note didn't change
+                // 2. Handle Note changes (do not touch user_category)
+                if (noteChanged) {
+                  // 仅修改备注时，不写入 user_category，避免误将当前展示分类固化为用户分类
+                  setUserNote(
+                    updatedTransaction.id,
+                    updatedTransaction.user_note || ''
+                  );
+                  return;
+                }
+
+                // 3. Handle Verification changes
                 if (updatedTransaction.is_verified !== selectedTransaction?.is_verified) {
                   setVerification(
                     updatedTransaction.id,

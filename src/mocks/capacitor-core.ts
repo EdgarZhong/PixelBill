@@ -10,6 +10,6 @@ export class WebPlugin {
 }
 
 // Mock registerPlugin (空实现)
-export function registerPlugin(_name: string, impl?: any): any {
-  return impl || {};
+export function registerPlugin<T extends Record<string, unknown>>(_name: string, impl?: T): T {
+  return impl || ({} as T);
 }

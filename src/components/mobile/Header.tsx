@@ -22,7 +22,7 @@ export const Header: React.FC<HeaderProps> = ({
 }) => {
   const getAIStatusColor = () => {
     switch (aiStatus) {
-      case 'ANALYZING': return 'text-green-500 animate-pulse drop-shadow-[0_0_8px_rgba(16,185,129,0.8)]';
+      case 'ANALYZING': return 'text-pixel-green animate-pulse drop-shadow-[0_0_8px_rgba(16,185,129,0.8)]';
       case 'STOPPING': return 'text-yellow-500 drop-shadow-[0_0_8px_rgba(234,179,8,0.8)]';
       case 'ERROR': return 'text-red-500 drop-shadow-[0_0_8px_rgba(239,68,68,0.8)]';
       default: return 'text-gray-600';

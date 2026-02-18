@@ -1,6 +1,5 @@
 import { motion } from 'framer-motion';
 import { format } from 'date-fns';
-import { CategoryDict } from '../../types/metadata';
 import type { Transaction } from '../../types';
 import { useSafeArea } from '../../hooks/useSafeArea';
 import { useRef, useCallback } from 'react';
@@ -178,7 +177,7 @@ export function DetailPage({ transaction, categories, onClose, onUpdate }: Detai
                 <div className="text-dim text-[10px] font-bold tracking-wider uppercase mb-2">CATEGORY</div>
                 <CategorySelector
                   category={transaction.category}
-                  isLocked={transaction.is_verified}
+                  isLocked={!!transaction.is_verified}
                   onToggleLock={handleToggleLock}
                   onSelect={handleCategorySelect}
                   categories={categories}
@@ -190,7 +189,7 @@ export function DetailPage({ transaction, categories, onClose, onUpdate }: Detai
                 <div className="text-dim text-[10px] font-bold tracking-wider uppercase mb-2">NOTE</div>
                 <NoteEditor
                   note={transaction.user_note || ''}
-                  isLocked={transaction.is_verified}
+                  isLocked={!!transaction.is_verified}
                   onSave={handleNoteSave}
                 />
               </div>

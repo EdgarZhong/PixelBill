@@ -19,7 +19,7 @@ function sanitizeCategory(candidate: string, validCategories: string[]): string 
 const cases = [
     { input: 'meal', expected: 'meal', desc: 'Valid category should pass' },
     { input: 'others', expected: 'others', desc: 'Others should pass' },
-    { input: 'uncategorized', expected: 'uncategorized', desc: 'Uncategorized should pass' },
+    { input: 'uncategorized', expected: 'uncategorized', desc: 'uncategorized should pass' },
     { input: 'alien_tech', expected: 'uncategorized', desc: 'Invalid category should become uncategorized' },
     { input: 'MEAL', expected: 'uncategorized', desc: 'Case sensitivity check (Strict)' }, // Assuming strict match
     { input: '', expected: 'uncategorized', desc: 'Empty string should become uncategorized' },
@@ -34,8 +34,8 @@ cases.forEach(c => {
         assert.equal(result, c.expected);
         console.log(`✅ [PASS] ${c.desc}: '${c.input}' -> '${result}'`);
         passed++;
-    } catch (e) {
-        console.error(`❌ [FAIL] ${c.desc}: '${c.input}' -> '${result}' (Expected: '${c.expected}')`);
+    } catch (error) {
+        console.error(`❌ [FAIL] ${c.desc}: '${c.input}' -> '${result}' (Expected: '${c.expected}')`, error);
         failed++;
     }
 });

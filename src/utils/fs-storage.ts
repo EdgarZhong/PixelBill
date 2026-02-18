@@ -39,7 +39,7 @@ export const isNativePlatform = () => isNativeOverride ?? Capacitor.isNativePlat
 
 // Test Helpers
 export const _setNativePlatform = (val: boolean) => { isNativeOverride = val; };
-export const _setFilesystemImpl = (impl: any) => { FilesystemImpl = impl; };
+export const _setFilesystemImpl = (impl: unknown) => { FilesystemImpl = impl as typeof Filesystem; };
 
 export const isFileSystemSupported = () => {
   if (isNativePlatform()) return true;
@@ -136,7 +136,7 @@ export const getMemoryFileHandle = async (
         path: filePath,
         name: MEMORY_FILE_NAME
       };
-    } catch (e) {
+    } catch {
       if (create) {
         // Just return the handle, the write operation will create it
         return {

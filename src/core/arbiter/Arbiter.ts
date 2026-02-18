@@ -107,6 +107,29 @@ export class Arbiter {
 
     const updates: Partial<FullTransactionRecord> = {
       is_verified: isVerified,
+      updated_at: new Date().toISOString(),
+      ...(isVerified ? {} : { category: this.decide(txId).category })
+    };
+
+    this.onPatchGenerated({ id: txId, updates });
+  }
+
+  public updateUserNote(txId: string, userNote: string) {
+    // 仅更新用户备注，不改动用户分类与锁定状态，避免误写 user_category
+    if (!this.onPatchGenerated) return;
+
+    const cache = this.proposalCache[txId];
+    if (cache?.USER) {
+      // 同步缓存中的用户提案备注，确保仲裁结果的 reasoning 与持久化一致
+      cache.USER = {
+        ...cache.USER,
+        reasoning: userNote
+      };
+    }
+
+    const updates: Partial<FullTransactionRecord> = {
+      // 只写入 user_note 与 updated_at，保持分类字段不变
+      user_note: userNote,
       updated_at: new Date().toISOString()
     };
 
@@ -159,7 +182,7 @@ export class Arbiter {
     // Fallback if no cache (should be handled by hydration)
     if (!cache) {
       return {
-        category: 'Uncategorized',
+        category: 'uncategorized',
         source: 'FALLBACK',
         reasoning: 'No proposals found'
       };
@@ -193,7 +216,7 @@ export class Arbiter {
     }
 
     return {
-      category: 'Uncategorized',
+      category: 'uncategorized',
       source: 'FALLBACK',
       reasoning: 'No valid proposals'
     };

@@ -1,7 +1,6 @@
 import { Arbiter } from '../core/arbiter/Arbiter';
 import { UserMetaPlugin } from '../core/plugin/UserMetaPlugin';
 import { LocalAIMetaPlugin } from '../core/plugin/LocalAIMetaPlugin';
-import type { Transaction } from '../types';
 
 console.log('--- Boundary & Exception Logic Test ---');
 

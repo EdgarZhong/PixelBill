@@ -70,7 +70,6 @@ export const VerticalCategoryPicker: React.FC<VerticalCategoryPickerProps> = ({
   const getCenterItemIndex = useCallback(() => {
     if (!containerRef.current || categories.length === 0) return -1;
     const container = containerRef.current;
-    const centerOffset = container.scrollTop + CONTAINER_HEIGHT / 2;
     // item index = floor(center / height) - padding_offset
     // But since we have top padding, the first item starts at scrollTop = 0 if padding is handled differently
     // Actually:
@@ -78,7 +77,6 @@ export const VerticalCategoryPicker: React.FC<VerticalCategoryPickerProps> = ({
     // PaddingTop = (CONTAINER_HEIGHT - ITEM_HEIGHT) / 2
     // Item N center = PaddingTop + N * ITEM_HEIGHT + ITEM_HEIGHT / 2
     
-    const paddingTop = (CONTAINER_HEIGHT - ITEM_HEIGHT) / 2;
     // Relative to content top (0)
     // We want to find N such that ItemCenter is closest to (scrollTop + ContainerHeight/2)
     // scrollTop + ContainerHeight/2 = PaddingTop + N * ITEM_HEIGHT + ITEM_HEIGHT/2

@@ -61,7 +61,7 @@ PixelBill 奉行“生成式极简主义”与“赛博禅意”的设计哲学�
     *   `--text-primary`: `#e4e4e7` (Zinc 200)
     *   `--text-dim`: `#6b7280` (Gray 500，用于辅助信息)
 *   **Semantic Colors (Functional)**:
-    *   **Pixel Green**: `#10b981` (Emerald 500) - 仅用于品牌标识和 Logo 呼吸灯。
+    *   **Pixel Green**: `#10b981` (Emerald 500) - 主题绿色，用于品牌标识、Logo 呼吸灯、热力图条、AI 控制图标（分析中）。
     *   **Alipay Blue**: `#0ea5e9` (Sky 500) - 支付宝支付、链接。
     *   **Expense Red**: `#ef4444` (Red 500) - 所有支出金额显示。
     *   **Income Yellow**: `#eab308` (Yellow 500) - 所有收入金额显示。
@@ -329,7 +329,7 @@ PixelBill 奉行“生成式极简主义”与“赛博禅意”的设计哲学�
 *   **视觉状态**:
     *   **Idle (静默)**: 暗淡灰色 (`text-dim` / `opacity-50`)+白色勾边。
     *   **Working (工作)**: 
-        *   颜色: 翡翠绿 (`text-pixel-green`)。
+        *   颜色: 主题绿。
         *   动效: **同步呼吸流光 (Sync Breathing)**，与全局 4s 心跳保持一致。
     *   **故障 (Fault)**: 若AI引擎报错并停止运行，按钮变为黄色常亮。点击后，顶部弹窗（二级面板式，注意参考datarangepicker的展开样式）显示错误信息，按钮恢复为灰色。
 

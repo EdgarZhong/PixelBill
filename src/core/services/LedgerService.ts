@@ -44,6 +44,7 @@ export class LedgerService {
   private state: LedgerState = { ...DEFAULT_STATE };
   private listeners: Set<() => void> = new Set();
   private beforePatchListeners: Set<() => void> = new Set();
+  private pendingPatches: PersistencePatch[] = [];
   private memoryFileHandle: StorageHandle | null = null;
   private transactionCache: Map<string, {
     raw: Transaction;
@@ -113,46 +114,60 @@ export class LedgerService {
       
       const prevMemory = this.state.ledgerMemory;
       if (!prevMemory) {
-        console.warn('[LedgerService] LedgerMemory is null, cannot apply patch.');
+        this.pendingPatches.push(patch);
         return;
       }
 
-      const record = prevMemory.records[patch.id];
-      if (!record) {
-        console.warn('[LedgerService] Record not found for patch:', patch.id);
-        return;
+      this.applyPatch(patch, prevMemory);
+    });
+  }
+
+  private applyPatch(patch: PersistencePatch, prevMemory: LedgerMemory) {
+    const record = prevMemory.records[patch.id];
+    if (!record) {
+      console.warn('[LedgerService] Record not found for patch:', patch.id);
+      return prevMemory;
+    }
+
+    const hasAiUpdates = patch.updates.ai_category !== undefined || patch.updates.ai_reasoning !== undefined;
+    if (hasAiUpdates) {
+      this.notifyBeforePatch();
+    }
+
+    const newRecord = { ...record, ...patch.updates };
+    const newMemory = {
+      ...prevMemory,
+      records: {
+        ...prevMemory.records,
+        [patch.id]: newRecord
       }
+    };
 
-      const hasAiUpdates = patch.updates.ai_category !== undefined || patch.updates.ai_reasoning !== undefined;
-      if (hasAiUpdates) {
-        this.notifyBeforePatch();
-      }
+    this.state.ledgerMemory = newMemory;
+    const newComputed = this.recomputeTransactions(this.state.rawTransactions, newMemory);
+    
+    this.setState({
+      ledgerMemory: newMemory,
+      computedTransactions: newComputed
+    });
 
-      const newRecord = { ...record, ...patch.updates };
-      const newMemory = {
-        ...prevMemory,
-        records: {
-          ...prevMemory.records,
-          [patch.id]: newRecord
-        }
-      };
+    if (this.memoryFileHandle) {
+      this.persistenceManager.scheduleWrite(this.memoryFileHandle, newMemory);
+    } else {
+      console.error('[LedgerService] memoryFileHandle is missing! Cannot persist.');
+    }
 
-      // 1. Update State (Optimistic update)
-      // We need to re-compute transactions because metadata changed
-      this.state.ledgerMemory = newMemory; // Direct mutation ok before re-calc? No, better use flow.
-      const newComputed = this.recomputeTransactions(this.state.rawTransactions, newMemory);
-      
-      this.setState({
-        ledgerMemory: newMemory,
-        computedTransactions: newComputed
-      });
+    return newMemory;
+  }
 
-      // 2. Persist to Disk (Debounced)
-      if (this.memoryFileHandle) {
-        this.persistenceManager.scheduleWrite(this.memoryFileHandle, newMemory);
-      } else {
-        console.error('[LedgerService] memoryFileHandle is missing! Cannot persist.');
-      }
+  private flushPendingPatches() {
+    const currentMemory = this.state.ledgerMemory;
+    if (!currentMemory || this.pendingPatches.length === 0) return;
+    let memory = currentMemory;
+    const patches = this.pendingPatches;
+    this.pendingPatches = [];
+    patches.forEach(patch => {
+      memory = this.applyPatch(patch, memory);
     });
   }
 
@@ -223,6 +238,7 @@ export class LedgerService {
             dateRange: range,
             memoryFileHandle: memoryHandle
           });
+          this.flushPendingPatches();
           
           console.log(`[LedgerService] Hydrated ${restoredTransactions.length} transactions from memory.`);
         } else {
@@ -231,6 +247,7 @@ export class LedgerService {
                 ledgerMemory: currentMemory,
                 memoryFileHandle: memoryHandle
             });
+            this.flushPendingPatches();
         }
       }
     } catch (error) {
@@ -239,6 +256,7 @@ export class LedgerService {
   }
 
   public async loadData(_externalHandle?: StorageDirHandle) {
+    void _externalHandle;
     // This replaces handleLoadData
     // ... implementation logic ...
     // For brevity, assuming this is called by UI with handle
@@ -268,6 +286,7 @@ export class LedgerService {
         TABS: tabs,
         dateRange: range
       });
+      this.flushPendingPatches();
       
       // Hydrate Arbiter?
       // Yes, if external file changed, we should re-hydrate arbiter with new user categories.
@@ -407,8 +426,8 @@ export class LedgerService {
         category: (meta && meta.category) || t.category || 'uncategorized'
       };
 
-      const decision = globalArbiter.decide(t.id);
-      const candidate = decision.category;
+      const shouldFreezeCategory = safeMeta.is_verified && (!safeMeta.user_category || safeMeta.user_category.trim() === '');
+      const candidate = shouldFreezeCategory ? tempRecord.category : globalArbiter.decide(t.id).category;
       
       const finalCategory = (validCategories.includes(candidate) || candidate === 'uncategorized') 
         ? candidate 
@@ -470,6 +489,11 @@ export class LedgerService {
     globalArbiter.ingest(id, proposal);
     // Note: Ingest -> Patch -> Callback -> setState. 
     // We don't need to manually setState here.
+  }
+
+  public updateUserNote(id: string, userNote: string) {
+    // 仅更新用户备注，避免触发 user_category 写入
+    globalArbiter.updateUserNote(id, userNote);
   }
 
   public setVerification(id: string, isVerified: boolean) {
@@ -538,6 +562,7 @@ export class LedgerService {
                 TABS: tabs,
                 dateRange: range
             });
+            this.flushPendingPatches();
         }
     } catch (error) {
         console.error('[LedgerService] Ingest failed:', error);
@@ -575,6 +600,7 @@ export class LedgerService {
             TABS: tabs,
             dateRange: range
         });
+        this.flushPendingPatches();
     } catch (error) {
         console.error('[LedgerService] Ingest raw failed:', error);
     } finally {

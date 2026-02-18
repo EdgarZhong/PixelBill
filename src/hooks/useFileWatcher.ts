@@ -31,7 +31,7 @@ export function useFileWatcher(
     // Cloud Sync (Future) should use a dedicated Event Bus or Push Notification mechanism,
     // not low-level file polling.
     if (!fileHandle || isNativePlatform()) {
-      setIsWatching(false);
+      setTimeout(() => setIsWatching(false), 0);
       if (isNativePlatform()) {
         console.log('[FileWatcher] Disabled on native platform for performance.');
       }
@@ -80,7 +80,8 @@ export function useFileWatcher(
           lastModifiedRef.current = currentMtime;
           callbackRef.current({ lastModified: currentMtime });
         }
-      } catch (err) {
+      } catch (error) {
+        void error;
         // Silently fail on check errors to avoid log spam
         // console.warn('[FileWatcher] Check failed:', err);
       }

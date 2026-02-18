@@ -5448,7 +5448,7 @@
       "remark": "/",
       "ai_category": "others",
       "ai_reasoning": "交易时间为21:45，属于晚间时段，金额为2.2元，商户为‘立印’，描述为‘打印’，属于生活服务类支出，符合‘Others’类别中的‘生活服务’特征，因此归类为Others。",
-      "user_category": "uncategorized",
+      "user_category": "",
       "user_note": "",
       "is_verified": true,
       "updated_at": "2026-02-17T11:41:15.920Z",

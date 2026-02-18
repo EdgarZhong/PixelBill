@@ -30,7 +30,7 @@ async function runSimulation() {
     console.log('[Init] Arbiter initialized with User & LocalAI plugins.');
 
     // 2. Hydrate (Cold Start)
-    // Simulate existing file state: "Uncategorized"
+    // Simulate existing file state: "uncategorized"
     arbiter.hydrate(MOCK_TX.id, {
         user_category: "",
         user_note: "",
@@ -52,7 +52,8 @@ async function runSimulation() {
     });
 
     // DEBUG STATE
-    console.log('[DEBUG State]', JSON.stringify((arbiter as any).proposalCache[MOCK_TX.id], null, 2));
+    const debugCache = (arbiter as unknown as { proposalCache: Record<string, unknown> }).proposalCache;
+    console.log('[DEBUG State]', JSON.stringify(debugCache[MOCK_TX.id], null, 2));
 
     let decision = arbiter.decide(MOCK_TX.id);
     console.log(`[Result 2] Category: '${decision.category}' (Expected: 'Food')`);

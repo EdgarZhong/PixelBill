@@ -22,7 +22,10 @@ export const Encoding = {
 export type Encoding = (typeof Encoding)[keyof typeof Encoding];
 
 // Helper to bridge to our Vite Middleware
-const apiCall = async (action: string, payload: any) => {
+type ApiPayload = Record<string, unknown>;
+type ApiFileEntry = { name: string; type: string; size?: number; mtime: number; uri?: string; ctime?: number };
+
+const apiCall = async (action: string, payload: ApiPayload) => {
   try {
     const res = await fetch('/api/fs', {
       method: 'POST',
@@ -81,12 +84,12 @@ export const Filesystem = {
     const { files } = await apiCall('readdir', { path: relPath, directory });
     // Convert backend format to Capacitor format
     return {
-      files: files.map((f: any) => ({
+      files: (files as ApiFileEntry[]).map((f) => ({
         name: f.name,
-        type: f.type,
+        type: f.type === 'directory' ? 'directory' : 'file',
         size: f.size || 0,
         mtime: f.mtime,
-        uri: f.uri,
+        uri: f.uri || '',
         ctime: f.ctime || f.mtime
       }))
     };

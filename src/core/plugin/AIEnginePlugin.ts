@@ -3,6 +3,7 @@ import { BatchProcessor } from '../ai_engine/BatchProcessor';
 import { globalArbiter } from '../arbiter/Arbiter';
 import type { Proposal } from './types';
 import type { TransactionBase } from '../../types/metadata';
+import type { AIProgress, AIStatus } from '../ai_engine/types';
 
 /**
  * AI Engine Plugin
@@ -40,7 +41,7 @@ export class AIEnginePlugin extends CategoryPlugin {
   /**
    * Subscribe to progress updates
    */
-  public subscribeToProgress(callback: (status: string, progress: any) => void) {
+  public subscribeToProgress(callback: (status: AIStatus, progress: AIProgress) => void) {
     const processor = BatchProcessor.getInstance();
     return processor.subscribe(callback);
   }
@@ -51,6 +52,7 @@ export class AIEnginePlugin extends CategoryPlugin {
    * Real-time single-transaction analysis can be implemented here later.
    */
   async analyze(_transaction: TransactionBase): Promise<Proposal | null> {
+    void _transaction;
     return null;
   }
 }

@@ -53,6 +53,11 @@ export function useAppLogic() {
     service.updateCategory(id, newCategory, newReasoning);
   };
 
+  const setUserNote = (id: string, userNote: string) => {
+    // 将备注更新走专用通道，避免连带写入用户分类
+    service.updateUserNote(id, userNote);
+  };
+
   const setVerification = (id: string, isVerified: boolean) => {
     service.setVerification(id, isVerified);
   };
@@ -170,9 +175,10 @@ export function useAppLogic() {
   // I will assume I'll add `memoryFileHandle` to `LedgerState` in the next step.
   
   // Mock function for now to prevent TS error until I update Service
-  const memoryFileHandle = (service.getState() as any).memoryFileHandle;
+  const memoryFileHandle = service.getState().memoryFileHandle;
 
   const handleExternalFileChange = (_info: FileChangeInfo) => {
+     void _info;
      // Loopback detection logic moved to Service? 
      // Or just call reload.
      service.reloadMemory();
@@ -189,13 +195,14 @@ export function useAppLogic() {
     filter,
     handleTabChange,
     updateCategory,
+    setUserNote,
     setVerification,
     direction,
     dateRange,
     setDateRange: (range: { start: Date | null; end: Date | null }) => {
         // We need to update Service state
         // I'll add this method to Service.
-        (service as any).setDateRange(range);
+        service.setDateRange(range);
     },
     fileInputRef,
     handleFileChange,
