@@ -5437,7 +5437,7 @@
       "id": "b15f016a65527fe3",
       "time": "2025-11-27 21:45:27",
       "sourceType": "wechat",
-      "category": "uncategorized",
+      "category": "others",
       "rawClass": "商户消费",
       "counterparty": "立印",
       "product": "026BEC打印",
@@ -5450,8 +5450,8 @@
       "ai_reasoning": "交易时间为21:45，属于晚间时段，金额为2.2元，商户为‘立印’，描述为‘打印’，属于生活服务类支出，符合‘Others’类别中的‘生活服务’特征，因此归类为Others。",
       "user_category": "",
       "user_note": "",
-      "is_verified": true,
-      "updated_at": "2026-02-17T11:41:15.920Z",
+      "is_verified": false,
+      "updated_at": "2026-02-18T02:09:08.236Z",
       "originalId": "4200002962202511279334881545"
     },
     "8ab6f462e76bc104": {
@@ -9787,7 +9787,7 @@
       "category": "uncategorized",
       "rawClass": "服饰装扮",
       "counterparty": "手工**1",
-      "product": "时尚复古韩版英伦风船锚十字星胸针个性创意别针服装帽子百搭装饰",
+      "product": "时尚复古韩版英伦风船锚十字星胸针个性创���别针服装帽子百搭装饰",
       "amount": 7.48,
       "direction": "out",
       "paymentMethod": "工商银行储蓄卡(3625)",

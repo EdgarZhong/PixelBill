@@ -197,7 +197,7 @@ export function MobileApp() {
       delayTimeoutRef.current = null;
     }
 
-    const shouldDelay = aiStatus !== 'IDLE' && Date.now() - lastPulseAtRef.current < 1200;
+    const shouldDelay = Date.now() - lastPulseAtRef.current < 1200 && (aiStatus !== 'IDLE' || stopPulseConsumedRef.current);
     const delayMs = shouldDelay ? 760 : 0;
     delayTimeoutRef.current = window.setTimeout(() => {
       setDelayedTransactions(displayTransactions);
