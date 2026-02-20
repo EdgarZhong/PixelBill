@@ -1,10 +1,10 @@
 
-import { 
+import {
   getAutoDirectoryHandle,
-  getMemoryFileHandle, 
-  readMemoryFile, 
-  writeMemoryFile, 
-  DEFAULT_MEMORY, 
+  getMemoryFileHandle,
+  readMemoryFile,
+  writeMemoryFile,
+  DEFAULT_MEMORY,
   isNativePlatform
 } from '../../utils/fs-storage';
 import type { StorageHandle, StorageDirHandle } from '../../utils/fs-storage';
@@ -173,87 +173,8 @@ export class LedgerService {
 
   // --- Core Business Logic ---
 
-  public async init() {
-    // Android Auto-Init
-    // For Web, we can also simulate auto-init if we have a mock filesystem or just skip it
-    // But since the user wants to see data loading, let's enable it for native AND web (mock)
-    if (isNativePlatform()) {
-      await this.handleInitLedgerNative();
-    } else {
-       // Web Mock Logic for Testing
-       console.log('[LedgerService] Web environment detected. Simulating auto-init...');
-       // Use a timeout to simulate async loading
-       setTimeout(async () => {
-         // Check if we can get a handle (e.g. from OPFS or Mock)
-         // For now, let's try to reuse handleInitLedgerNative logic if it supports web
-         // Or just call it directly since getAutoDirectoryHandle might have web fallback
-         await this.handleInitLedgerNative();
-       }, 0);
-    }
-  }
-
-  private async handleInitLedgerNative() {
-    try {
-      console.log('[LedgerService] Auto-initializing ledger...');
-      const dirHandle = await getAutoDirectoryHandle();
-      
-      let memoryHandle = await getMemoryFileHandle(dirHandle, false);
-      let currentMemory: LedgerMemory = DEFAULT_MEMORY;
-
-      if (memoryHandle) {
-        console.log('[LedgerService] Found existing memory.');
-        currentMemory = await readMemoryFile(memoryHandle);
-      } else {
-        console.log('[LedgerService] Creating default memory...');
-        memoryHandle = await getMemoryFileHandle(dirHandle, true);
-      }
-
-      if (memoryHandle) {
-        this.memoryFileHandle = memoryHandle;
-        
-        // Hydrate transactions from memory if available
-        const restoredTransactions: Transaction[] = Object.values(currentMemory.records).map(record => ({
-          ...record,
-          originalDate: parse(record.time, 'yyyy-MM-dd HH:mm:ss', new Date())
-        }));
-
-        if (restoredTransactions.length > 0) {
-          restoredTransactions.sort((a, b) => b.originalDate.getTime() - a.originalDate.getTime());
-          
-          this.hydrateArbiter(currentMemory);
-          
-          const computed = this.recomputeTransactions(restoredTransactions, currentMemory);
-          
-          // Startup Consistency Check
-          this.performStartupConsistencyCheck(computed, currentMemory);
-          
-          const tabs = this.computeTabs(currentMemory);
-          const range = this.computeDateRange(computed);
-
-          this.setState({
-            ledgerMemory: currentMemory,
-            rawTransactions: restoredTransactions,
-            computedTransactions: computed,
-            TABS: tabs,
-            dateRange: range,
-            memoryFileHandle: memoryHandle
-          });
-          this.flushPendingPatches();
-          
-          console.log(`[LedgerService] Hydrated ${restoredTransactions.length} transactions from memory.`);
-        } else {
-            // Just set memory
-            this.setState({ 
-                ledgerMemory: currentMemory,
-                memoryFileHandle: memoryHandle
-            });
-            this.flushPendingPatches();
-        }
-      }
-    } catch (error) {
-      console.error('[LedgerService] Failed to init ledger:', error);
-    }
-  }
+  // Removed init() and handleInitLedgerNative() as they are now handled by LedgerManager
+  // LedgerService is now purely a content manager, not a resource manager.
 
   public async loadData(_externalHandle?: StorageDirHandle) {
     void _externalHandle;
@@ -672,5 +593,51 @@ export class LedgerService {
     }
 
     return currentMemory;
+  }
+
+  // ============================================
+  // 账本加载接口 - Ledger Loading Interface
+  // ============================================
+
+  /**
+   * 从指定句柄加载账本数据
+   * 由 LedgerManager 调用，传入已解析的账本数据
+   * @param handle 账本文件句柄
+   * @param memory 账本数据（已预先读取）
+   */
+  public loadFromHandle(handle: StorageHandle, memory: LedgerMemory): void {
+    console.log('[LedgerService] Loading from handle...');
+
+    this.memoryFileHandle = handle;
+    this.transactionCache.clear();
+
+    // 水合 Arbiter
+    this.hydrateArbiter(memory);
+
+    // 恢复交易
+    const restoredTransactions: Transaction[] = Object.values(memory.records).map(record => ({
+      ...record,
+      originalDate: parse(record.time, 'yyyy-MM-dd HH:mm:ss', new Date())
+    }));
+
+    if (restoredTransactions.length > 0) {
+      restoredTransactions.sort((a, b) => b.originalDate.getTime() - a.originalDate.getTime());
+    }
+
+    const computed = this.recomputeTransactions(restoredTransactions, memory);
+    const tabs = this.computeTabs(memory);
+    const range = this.computeDateRange(computed);
+
+    this.setState({
+      ledgerMemory: memory,
+      rawTransactions: restoredTransactions,
+      computedTransactions: computed,
+      TABS: tabs,
+      dateRange: range,
+      memoryFileHandle: handle
+    });
+
+    this.flushPendingPatches();
+    console.log('[LedgerService] Loaded', restoredTransactions.length, 'transactions from handle');
   }
 }

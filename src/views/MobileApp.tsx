@@ -3,6 +3,7 @@ import { ActivityMatrix } from '../components/mobile/ActivityMatrix';
 import { TransactionList } from '../components/TransactionList';
 import { DateRangePicker } from '../components/mobile/DateRangePicker';
 import { DetailPage } from '../components/mobile/DetailPage';
+import { LedgerSwitcher } from '../components/mobile/LedgerSwitcher';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAppLogic } from '../hooks/useAppLogic';
 import { useSafeArea, injectSafeAreaCSS } from '../hooks/useSafeArea';
@@ -10,7 +11,10 @@ import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { isSameDay } from 'date-fns';
 import { BatchProcessor } from '../core/ai_engine/BatchProcessor';
 import { LedgerService } from '../core/services/LedgerService';
+import { LedgerManager } from '../core/services/LedgerManager';
+import { triggerHaptic, HapticFeedbackLevel } from '../utils/haptics';
 import type { Transaction } from '../types';
+import type { LedgerMeta } from '../utils/fs-storage';
 import { format } from 'date-fns';
 
 export function MobileApp() {
@@ -26,7 +30,6 @@ export function MobileApp() {
     fileInputRef,
     handleFileChange,
     handleLoadData,
-    handleInitLedger,
     handleImportData,
     updateCategory,
     setUserNote,
@@ -42,6 +45,11 @@ export function MobileApp() {
   const [isDetailAnimating, setIsDetailAnimating] = useState(false);
   const [scaleOrigin, setScaleOrigin] = useState('50% 50%');
   const [lastSelectedId, setLastSelectedId] = useState<string | null>(null);
+
+  // [CHOOSE_LEDGER]状态
+  const [isLedgerSwitcherOpen, setIsLedgerSwitcherOpen] = useState(false);
+  const [ledgers, setLedgers] = useState<LedgerMeta[]>([]);
+  const [activeLedger, setActiveLedger] = useState<string>('default');
 
   const selectedTransaction = useMemo(() => 
     selectedTxId ? transactions.find(t => t.id === selectedTxId) || null : null
@@ -133,6 +141,53 @@ export function MobileApp() {
     }
   }, [aiStatus, applyAiStatus, handleLoadData, transactions.length]);
 
+  // 账本管理回调函数
+  const loadLedgers = useCallback(async () => {
+    try {
+      const manager = LedgerManager.getInstance();
+      const ledgerList = await manager.listLedgers();
+      setLedgers(ledgerList);
+      const active = manager.getActiveLedgerName();
+      setActiveLedger(active);
+    } catch (e) {
+      console.error('[MobileApp] Failed to load ledgers:', e);
+    }
+  }, []);
+
+  const handleChooseLedger = useCallback(async () => {
+    await triggerHaptic(HapticFeedbackLevel.LIGHT);
+    await loadLedgers();
+    setIsLedgerSwitcherOpen(true);
+  }, [loadLedgers]);
+
+  const handleSwitchLedger = useCallback(async (name: string) => {
+    const manager = LedgerManager.getInstance();
+    const success = await manager.switchLedger(name);
+    if (success) {
+      setActiveLedger(name);
+      // 重新加载账本列表以更新 lastOpenedAt
+      await loadLedgers();
+    }
+  }, [loadLedgers]);
+
+  const handleCreateLedger = useCallback(async (name: string) => {
+    const manager = LedgerManager.getInstance();
+    const success = await manager.createLedger(name);
+    if (success) {
+      setActiveLedger(name);
+      await loadLedgers();
+    }
+  }, [loadLedgers]);
+
+  const handleDeleteLedger = useCallback(async (name: string) => {
+    const manager = LedgerManager.getInstance();
+    const success = await manager.deleteLedger(name);
+    if (success) {
+      setActiveLedger('default');
+      await loadLedgers();
+    }
+  }, [loadLedgers]);
+
   useEffect(() => {
     return () => {
       if (auraOffTimeoutRef.current) {
@@ -140,6 +195,14 @@ export function MobileApp() {
         auraOffTimeoutRef.current = null;
       }
     };
+  }, []);
+
+  // 初始化账本管理器
+  useEffect(() => {
+    // 异步初始化，并在控制台捕获错误（如果有）
+    LedgerManager.getInstance().init().catch(err => {
+      console.error('[MobileApp] LedgerManager init failed:', err);
+    });
   }, []);
 
   useEffect(() => {
@@ -469,10 +532,10 @@ export function MobileApp() {
           multiple
         />
 
-        <Header 
-          isLoading={isLoading} 
-          onInitLedger={handleInitLedger}
+        <Header
+          isLoading={isLoading}
           onImportData={handleImportData}
+          onChooseLedger={handleChooseLedger}
           hasData={transactions.length > 0}
           aiStatus={aiStatus}
           onAIAction={handleAIAction}
@@ -795,6 +858,17 @@ export function MobileApp() {
           />
         )}
       </AnimatePresence>
+
+      {/* [CHOOSE_LEDGER]器 */}
+      <LedgerSwitcher
+        isOpen={isLedgerSwitcherOpen}
+        onClose={() => setIsLedgerSwitcherOpen(false)}
+        ledgers={ledgers}
+        activeLedger={activeLedger}
+        onSwitch={handleSwitchLedger}
+        onCreate={handleCreateLedger}
+        onDelete={handleDeleteLedger}
+      />
     </>
   );
 }

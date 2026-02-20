@@ -5,17 +5,17 @@ import { Cpu } from 'lucide-react';
 
 interface HeaderProps {
   isLoading: boolean;
-  onInitLedger?: () => void;
   onImportData?: () => void;
+  onChooseLedger?: () => void;
   hasData?: boolean;
   aiStatus?: 'IDLE' | 'ANALYZING' | 'STOPPING' | 'ERROR';
   onAIAction?: () => void;
 }
 
-export const Header: React.FC<HeaderProps> = ({ 
-  isLoading, 
-  onInitLedger, 
-  onImportData, 
+export const Header: React.FC<HeaderProps> = ({
+  isLoading,
+  onImportData,
+  onChooseLedger,
   hasData = true,
   aiStatus = 'IDLE',
   onAIAction
@@ -34,14 +34,14 @@ export const Header: React.FC<HeaderProps> = ({
     onAIAction?.();
   };
 
-  const handleInitLedger = async () => {
-    await triggerHaptic(HapticFeedbackLevel.LIGHT);
-    onInitLedger?.();
-  };
-
   const handleImportData = async () => {
     await triggerHaptic(HapticFeedbackLevel.LIGHT);
     onImportData?.();
+  };
+
+  const handleChooseLedger = async () => {
+    await triggerHaptic(HapticFeedbackLevel.LIGHT);
+    onChooseLedger?.();
   };
 
   return (
@@ -79,11 +79,11 @@ export const Header: React.FC<HeaderProps> = ({
         </button>
       </div>
 
-      {onInitLedger && onImportData && (
+      {onImportData && (
         <div className="flex gap-3 w-full">
           {/* Ledger Button */}
-          <button 
-            onClick={handleInitLedger}
+          <button
+            onClick={handleChooseLedger}
             disabled={isLoading}
             className="
               flex-1
@@ -91,7 +91,7 @@ export const Header: React.FC<HeaderProps> = ({
               flex justify-center items-center gap-2 px-3 py-3
               font-pixel text-[10px] tracking-tight
               border border-gray-800
-              bg-card 
+              bg-card
               transition-all duration-300
               disabled:opacity-50 disabled:cursor-default
               enabled:hover:border-gray-600 enabled:hover:bg-white/5 enabled:hover:text-pixel-green
@@ -103,7 +103,7 @@ export const Header: React.FC<HeaderProps> = ({
           {/* Import Button */}
           <button 
             onClick={handleImportData}
-            disabled={isLoading || !hasData}
+            disabled={isLoading}
             className="
               flex-1
               relative overflow-hidden group

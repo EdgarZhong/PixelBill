@@ -207,7 +207,6 @@ export function useAppLogic() {
     fileInputRef,
     handleFileChange,
     handleLoadData,
-    handleInitLedger: () => service.init(),
     handleImportData: () => fileInputRef.current?.click(),
     totalExpense,
     totalIncome,

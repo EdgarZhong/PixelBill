@@ -116,3 +116,75 @@ Refer to `SOUL.md` for the "Cyber-Zen" design ethos: simplicity, order, serenity
 - Dot matrix visualizations instead of traditional charts
 - In-place animations with Framer Motion `layoutId`
 - 4-second breathing rhythm for UI elements
+
+---
+
+## 重要技术约定
+
+### 测试环境透明性
+
+**开发模式 (`npm run dev`)**:
+- Vite 配置将 Capacitor API 调用劫持到 mock 实现
+- Mock 层将文件操作重定向到 `virtual_android_filesys/` 目录
+- **软件本身无法感知是否在测试环境** - 它认为自己始终在原生 Android 环境运行
+- 不要试图检测或绕过 mock 层 - 这是测试桩设计的一部分
+
+**代码编写原则**:
+- 始终使用 Capacitor Filesystem API 访问文件系统
+- 不要添加"Web 环境检测"逻辑来绕过 Capacitor 调用
+- 信任测试桩会正确处理 API 调用
+
+### 文件系统存储位置
+
+**`ledgers.json` (账本索引文件)**:
+- 存储位置：APP 沙箱目录（非 Documents）
+- 在 Android 上为应用私有存储目录
+- 在开发模式下由 mock 层处理路径映射
+
+**`*.pixelbill.json` (账本数据文件)**:
+- 存储位置：`Documents/PixelBill/` 目录
+- 用户可访问和手动管理
+
+### Capacitor 文件系统访问规范
+
+**唯一合法的 API 调用方式**:
+```typescript
+import { Filesystem, Directory } from '@capacitor/filesystem';
+
+// 读取
+const result = await Filesystem.readFile({
+  path: 'PixelBill/xxx.pixelbill.json',
+  directory: Directory.Documents,
+  encoding: Encoding.UTF8
+});
+
+// 写入
+await Filesystem.writeFile({
+  path: 'PixelBill/xxx.pixelbill.json',
+  data: jsonString,
+  directory: Directory.Documents,
+  encoding: Encoding.UTF8
+});
+
+// 检查存在性
+try {
+  await Filesystem.stat({
+    path: 'PixelBill/xxx.pixelbill.json',
+    directory: Directory.Documents
+  });
+  // 文件存在
+} catch {
+  // 文件不存在
+}
+
+// 列出目录
+const result = await Filesystem.readdir({
+  path: 'PixelBill',
+  directory: Directory.Documents
+});
+```
+
+**禁止的行为**:
+- ❌ 使用原生 Node.js `fs` 模块
+- ❌ 使用 Web File System Access API 直接访问（除非是用户主动选择目录的弹窗）
+- ❌ 添加环境检测逻辑来切换 API

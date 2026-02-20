@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(echo:*)",
+      "Bash(powershell -Command \"Get-Host | Select-Object Version\")",
+      "Bash(npx tsc:*)",
+      "Bash(npm run build)"
+    ]
+  }
+}

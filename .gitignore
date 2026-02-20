@@ -30,7 +30,7 @@ dist-ssr
 2025-11-5to2026-1-5/
 
 # Virtual Filesystem (Sandbox & Mocks)
-virtual_android_filesys/sandbox_path/*
+virtual_android_filesys/sandbox_path/llm_logs
 !virtual_android_filesys/sandbox_path/.gitkeep
 
 # Security

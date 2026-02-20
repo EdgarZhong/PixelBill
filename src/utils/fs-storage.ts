@@ -264,3 +264,311 @@ export const scanForCSVFiles = async (
     return fileList;
   }
 };
+
+// ============================================
+// 账本索引管理 - Ledger Index Management
+// ============================================
+
+export const LEDGERS_INDEX_NAME = 'ledgers.json';
+
+/**
+ * 账本元数据接口
+ */
+export interface LedgerMeta {
+  name: string;           // 账本显示名称
+  fileName: string;       // 实际文件名（{name}.pixelbill.json）
+  createdAt: string;      // ISO 8601 格式创建时间
+  lastOpenedAt: string;   // ISO 8601 格式最后打开时间
+}
+
+/**
+ * 账本索引数据结构
+ */
+export interface LedgerIndex {
+  ledgers: LedgerMeta[];  // 所有账本列表
+  activeLedger: string;   // 当前激活的账本名称
+}
+
+/**
+ * 默认账本索引（首次启动时创建）
+ */
+export const DEFAULT_LEDGER_INDEX: LedgerIndex = {
+  ledgers: [
+    {
+      name: 'default',
+      fileName: 'default.pixelbill.json',
+      createdAt: new Date().toISOString(),
+      lastOpenedAt: new Date().toISOString()
+    }
+  ],
+  activeLedger: 'default'
+};
+
+/**
+ * 获取账本索引文件句柄（ledgers.json 存储在 APP 沙箱目录）
+ * @param create 是否创建（默认 true）
+ */
+export const getLedgersIndexHandle = async (
+  create: boolean = true
+): Promise<StorageHandle | null> => {
+  if (isNativePlatform()) {
+    // 仿照 ConfigManager 的实现，直接使用 Directory.Data
+    // mock 层会将 Directory.Data 映射到 virtual_android_filesys/sandbox_path
+    const indexPath = LEDGERS_INDEX_NAME;
+
+    try {
+      // 检查是否存在
+      await FilesystemImpl.stat({
+        path: indexPath,
+        directory: Directory.Data
+      });
+
+      return {
+        kind: 'file',
+        path: indexPath,
+        name: LEDGERS_INDEX_NAME
+      };
+    } catch {
+      if (create) {
+        // 返回句柄，写入时会创建文件
+        return {
+          kind: 'file',
+          path: indexPath,
+          name: LEDGERS_INDEX_NAME
+        };
+      }
+      return null;
+    }
+  } else {
+    // Web/测试环境：使用 mock 层的 DATA 目录（沙箱模拟）
+    // mock 层会将 Directory.Data 映射到 virtual_android_filesys/sandbox_path
+    const indexPath = LEDGERS_INDEX_NAME;
+
+    try {
+      // 检查是否存在
+      await FilesystemImpl.stat({
+        path: indexPath,
+        directory: Directory.Data
+      });
+
+      return {
+        kind: 'file',
+        path: indexPath,
+        name: LEDGERS_INDEX_NAME
+      };
+    } catch {
+      if (create) {
+        // 返回句柄，写入时会创建文件
+        return {
+          kind: 'file',
+          path: indexPath,
+          name: LEDGERS_INDEX_NAME
+        };
+      }
+      return null;
+    }
+  }
+};
+
+/**
+ * 读取账本索引
+ * @param fileHandle 索引文件句柄
+ * @returns 账本索引数据，失败时返回默认索引
+ */
+export const readLedgersIndex = async (
+  fileHandle: StorageHandle
+): Promise<LedgerIndex> => {
+  if (isNativePlatform()) {
+    const nativeHandle = fileHandle as NativeFileHandle;
+    try {
+      const result = await FilesystemImpl.readFile({
+        path: nativeHandle.path,
+        directory: Directory.Data,
+        encoding: Encoding.UTF8
+      });
+
+      const text = result.data as string;
+      return JSON.parse(text) as LedgerIndex;
+    } catch (e) {
+      console.error('Failed to read ledgers index (Native):', e);
+      return DEFAULT_LEDGER_INDEX;
+    }
+  } else {
+    const webHandle = fileHandle as FileSystemFileHandle;
+    const file = await webHandle.getFile();
+    const text = await file.text();
+    try {
+      return JSON.parse(text) as LedgerIndex;
+    } catch (e) {
+      console.error('Failed to parse ledgers index:', e);
+      return DEFAULT_LEDGER_INDEX;
+    }
+  }
+};
+
+/**
+ * 写入账本索引
+ * @param fileHandle 索引文件句柄
+ * @param data 账本索引数据
+ */
+export const writeLedgersIndex = async (
+  fileHandle: StorageHandle,
+  data: LedgerIndex
+): Promise<void> => {
+  if (isNativePlatform()) {
+    const nativeHandle = fileHandle as NativeFileHandle;
+    await FilesystemImpl.writeFile({
+      path: nativeHandle.path,
+      data: JSON.stringify(data, null, 2),
+      directory: Directory.Data,
+      encoding: Encoding.UTF8
+    });
+  } else {
+    const webHandle = fileHandle as FileSystemFileHandle;
+    const writable = await webHandle.createWritable();
+    await writable.write(JSON.stringify(data, null, 2));
+    await writable.close();
+  }
+};
+
+/**
+ * 获取指定账本的文件句柄
+ * @param dirHandle 目录句柄（PixelBill 目录）
+ * @param ledgerName 账本名称
+ * @param create 是否创建（默认 false）
+ */
+export const getLedgerFileHandle = async (
+  dirHandle: StorageDirHandle,
+  ledgerName: string,
+  create: boolean = false
+): Promise<StorageHandle | null> => {
+  const fileName = `${ledgerName}.pixelbill.json`;
+
+  if (isNativePlatform()) {
+    const nativeDir = dirHandle as NativeDirHandle;
+    const filePath = nativeDir.path
+      ? `${nativeDir.path}/${fileName}`
+      : fileName;
+
+    try {
+      // 检查是否存在
+      await FilesystemImpl.stat({
+        path: filePath,
+        directory: Directory.Documents
+      });
+
+      return {
+        kind: 'file',
+        path: filePath,
+        name: fileName
+      };
+    } catch {
+      if (create) {
+        return {
+          kind: 'file',
+          path: filePath,
+          name: fileName
+        };
+      }
+      return null;
+    }
+  } else {
+    try {
+      return await (dirHandle as FileSystemDirectoryHandle).getFileHandle(fileName, { create });
+    } catch (error) {
+      if (!create) return null;
+      throw error;
+    }
+  }
+};
+
+/**
+ * 删除账本文件
+ * @param dirHandle 目录句柄（PixelBill 目录）
+ * @param ledgerName 账本名称
+ */
+export const deleteLedgerFile = async (
+  dirHandle: StorageDirHandle,
+  ledgerName: string
+): Promise<void> => {
+  const fileName = `${ledgerName}.pixelbill.json`;
+
+  if (isNativePlatform()) {
+    const nativeDir = dirHandle as NativeDirHandle;
+    const filePath = nativeDir.path
+      ? `${nativeDir.path}/${fileName}`
+      : fileName;
+
+    try {
+      await FilesystemImpl.deleteFile({
+        path: filePath,
+        directory: Directory.Documents
+      });
+    } catch (e) {
+      console.error('Failed to delete ledger file (Native):', e);
+      throw e;
+    }
+  } else {
+    try {
+      await (dirHandle as FileSystemDirectoryHandle).removeEntry(fileName);
+    } catch (e) {
+      console.error('Failed to delete ledger file (Web):', e);
+      throw e;
+    }
+  }
+};
+
+/**
+ * 扫描目录下所有账本文件（用于重建索引）
+ * @param dirHandle 目录句柄（PixelBill 目录）
+ * @returns 账本文件元数据列表
+ */
+export const scanForLedgerFiles = async (
+  dirHandle: StorageDirHandle
+): Promise<LedgerMeta[]> => {
+  const ledgers: LedgerMeta[] = [];
+
+  if (isNativePlatform()) {
+    const nativeDir = dirHandle as NativeDirHandle;
+    try {
+      const result = await FilesystemImpl.readdir({
+        path: nativeDir.path || '',
+        directory: Directory.Documents
+      });
+
+      for (const file of result.files) {
+        if (file.type === 'file' && file.name.endsWith('.pixelbill.json')) {
+          const name = file.name.replace('.pixelbill.json', '');
+          ledgers.push({
+            name,
+            fileName: file.name,
+            createdAt: new Date(file.ctime || Date.now()).toISOString(),
+            lastOpenedAt: name === 'default'
+              ? new Date().toISOString()
+              : '1970-01-01T00:00:00.000Z'
+          });
+        }
+      }
+    } catch (e) {
+      console.error('Failed to scan ledger files (Native):', e);
+    }
+  } else {
+    const webDir = dirHandle as FileSystemDirectoryHandle;
+    for await (const entry of webDir.values()) {
+      if (entry.kind === 'file' && entry.name.endsWith('.pixelbill.json')) {
+        const file = await (entry as FileSystemFileHandle).getFile();
+        const name = file.name.replace('.pixelbill.json', '');
+        ledgers.push({
+          name,
+          fileName: file.name,
+          createdAt: new Date(file.lastModified).toISOString(),
+          lastOpenedAt: name === 'default'
+            ? new Date().toISOString()
+            : '1970-01-01T00:00:00.000Z'
+        });
+      }
+    }
+  }
+
+  return ledgers;
+};

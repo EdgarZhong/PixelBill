@@ -9,12 +9,6 @@ export function useLedger() {
     () => service.getState()
   );
 
-  // Initial setup (if needed)
-  useEffect(() => {
-    // 立即初始化，由 App.tsx 中的 SplashScreen 负责视觉遮罩和等待
-    service.init();
-  }, [service]);
-
   return {
     ...state,
     service // Expose service for actions
