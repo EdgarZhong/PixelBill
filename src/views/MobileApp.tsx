@@ -466,13 +466,75 @@ export function MobileApp() {
     }
   }, [TABS, filter, centerTab]);
 
+  const showGhostTabs = isLoading || transactions.length === 0;
+
+  const tabItems = useMemo(() => {
+    if (showGhostTabs) {
+      return (
+        <AnimatePresence mode="popLayout">
+          <motion.div 
+            key="ghost-container"
+            className="flex gap-3"
+            exit={{ opacity: 0, transition: { duration: 0.2 } }}
+          >
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div 
+                key={`ghost-${i}`}
+                className="h-[26px] bg-white/5 rounded-sm animate-pulse-slow flex-shrink-0"
+                style={{ width: [60, 80, 60][i] + 'px' }} 
+              />
+            ))}
+          </motion.div>
+        </AnimatePresence>
+      );
+    }
+
+    const centerIndex = Math.floor(extendedTabs.length / 2); 
+
+    return extendedTabs.map((f, index) => {
+      const isSelected = filter === f;
+      const isActiveInstance = index === resolvedActiveTabIndex;
+      const dist = Math.abs(index - centerIndex);
+      const delay = Math.min(dist * 0.05, 0.3);
+      const layoutId = isActiveInstance ? 'tab-indicator-active' : undefined;
+
+      return (
+        <motion.button
+          key={`${f}-${index}`}
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ 
+            opacity: 1, 
+            scale: isSelected ? 1.1 : 1,
+            color: isSelected ? '#10B981' : '#9CA3AF'
+          }}
+          transition={{ 
+            opacity: { duration: 0.4, delay: delay, ease: "easeOut" },
+            scale: { duration: 0.6, ease: [0.25, 1, 0.5, 1] },
+            color: { duration: 0.3 }
+          }}
+          onClick={() => handleTabChangeWithCenter(f, index)}
+          className="pb-2 px-3 text-[10px] relative font-pixel tracking-tight whitespace-nowrap flex-shrink-0"
+        >
+          {f.toUpperCase()}
+          {isSelected && (
+            <motion.div 
+              layoutId={layoutId}
+              transition={{ duration: 0.6, ease: [0.25, 1, 0.5, 1] }}
+              className="absolute bottom-0 left-0 w-full h-[2px] bg-pixel-green shadow-[0_0_8px_rgba(16,185,129,0.6)]" 
+            />
+          )}
+        </motion.button>
+      );
+    });
+  }, [showGhostTabs, extendedTabs, filter, resolvedActiveTabIndex, handleTabChangeWithCenter]);
+
   const variants = {
     enter: (direction: number) => ({
       x: direction > 0 ? 20 : -20,
       opacity: 0,
       filter: 'blur(4px)',
       transition: {
-        duration: 0.6,
+        duration: 0.7,
         ease: [0.25, 1, 0.5, 1] as const
       }
     }),
@@ -482,7 +544,7 @@ export function MobileApp() {
       opacity: 1,
       filter: 'blur(0px)',
       transition: {
-        duration: 0.6,
+        duration: 0.7,
         ease: [0.25, 1, 0.5, 1] as const,
         filter: { duration: 0.1, ease: "linear" }
       }
@@ -493,7 +555,7 @@ export function MobileApp() {
       opacity: 0,
       filter: 'blur(4px)',
       transition: {
-        duration: 0.6,
+        duration: 0.7,
         ease: [0.25, 1, 0.5, 1] as const
       }
     })
@@ -701,76 +763,7 @@ export function MobileApp() {
                 onTouchStart={stopScrollAnimation}
                 onScroll={isOverflowing ? handleScroll : undefined}
               >
-                {isLoading || transactions.length === 0 ? (
-                   // Ghost Tabs (Skeleton) - Morphing into Real Tabs
-                   <AnimatePresence mode="popLayout">
-                     <motion.div 
-                       key="ghost-container"
-                       className="flex gap-3"
-                       exit={{ opacity: 0, transition: { duration: 0.2 } }}
-                     >
-                       {Array.from({ length: 3 }).map((_, i) => (
-                         <div 
-                           key={`ghost-${i}`}
-                           className="h-[26px] bg-white/5 rounded-sm animate-pulse-slow flex-shrink-0"
-                           style={{ width: [60, 80, 60][i] + 'px' }} 
-                         />
-                       ))}
-                     </motion.div>
-                   </AnimatePresence>
-                ) : (
-                  extendedTabs.map((f, index) => {
-                  // 对于扩展列表中的唯一键，我们需要复合键
-                  // index 在这里是可靠的
-                  
-                  // 只要是当前选中的 filter，就显示指示器
-                  const isSelected = filter === f;
-                  const isActiveInstance = index === resolvedActiveTabIndex;
-
-                  // Ripple Effect Calculation
-                  // Center index for the visible set (assuming standard set is in the middle for initial load)
-                  // We approximate center based on TABS length
-                  const centerIndex = Math.floor(extendedTabs.length / 2); 
-                  const dist = Math.abs(index - centerIndex);
-                  // Max delay 0.3s
-                  const delay = Math.min(dist * 0.05, 0.3);
-
-                  // 核心修复：
-                  // 为了实现跨组（无限滚动边界）的平滑动画，必须使用全局唯一的 layoutId
-                  // 并将其绑定到当前激活的特定实例（activeTabIndex）上。
-                  // 这样，当焦点从 Center 组滑向 Right 组时，layoutId 会随之移动，
-                  // Framer Motion 会自动计算两点之间的“最近物理距离”并执行动画。
-                  // 对于非焦点的其他副本（Clone），使用不共享的 ID 或无动画，仅作视觉补位。
-                  const layoutId = isActiveInstance ? 'tab-indicator-active' : undefined;
-
-                  return (
-                    <motion.button
-                      key={`${f}-${index}`}
-                      initial={{ opacity: 0, scale: 0.9 }}
-                      animate={{ 
-                        opacity: 1, 
-                        scale: isSelected ? 1.1 : 1,
-                        color: isSelected ? '#10B981' : '#9CA3AF'
-                      }}
-                      transition={{ 
-                        opacity: { duration: 0.4, delay: delay, ease: "easeOut" },
-                        scale: { duration: 0.6, ease: [0.25, 1, 0.5, 1] },
-                        color: { duration: 0.3 }
-                      }}
-                      onClick={() => handleTabChangeWithCenter(f, index)}
-                      className="pb-2 px-3 text-[10px] relative font-pixel tracking-tight whitespace-nowrap flex-shrink-0"
-                    >
-                      {f.toUpperCase()}
-                      {isSelected && (
-                        <motion.div 
-                          layoutId={layoutId}
-                          transition={{ duration: 0.6, ease: [0.25, 1, 0.5, 1] }}
-                          className="absolute bottom-0 left-0 w-full h-[2px] bg-pixel-green shadow-[0_0_8px_rgba(16,185,129,0.6)]" 
-                        />
-                      )}
-                    </motion.button>
-                  );
-                }))}
+                {tabItems}
               </div>
               
               {/* 渐变边缘 - 仅当溢出时显示 */}

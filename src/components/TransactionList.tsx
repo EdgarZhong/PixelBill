@@ -16,7 +16,7 @@ interface TransactionListProps {
   pulseTrigger?: number; // Timestamp to trigger pulse animation
 }
 
-export const TransactionList: React.FC<TransactionListProps> = ({ 
+const TransactionListComponent: React.FC<TransactionListProps> = ({ 
   transactions, 
   onTransactionClick, 
   isMobile = false, 
@@ -247,3 +247,5 @@ export const TransactionList: React.FC<TransactionListProps> = ({
     </div>
   );
 };
+
+export const TransactionList = React.memo(TransactionListComponent);

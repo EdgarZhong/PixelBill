@@ -13,7 +13,7 @@ interface ActivityMatrixProps {
 // 幽灵占位符数据 - 起伏态势
 const GHOST_WAVE = [3, 5, 8, 12, 6, 4, 2];
 
-export const ActivityMatrix: React.FC<ActivityMatrixProps> = ({ transactions, onDateClick, dateRange, selectedDate }) => {
+const ActivityMatrixComponent: React.FC<ActivityMatrixProps> = ({ transactions, onDateClick, dateRange, selectedDate }) => {
   const [page, setPage] = useState(0);
   const [animationDirection, setAnimationDirection] = useState(1); // 动画方向状态
   const [touchStart, setTouchStart] = useState<number | null>(null);
@@ -306,3 +306,5 @@ export const ActivityMatrix: React.FC<ActivityMatrixProps> = ({ transactions, on
     </div>
   );
 };
+
+export const ActivityMatrix = React.memo(ActivityMatrixComponent);

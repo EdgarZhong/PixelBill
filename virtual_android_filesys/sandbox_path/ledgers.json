@@ -4,7 +4,7 @@
       "name": "default",
       "fileName": "default.pixelbill.json",
       "createdAt": "2026-02-20T04:31:00.144Z",
-      "lastOpenedAt": "2026-02-21T04:43:15.637Z"
+      "lastOpenedAt": "2026-02-21T04:45:07.151Z"
     },
     {
       "name": "测试",
@@ -13,5 +13,5 @@
       "lastOpenedAt": "2026-02-21T04:43:23.995Z"
     }
   ],
-  "activeLedger": "测试"
+  "activeLedger": "default"
 }
