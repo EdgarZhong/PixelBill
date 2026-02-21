@@ -536,7 +536,6 @@ export function MobileApp() {
           isLoading={isLoading}
           onImportData={handleImportData}
           onChooseLedger={handleChooseLedger}
-          hasData={transactions.length > 0}
           aiStatus={aiStatus}
           onAIAction={handleAIAction}
         />

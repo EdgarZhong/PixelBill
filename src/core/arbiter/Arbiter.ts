@@ -42,6 +42,18 @@ export class Arbiter {
     }
   }
 
+  public clearProposals(txIds: string[]): void {
+    txIds.forEach(txId => {
+      if (this.proposalCache[txId]) {
+        delete this.proposalCache[txId];
+      }
+    });
+  }
+
+  public clearAllProposals(): void {
+    this.proposalCache = {};
+  }
+
   /**
    * Hydrate cache from loaded metadata (No persistence trigger)
    */

@@ -7,7 +7,6 @@ interface HeaderProps {
   isLoading: boolean;
   onImportData?: () => void;
   onChooseLedger?: () => void;
-  hasData?: boolean;
   aiStatus?: 'IDLE' | 'ANALYZING' | 'STOPPING' | 'ERROR';
   onAIAction?: () => void;
 }
@@ -16,7 +15,6 @@ export const Header: React.FC<HeaderProps> = ({
   isLoading,
   onImportData,
   onChooseLedger,
-  hasData = true,
   aiStatus = 'IDLE',
   onAIAction
 }) => {

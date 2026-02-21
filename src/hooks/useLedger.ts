@@ -1,4 +1,4 @@
-import { useSyncExternalStore, useEffect } from 'react';
+import { useSyncExternalStore } from 'react';
 import { LedgerService } from '../core/services/LedgerService';
 
 export function useLedger() {

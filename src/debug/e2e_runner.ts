@@ -1,5 +1,6 @@
 
 import { LedgerService } from '../core/services/LedgerService';
+import { LedgerManager } from '../core/services/LedgerManager';
 import { AIEnginePlugin } from '../core/plugin/AIEnginePlugin';
 import { _setNativePlatform } from '../utils/fs-storage';
 import { ConfigManager } from '../core/config/ConfigManager';
@@ -33,8 +34,7 @@ export async function runE2ETest() {
         console.log('[Test] Initializing LedgerService...');
         const ledgerService = LedgerService.getInstance();
         
-        // We call the REAL init which handles "Finding PixelBill Dir" -> "Reading File" -> "Hydrating State"
-        await ledgerService.init();
+        await LedgerManager.getInstance().init();
 
         const state = ledgerService.getState();
         console.log(`[Test] Ledger Initialized. Transactions: ${state.rawTransactions.length}`);

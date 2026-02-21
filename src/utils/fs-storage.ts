@@ -26,7 +26,18 @@ export const MEMORY_FILE_NAME = 'default.pixelbill.json';
 export const DEFAULT_MEMORY: LedgerMemory = {
   version: '1.0',
   last_sync: format(new Date(), 'yyyy-MM-dd HH:mm:ss'),
-  defined_categories: ['meal', 'others'],
+  defined_categories: [
+    'meal',
+    'snack',
+    'transport',
+    'entertainment',
+    'feast',
+    'health',
+    'shopping',
+    'education',
+    'housing',
+    'travel'
+  ],
   records: {}
 };
 

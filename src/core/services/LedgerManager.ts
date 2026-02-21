@@ -47,6 +47,7 @@ export class LedgerManager {
 
   // 初始化 Promise，用于防止重复初始化和并发等待
   private initPromise: Promise<void> | null = null;
+  private isInitialized = false;
 
   private constructor() {
     this.ledgerService = LedgerService.getInstance();

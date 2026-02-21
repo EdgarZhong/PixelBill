@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { motion, AnimatePresence, useMotionValue, useTransform } from 'framer-motion';
+import { motion, AnimatePresence, useMotionValue, useTransform, animate } from 'framer-motion';
 import { triggerHaptic, HapticFeedbackLevel } from '../../utils/haptics';
 import type { LedgerMeta } from '../../utils/fs-storage';
 
@@ -300,12 +300,18 @@ const LedgerItem: React.FC<{
   disabled: boolean;
 }> = ({ ledger, isActive, isDefault, onClick, onDeleteClick, disabled }) => {
   const x = useMotionValue(0);
-  const controls = useMotionValue(0); // 用于控制拖动位置（如果需要）
   const DRAG_THRESHOLD = -80; // 左划触发删除的距离
   
   // 背景图标的不透明度根据拖动距离变化
   const iconOpacity = useTransform(x, [0, -40, -80], [0, 0.5, 1]);
   const iconScale = useTransform(x, [0, -80], [0.8, 1]);
+
+  // 当从 disabled 状态恢复时（即取消删除操作后），强制滑块归位
+  useEffect(() => {
+    if (!disabled) {
+      animate(x, 0, { type: "spring", stiffness: 400, damping: 30 });
+    }
+  }, [disabled, x]);
 
   const handleDragEnd = async (_: unknown, info: { offset: { x: number }; velocity: { x: number } }) => {
     const { offset } = info;
@@ -352,12 +358,13 @@ const LedgerItem: React.FC<{
         drag={!isDefault && !disabled ? 'x' : false}
         dragConstraints={{ left: -100, right: 0 }}
         dragElastic={0.1}
+        dragSnapToOrigin={true}
         onDragEnd={handleDragEnd}
         onClick={onClick}
         className={`
           relative z-10 flex items-center gap-3 px-3 py-2.5 rounded
           cursor-pointer transition-colors duration-200
-          ${isActive ? 'bg-white/10' : 'bg-card hover:bg-white/5'}
+          ${isActive ? 'bg-zinc-800' : 'bg-zinc-950 hover:bg-zinc-900'}
           ${disabled ? 'opacity-50 cursor-not-allowed' : ''}
         `}
       >

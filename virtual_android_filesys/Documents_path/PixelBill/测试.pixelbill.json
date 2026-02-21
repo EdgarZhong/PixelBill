@@ -1,9 +1,17 @@
 {
   "version": "1.0",
-  "last_sync": "2026-02-20 20:23:14",
+  "last_sync": "2026-02-20 21:27:39",
   "defined_categories": [
     "meal",
-    "others"
+    "snack",
+    "transport",
+    "entertainment",
+    "feast",
+    "health",
+    "shopping",
+    "education",
+    "housing",
+    "travel"
   ],
   "records": {
     "5110f45d20aab6c3": {
@@ -11,7 +19,7 @@
       "originalId": "4200002945202601057339056941",
       "time": "2026-01-05 19:08:17",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "商户消费",
       "counterparty": "袁记肉夹馍西工大店",
       "product": "袁记肉夹馍西工大店",
@@ -25,7 +33,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "d4db723dbb333a5a": {
       "id": "d4db723dbb333a5a",
@@ -46,14 +54,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "c971f228f8207480": {
       "id": "c971f228f8207480",
       "originalId": "4200002922202601047668766214",
       "time": "2026-01-04 19:28:23",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "商户消费",
       "counterparty": "美团",
       "product": "益禾堂-美团App-26010411100400001306048035259624",
@@ -67,14 +75,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "56424a1161b0e4d3": {
       "id": "56424a1161b0e4d3",
       "originalId": "4200002912202601040003709588",
       "time": "2026-01-04 19:12:19",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "商户消费",
       "counterparty": "西安天之道餐饮管理有限公司",
       "product": "2007771996284370945",
@@ -88,14 +96,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "908ec06070a270d0": {
       "id": "908ec06070a270d0",
       "originalId": "50103005992026010454625146328",
       "time": "2026-01-04 13:41:42",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "美团平台商户-退款",
       "counterparty": "美团平台商户",
       "product": "美团平台商户",
@@ -109,14 +117,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "7006a3f03fbc189a": {
       "id": "7006a3f03fbc189a",
       "originalId": "4200002953202601040840898826",
       "time": "2026-01-04 13:40:14",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "商户消费",
       "counterparty": "美团",
       "product": "瑞幸咖啡-美团App-26010411100400001305994744373624",
@@ -130,14 +138,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "af1bfe316acbfe5c": {
       "id": "af1bfe316acbfe5c",
       "originalId": "53110001110120202601043971525625",
       "time": "2026-01-04 10:34:26",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "扫二维码付款",
       "counterparty": "木土烧烤店",
       "product": "收款方备注:二维码收款",
@@ -151,14 +159,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "f9c423269bb6789c": {
       "id": "f9c423269bb6789c",
       "originalId": "53110001144224202601040227247356",
       "time": "2026-01-04 10:33:06",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "扫二维码付款",
       "counterparty": "李记烤炉鸡蛋灌饼",
       "product": "收款方备注:二维码收款",
@@ -172,14 +180,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "77429dd8481d257f": {
       "id": "77429dd8481d257f",
       "originalId": "4200002980202601044732653174",
       "time": "2026-01-04 10:29:22",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "商户消费",
       "counterparty": "西北工业大学",
       "product": "一卡通支付_527",
@@ -193,14 +201,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "66bad92edc487439": {
       "id": "66bad92edc487439",
       "originalId": "10001073012026010300225428329183",
       "time": "2026-01-03 20:35:38",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "二维码收款",
       "counterparty": "Y",
       "product": "收款方备注:二维码收款",
@@ -214,7 +222,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "7f39b4c3cb1edac3": {
       "id": "7f39b4c3cb1edac3",
@@ -235,7 +243,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "a68886630ae3f19d": {
       "id": "a68886630ae3f19d",
@@ -256,14 +264,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "4fd565613c3b2f30": {
       "id": "4fd565613c3b2f30",
       "originalId": "4200003000202601033485424227",
       "time": "2026-01-03 20:00:43",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "商户消费",
       "counterparty": "云上南山咖啡",
       "product": "美团/大众点评点餐订单-01034719803632182918741",
@@ -277,7 +285,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "676542bf99a1ff08": {
       "id": "676542bf99a1ff08",
@@ -298,7 +306,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "efafd8a3c3683178": {
       "id": "efafd8a3c3683178",
@@ -319,7 +327,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "21a7d8058bd549bb": {
       "id": "21a7d8058bd549bb",
@@ -340,7 +348,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "9925b6f30e4a978c": {
       "id": "9925b6f30e4a978c",
@@ -361,7 +369,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "d245453a7ec9b119": {
       "id": "d245453a7ec9b119",
@@ -382,7 +390,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "aaff24009511a7e9": {
       "id": "aaff24009511a7e9",
@@ -403,7 +411,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "c6e7c27eedcdc995": {
       "id": "c6e7c27eedcdc995",
@@ -424,7 +432,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "13038ef0147526c1": {
       "id": "13038ef0147526c1",
@@ -445,7 +453,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "eacfe2c788808713": {
       "id": "eacfe2c788808713",
@@ -466,7 +474,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "0ae1cad3ba9c30d9": {
       "id": "0ae1cad3ba9c30d9",
@@ -487,7 +495,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "d9d65402f9ed76dd": {
       "id": "d9d65402f9ed76dd",
@@ -508,7 +516,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "16a80e842f04b816": {
       "id": "16a80e842f04b816",
@@ -529,7 +537,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "034afb4bcc7d882f": {
       "id": "034afb4bcc7d882f",
@@ -550,7 +558,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "f6f5d41030f95674": {
       "id": "f6f5d41030f95674",
@@ -571,7 +579,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "6e4d0aa12a419365": {
       "id": "6e4d0aa12a419365",
@@ -592,7 +600,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "c161ccaddb3f058d": {
       "id": "c161ccaddb3f058d",
@@ -613,7 +621,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "65e03e70737f971e": {
       "id": "65e03e70737f971e",
@@ -634,14 +642,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "fdc3e643028d166b": {
       "id": "fdc3e643028d166b",
       "originalId": "1000039801000512316334947725747",
       "time": "2025-12-31 15:20:01",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "微信红包",
       "counterparty": "亲爱的",
       "product": "/",
@@ -655,7 +663,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "790f6d43257ab160": {
       "id": "790f6d43257ab160",
@@ -676,7 +684,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "2380424662d60693": {
       "id": "2380424662d60693",
@@ -697,7 +705,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "787fe12aedfa2cf0": {
       "id": "787fe12aedfa2cf0",
@@ -718,14 +726,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "63b7a4dfd97305a7": {
       "id": "63b7a4dfd97305a7",
       "originalId": "4200002916202512305119369929",
       "time": "2025-12-30 23:39:18",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "商户消费",
       "counterparty": "智能自助服务",
       "product": "企鹅共享",
@@ -739,14 +747,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "bb561cc17031ff98": {
       "id": "bb561cc17031ff98",
       "originalId": "4200002968202512301908738329",
       "time": "2025-12-30 23:38:15",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "商户消费",
       "counterparty": "共享洗衣房",
       "product": "'-",
@@ -760,7 +768,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "586b82ff66ada6e6": {
       "id": "586b82ff66ada6e6",
@@ -781,7 +789,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "9dc31b943f98d5cd": {
       "id": "9dc31b943f98d5cd",
@@ -802,7 +810,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "a708649bb041c67a": {
       "id": "a708649bb041c67a",
@@ -823,7 +831,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "40f1d4de641417d9": {
       "id": "40f1d4de641417d9",
@@ -844,7 +852,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "247b3b26101450f8": {
       "id": "247b3b26101450f8",
@@ -865,7 +873,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "cc8514f0a9b255e5": {
       "id": "cc8514f0a9b255e5",
@@ -886,7 +894,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "697c7efb7c094178": {
       "id": "697c7efb7c094178",
@@ -907,7 +915,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "ad55ef20b921a7fe": {
       "id": "ad55ef20b921a7fe",
@@ -928,7 +936,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "bf2b64a9fd89dbbe": {
       "id": "bf2b64a9fd89dbbe",
@@ -949,7 +957,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "1faf18947d5b7df9": {
       "id": "1faf18947d5b7df9",
@@ -970,7 +978,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "1753440558b752e0": {
       "id": "1753440558b752e0",
@@ -991,7 +999,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "d871d847206ac09d": {
       "id": "d871d847206ac09d",
@@ -1012,7 +1020,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "fad6c0882e93b490": {
       "id": "fad6c0882e93b490",
@@ -1033,7 +1041,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "52f140643812c62a": {
       "id": "52f140643812c62a",
@@ -1054,7 +1062,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "3ae19a83127fcead": {
       "id": "3ae19a83127fcead",
@@ -1075,14 +1083,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "7ca115f8ad273869": {
       "id": "7ca115f8ad273869",
       "originalId": "4200002985202512283862146915",
       "time": "2025-12-28 10:06:43",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "商户消费",
       "counterparty": "西北工业大学",
       "product": "一卡通支付_690",
@@ -1096,14 +1104,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "7dcb017ab76d14ea": {
       "id": "7dcb017ab76d14ea",
       "originalId": "4200002953202512280057305707",
       "time": "2025-12-28 10:04:19",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "商户消费",
       "counterparty": "翱翔小吃西安余夏店",
       "product": "烤冷面",
@@ -1117,7 +1125,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "6fd606b8246d0b59": {
       "id": "6fd606b8246d0b59",
@@ -1138,7 +1146,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "0fe0e15c7bc08c81": {
       "id": "0fe0e15c7bc08c81",
@@ -1159,14 +1167,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "d284be028336ec36": {
       "id": "d284be028336ec36",
       "originalId": "100004950125122700083342132807060799",
       "time": "2025-12-27 17:13:21",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "群收款",
       "counterparty": "朱羿帆",
       "product": "/",
@@ -1180,7 +1188,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "094e785854b657fb": {
       "id": "094e785854b657fb",
@@ -1201,14 +1209,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "4f35587bbf057325": {
       "id": "4f35587bbf057325",
       "originalId": "4200002974202512277655921756",
       "time": "2025-12-27 10:32:40",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "商户消费",
       "counterparty": "西北工业大学",
       "product": "一卡通支付_690",
@@ -1222,14 +1230,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "35a16c8a23f89dbb": {
       "id": "35a16c8a23f89dbb",
       "originalId": "4200002921202512275501045713",
       "time": "2025-12-27 10:30:37",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "商户消费",
       "counterparty": "翱翔小吃西安余夏店",
       "product": "烤冷面",
@@ -1243,7 +1251,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "170fed95dce80d16": {
       "id": "170fed95dce80d16",
@@ -1264,7 +1272,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "b2252470571aa0a3": {
       "id": "b2252470571aa0a3",
@@ -1285,7 +1293,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "23699e8e458be209": {
       "id": "23699e8e458be209",
@@ -1306,7 +1314,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "65acb59a58c142e1": {
       "id": "65acb59a58c142e1",
@@ -1327,14 +1335,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "e5560629577e4ff4": {
       "id": "e5560629577e4ff4",
       "originalId": "4200002923202512264869688218",
       "time": "2025-12-26 15:02:31",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "商户消费",
       "counterparty": "翱翔印务学而智店",
       "product": "6990自助打印",
@@ -1348,7 +1356,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "c0169dddb8a120ea": {
       "id": "c0169dddb8a120ea",
@@ -1369,7 +1377,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "6a3e73d74606a2d0": {
       "id": "6a3e73d74606a2d0",
@@ -1390,7 +1398,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "74edde58dc0062ef": {
       "id": "74edde58dc0062ef",
@@ -1411,7 +1419,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "c5f264b71e5e620a": {
       "id": "c5f264b71e5e620a",
@@ -1432,7 +1440,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "11d93938facd3672": {
       "id": "11d93938facd3672",
@@ -1453,7 +1461,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "0cc026ef6c42a8c0": {
       "id": "0cc026ef6c42a8c0",
@@ -1474,7 +1482,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "38cba57a62390a36": {
       "id": "38cba57a62390a36",
@@ -1495,7 +1503,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "cff91f3689d5bbda": {
       "id": "cff91f3689d5bbda",
@@ -1516,14 +1524,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "7cc8f6ec44cb5a92": {
       "id": "7cc8f6ec44cb5a92",
       "originalId": "4200002983202512255313734314",
       "time": "2025-12-25 18:04:31",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "商户消费",
       "counterparty": "滴滴出行",
       "product": "先乘车后付款",
@@ -1537,7 +1545,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "58ab7032d135046e": {
       "id": "58ab7032d135046e",
@@ -1558,7 +1566,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "8152bd5bad7d0c49": {
       "id": "8152bd5bad7d0c49",
@@ -1579,7 +1587,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "1ff303c43ff0b90f": {
       "id": "1ff303c43ff0b90f",
@@ -1600,7 +1608,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "1f092bfa72435243": {
       "id": "1f092bfa72435243",
@@ -1621,7 +1629,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "88bbe4a9e4512a1e": {
       "id": "88bbe4a9e4512a1e",
@@ -1642,7 +1650,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "489406156a492713": {
       "id": "489406156a492713",
@@ -1663,7 +1671,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "dc37590cb71d0779": {
       "id": "dc37590cb71d0779",
@@ -1684,7 +1692,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "f08c1913d83e1072": {
       "id": "f08c1913d83e1072",
@@ -1705,7 +1713,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "da0583f7dad6f0bf": {
       "id": "da0583f7dad6f0bf",
@@ -1726,7 +1734,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "640d14a352db11be": {
       "id": "640d14a352db11be",
@@ -1747,7 +1755,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "76e204d8de4a4449": {
       "id": "76e204d8de4a4449",
@@ -1768,14 +1776,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "707e8275ea1ed142": {
       "id": "707e8275ea1ed142",
       "originalId": "100003990125122300083341741271046799",
       "time": "2025-12-23 21:16:43",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "微信红包（单发）",
       "counterparty": "发给张林诰",
       "product": "/",
@@ -1789,7 +1797,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "e975ea2cd5db3a51": {
       "id": "e975ea2cd5db3a51",
@@ -1810,7 +1818,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "d528c8816062c289": {
       "id": "d528c8816062c289",
@@ -1831,14 +1839,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "5e651e694eb0ace7": {
       "id": "5e651e694eb0ace7",
       "originalId": "100003990125122300083341694863184799",
       "time": "2025-12-23 12:38:05",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "微信红包（单发）",
       "counterparty": "发给张林诰",
       "product": "/",
@@ -1852,7 +1860,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "0844c8b0089f33d8": {
       "id": "0844c8b0089f33d8",
@@ -1873,7 +1881,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "c7b4363589cd70e5": {
       "id": "c7b4363589cd70e5",
@@ -1894,7 +1902,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "1ce00b8f15627a23": {
       "id": "1ce00b8f15627a23",
@@ -1915,7 +1923,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "69ee40a275a60eab": {
       "id": "69ee40a275a60eab",
@@ -1936,7 +1944,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "0115c79123214866": {
       "id": "0115c79123214866",
@@ -1957,7 +1965,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "f19e23f0ad7c2bc1": {
       "id": "f19e23f0ad7c2bc1",
@@ -1978,7 +1986,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "282af3d7762d9b18": {
       "id": "282af3d7762d9b18",
@@ -1999,7 +2007,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "9ff09c93cc9a814e": {
       "id": "9ff09c93cc9a814e",
@@ -2020,7 +2028,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "577a96750c6aa8bb": {
       "id": "577a96750c6aa8bb",
@@ -2041,7 +2049,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "69b72ef34a36bd7c": {
       "id": "69b72ef34a36bd7c",
@@ -2062,7 +2070,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "5178acb0ae488f4f": {
       "id": "5178acb0ae488f4f",
@@ -2083,7 +2091,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "16fc0cbf787bf7e0": {
       "id": "16fc0cbf787bf7e0",
@@ -2104,7 +2112,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "f79b6b946f6759b2": {
       "id": "f79b6b946f6759b2",
@@ -2125,7 +2133,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "cd0cd12736ccaf0d": {
       "id": "cd0cd12736ccaf0d",
@@ -2146,7 +2154,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "90d83795223eca35": {
       "id": "90d83795223eca35",
@@ -2167,7 +2175,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "08a596e9e2144ce6": {
       "id": "08a596e9e2144ce6",
@@ -2188,14 +2196,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "0b9c6fb3a4121c37": {
       "id": "0b9c6fb3a4121c37",
       "originalId": "4200002929202512211302178515",
       "time": "2025-12-21 19:00:13",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "商户消费",
       "counterparty": "美团",
       "product": "杨国福麻辣烫-美团App-25122111100400001303813809233624",
@@ -2209,7 +2217,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "86e5c26f323047a5": {
       "id": "86e5c26f323047a5",
@@ -2230,7 +2238,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "82eb414195b4a1db": {
       "id": "82eb414195b4a1db",
@@ -2251,14 +2259,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "a887d39c5bfeaab0": {
       "id": "a887d39c5bfeaab0",
       "originalId": "4200002984202512206039081155",
       "time": "2025-12-20 18:59:20",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "商户消费",
       "counterparty": "翱翔大学生超市长安校区",
       "product": "条码支付",
@@ -2272,14 +2280,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "96e568e35bd1a3ea": {
       "id": "96e568e35bd1a3ea",
       "originalId": "4200002998202512204150122540",
       "time": "2025-12-20 18:53:59",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "商户消费",
       "counterparty": "云上南山咖啡",
       "product": "美团/大众点评点餐订单-12204719802935394752085",
@@ -2293,14 +2301,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "19cb7cda3aafa849": {
       "id": "19cb7cda3aafa849",
       "originalId": "4200003004202512191322211529",
       "time": "2025-12-19 14:56:11",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "商户消费",
       "counterparty": "水之源川菜",
       "product": "水之源川菜",
@@ -2314,14 +2322,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "9428302bcea78d15": {
       "id": "9428302bcea78d15",
       "originalId": "4200002904202512192841711498",
       "time": "2025-12-19 10:03:24",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "商户消费",
       "counterparty": "智能自助服务",
       "product": "企鹅共享",
@@ -2335,14 +2343,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "d93e239644c549d3": {
       "id": "d93e239644c549d3",
       "originalId": "4200002902202512193263378323",
       "time": "2025-12-19 09:19:30",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "商户消费",
       "counterparty": "智能自助服务",
       "product": "企鹅共享",
@@ -2356,14 +2364,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "f3a40f1f839367f6": {
       "id": "f3a40f1f839367f6",
       "originalId": "4200002916202512189994670042",
       "time": "2025-12-18 21:23:40",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "商户消费",
       "counterparty": "携程旅行网",
       "product": "西安高新草堂科创园云居酒店比亚迪二厂店",
@@ -2377,7 +2385,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "59990bd6ea383759": {
       "id": "59990bd6ea383759",
@@ -2398,14 +2406,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "6a3020753bd3bfb7": {
       "id": "6a3020753bd3bfb7",
       "originalId": "1000039801000512186411848830004",
       "time": "2025-12-18 19:25:33",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "微信红包",
       "counterparty": "亲爱的",
       "product": "/",
@@ -2419,7 +2427,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "5bf1f35f7cdb1581": {
       "id": "5bf1f35f7cdb1581",
@@ -2440,7 +2448,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "a7f8f9e6685b3641": {
       "id": "a7f8f9e6685b3641",
@@ -2461,7 +2469,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "002aae3cf164cc04": {
       "id": "002aae3cf164cc04",
@@ -2482,7 +2490,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "742fd6965cb9bffe": {
       "id": "742fd6965cb9bffe",
@@ -2503,14 +2511,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "5dc6c091e256a280": {
       "id": "5dc6c091e256a280",
       "originalId": "4200002902202512186361550591",
       "time": "2025-12-18 15:37:31",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "商户消费",
       "counterparty": "滴滴出行",
       "product": "先乘车后付款",
@@ -2524,14 +2532,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "88be869c3d0b9fde": {
       "id": "88be869c3d0b9fde",
       "originalId": "4200002950202512187958055126",
       "time": "2025-12-18 13:34:21",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "商户消费",
       "counterparty": "水之源川菜",
       "product": "水之源川菜",
@@ -2545,14 +2553,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "b43f8d9c7f2bbd9d": {
       "id": "b43f8d9c7f2bbd9d",
       "originalId": "4200002913202512183604367538",
       "time": "2025-12-18 13:13:24",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "商户消费",
       "counterparty": "文昊超市",
       "product": "/",
@@ -2566,7 +2574,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "42b80ffd4385a202": {
       "id": "42b80ffd4385a202",
@@ -2587,14 +2595,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "96ce9f16d627296f": {
       "id": "96ce9f16d627296f",
       "originalId": "1000039801000512176245082822037",
       "time": "2025-12-17 18:57:09",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "微信红包",
       "counterparty": "亲爱的",
       "product": "/",
@@ -2608,7 +2616,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "40293468cd7936a3": {
       "id": "40293468cd7936a3",
@@ -2629,14 +2637,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "e249f5a6cea9fac6": {
       "id": "e249f5a6cea9fac6",
       "originalId": "4200002898202512176122238934",
       "time": "2025-12-17 13:41:33",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "商户消费",
       "counterparty": "西安市长安区杨青青黄焖鸡米饭店",
       "product": "点餐44.0元",
@@ -2650,7 +2658,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "7fceec261fab66c1": {
       "id": "7fceec261fab66c1",
@@ -2671,7 +2679,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "edec093a45fa4cd9": {
       "id": "edec093a45fa4cd9",
@@ -2692,7 +2700,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "751e1d378657e41d": {
       "id": "751e1d378657e41d",
@@ -2713,7 +2721,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "100cde5273a7876a": {
       "id": "100cde5273a7876a",
@@ -2734,14 +2742,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "1788589596aa4f8e": {
       "id": "1788589596aa4f8e",
       "originalId": "4200002997202512163776948779",
       "time": "2025-12-16 18:14:10",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "商户消费",
       "counterparty": "翱翔印务学而智店",
       "product": "6990自助打印",
@@ -2755,7 +2763,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "8ff2b3d52822c3a1": {
       "id": "8ff2b3d52822c3a1",
@@ -2776,7 +2784,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "ab5c666ac638de13": {
       "id": "ab5c666ac638de13",
@@ -2797,7 +2805,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "ada2cbf33703bbf0": {
       "id": "ada2cbf33703bbf0",
@@ -2818,14 +2826,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "630fb5824a1851c7": {
       "id": "630fb5824a1851c7",
       "originalId": "53110000951170202512150019231797",
       "time": "2025-12-15 21:29:01",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "扫二维码付款",
       "counterparty": "刘姐老长沙臭豆腐",
       "product": "收款方备注:二维码收款",
@@ -2839,14 +2847,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "687879b2cbf777eb": {
       "id": "687879b2cbf777eb",
       "originalId": "53110000960221202512153222129215",
       "time": "2025-12-15 21:25:42",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "扫二维码付款",
       "counterparty": "三今家",
       "product": "收款方备注:二维码收款",
@@ -2860,7 +2868,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "fe18f17c2cd9ff42": {
       "id": "fe18f17c2cd9ff42",
@@ -2881,7 +2889,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "df04e8d606a022b0": {
       "id": "df04e8d606a022b0",
@@ -2902,14 +2910,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "f18848c31e8f3bad": {
       "id": "f18848c31e8f3bad",
       "originalId": "4200002956202512158596581473",
       "time": "2025-12-15 15:58:17",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "商户消费",
       "counterparty": "翱翔印务学而智店",
       "product": "6990自助打印",
@@ -2923,7 +2931,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "573501d253d0968a": {
       "id": "573501d253d0968a",
@@ -2944,7 +2952,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "8e4564b8fe3d667c": {
       "id": "8e4564b8fe3d667c",
@@ -2965,14 +2973,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "f2d1a1ceb0a7cda2": {
       "id": "f2d1a1ceb0a7cda2",
       "originalId": "53110000925136202512141417163195",
       "time": "2025-12-14 22:13:54",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "扫二维码付款",
       "counterparty": "翱翔水果家园生鲜",
       "product": "收款方备注:二维码收款",
@@ -2986,7 +2994,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "f174dc0fdaf3b5f5": {
       "id": "f174dc0fdaf3b5f5",
@@ -3007,7 +3015,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "2ca01f774293e7a2": {
       "id": "2ca01f774293e7a2",
@@ -3028,7 +3036,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "d9edbe3caa1d30fa": {
       "id": "d9edbe3caa1d30fa",
@@ -3049,14 +3057,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "cfdc7084bc95990b": {
       "id": "cfdc7084bc95990b",
       "originalId": "4200002994202512145849163463",
       "time": "2025-12-14 13:39:45",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "商户消费",
       "counterparty": "西安市高新区甜蜜角落咖啡馆（个体工商户）",
       "product": "微信主扫静态码消费",
@@ -3070,7 +3078,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "3280dd45b00108db": {
       "id": "3280dd45b00108db",
@@ -3091,7 +3099,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "d5e9e4933bfe2b9a": {
       "id": "d5e9e4933bfe2b9a",
@@ -3112,7 +3120,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "1fcac0f5a0b9a723": {
       "id": "1fcac0f5a0b9a723",
@@ -3133,7 +3141,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "8e1d2a1c6e70a624": {
       "id": "8e1d2a1c6e70a624",
@@ -3154,14 +3162,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "1a8b8aa6d703d476": {
       "id": "1a8b8aa6d703d476",
       "originalId": "4200003003202512133651450990",
       "time": "2025-12-13 09:54:07",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "商户消费",
       "counterparty": "翱翔小吃西安余夏店",
       "product": "烤冷面",
@@ -3175,14 +3183,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "6bc948f3fea89ead": {
       "id": "6bc948f3fea89ead",
       "originalId": "4200002948202512133827911808",
       "time": "2025-12-13 09:45:48",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "商户消费",
       "counterparty": "翱翔小吃西安余夏店",
       "product": "翱翔小吃西安余夏店",
@@ -3196,14 +3204,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "302919daee517744": {
       "id": "302919daee517744",
       "originalId": "4200002900202512139812584474",
       "time": "2025-12-13 09:42:52",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "商户消费",
       "counterparty": "西北工业大学",
       "product": "一卡通支付_690",
@@ -3217,14 +3225,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "2fb4a47559d86fc8": {
       "id": "2fb4a47559d86fc8",
       "originalId": "4200002952202512126434839343",
       "time": "2025-12-12 21:35:34",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "商户消费",
       "counterparty": "立印",
       "product": "026BEC打印",
@@ -3238,7 +3246,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "09eb5158fba930b8": {
       "id": "09eb5158fba930b8",
@@ -3259,7 +3267,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "5a713bfa3b124d61": {
       "id": "5a713bfa3b124d61",
@@ -3280,7 +3288,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "e34af9e9794ac0bf": {
       "id": "e34af9e9794ac0bf",
@@ -3301,14 +3309,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "22aa31dfc3e0e67d": {
       "id": "22aa31dfc3e0e67d",
       "originalId": "4200002894202512123657416092",
       "time": "2025-12-12 10:24:06",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "商户消费",
       "counterparty": "西北工业大学",
       "product": "一卡通支付_687",
@@ -3322,14 +3330,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "dffa6f878a01d098": {
       "id": "dffa6f878a01d098",
       "originalId": "4200002911202512122089267175",
       "time": "2025-12-12 10:21:51",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "商户消费",
       "counterparty": "西北工业大学",
       "product": "一卡通支付_690",
@@ -3343,7 +3351,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "5c9dd79b5037b667": {
       "id": "5c9dd79b5037b667",
@@ -3364,7 +3372,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "6705f1a779435f37": {
       "id": "6705f1a779435f37",
@@ -3385,7 +3393,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "91a820f04bda8c82": {
       "id": "91a820f04bda8c82",
@@ -3406,7 +3414,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "abdff6be4e602b95": {
       "id": "abdff6be4e602b95",
@@ -3427,14 +3435,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "ef817810698a05fb": {
       "id": "ef817810698a05fb",
       "originalId": "53110000956206202512103300203701",
       "time": "2025-12-10 21:26:21",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "扫二维码付款",
       "counterparty": "翱翔水果家园生鲜",
       "product": "收款方备注:二维码收款",
@@ -3448,14 +3456,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "4bcd8702c641d1c1": {
       "id": "4bcd8702c641d1c1",
       "originalId": "4200002968202512105597998772",
       "time": "2025-12-10 18:15:25",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "商户消费",
       "counterparty": "袁记肉夹馍（东大店）",
       "product": "美团/大众点评点餐订单-12105008032862199824663",
@@ -3469,14 +3477,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "a7dd5128de02a125": {
       "id": "a7dd5128de02a125",
       "originalId": "53110000965087202512101462432392",
       "time": "2025-12-10 16:21:03",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "扫二维码付款",
       "counterparty": "明媚",
       "product": "收款方备注:二维码收款",
@@ -3490,7 +3498,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "24050375fe080a4b": {
       "id": "24050375fe080a4b",
@@ -3511,14 +3519,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "1f7dcfa1e82f5c7c": {
       "id": "1f7dcfa1e82f5c7c",
       "originalId": "4200003010202512108009263793",
       "time": "2025-12-10 12:10:20",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "商户消费",
       "counterparty": "水之源川菜",
       "product": "水之源川菜",
@@ -3532,14 +3540,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "a2e02c2ac8b6dc33": {
       "id": "a2e02c2ac8b6dc33",
       "originalId": "4200002938202512104857221754",
       "time": "2025-12-10 11:20:11",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "商户消费",
       "counterparty": "翱翔印务学而智店",
       "product": "6990自助打印",
@@ -3553,14 +3561,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "f3644c3873810c11": {
       "id": "f3644c3873810c11",
       "originalId": "4200002909202512098857951507",
       "time": "2025-12-09 23:50:57",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "商户消费",
       "counterparty": "智能自助服务",
       "product": "企鹅共享",
@@ -3574,7 +3582,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "69891f3953466b39": {
       "id": "69891f3953466b39",
@@ -3595,14 +3603,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "f85018ab89cd0bde": {
       "id": "f85018ab89cd0bde",
       "originalId": "4200002957202512090231060987",
       "time": "2025-12-09 19:32:51",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "商户消费",
       "counterparty": "共享洗衣房",
       "product": "'-",
@@ -3616,7 +3624,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "211cda1fad6c6023": {
       "id": "211cda1fad6c6023",
@@ -3637,7 +3645,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "7f6ceb330ade3e33": {
       "id": "7f6ceb330ade3e33",
@@ -3658,7 +3666,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "04929a69779e757e": {
       "id": "04929a69779e757e",
@@ -3679,14 +3687,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "e830542109eda450": {
       "id": "e830542109eda450",
       "originalId": "53110000958145202512081284559896",
       "time": "2025-12-08 21:51:17",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "扫二维码付款",
       "counterparty": "翱翔水果家园生鲜",
       "product": "收款方备注:二维码收款",
@@ -3700,14 +3708,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "10bd45b65f92f81e": {
       "id": "10bd45b65f92f81e",
       "originalId": "4200002924202512085330285905",
       "time": "2025-12-08 18:54:18",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "商户消费",
       "counterparty": "水之源川菜",
       "product": "水之源川菜",
@@ -3721,14 +3729,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "459ccec77271f5d7": {
       "id": "459ccec77271f5d7",
       "originalId": "4200002901202512081263884726",
       "time": "2025-12-08 18:27:26",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "商户消费",
       "counterparty": "有凤来仪",
       "product": "/",
@@ -3742,14 +3750,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "e743f84cfa18b773": {
       "id": "e743f84cfa18b773",
       "originalId": "4200002905202512084706522303",
       "time": "2025-12-08 16:48:53",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "商户消费",
       "counterparty": "智能自助服务",
       "product": "企鹅共享",
@@ -3763,7 +3771,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "542f12652ae66a16": {
       "id": "542f12652ae66a16",
@@ -3784,14 +3792,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "4a359463e9b4b7d4": {
       "id": "4a359463e9b4b7d4",
       "originalId": "4200002912202512088435737651",
       "time": "2025-12-08 11:31:38",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "商户消费",
       "counterparty": "西安市长安区杨青青黄焖鸡米饭店",
       "product": "点餐44.0元",
@@ -3805,7 +3813,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "695a01a84654c421": {
       "id": "695a01a84654c421",
@@ -3826,14 +3834,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "611b46dbf716b82e": {
       "id": "611b46dbf716b82e",
       "originalId": "4200002972202512078027646973",
       "time": "2025-12-07 18:42:20",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "商户消费",
       "counterparty": "滴滴出行",
       "product": "先乘车后付款",
@@ -3847,7 +3855,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "b5be1ebd965bb716": {
       "id": "b5be1ebd965bb716",
@@ -3868,14 +3876,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "9ca3d79b58cfeea5": {
       "id": "9ca3d79b58cfeea5",
       "originalId": "4200002982202512077364934910",
       "time": "2025-12-07 17:12:03",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "商户消费",
       "counterparty": "滴滴出行",
       "product": "先乘车后付款",
@@ -3889,14 +3897,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "984998b5684b45a0": {
       "id": "984998b5684b45a0",
       "originalId": "4200002925202512076298631029",
       "time": "2025-12-07 14:27:22",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "商户消费",
       "counterparty": "水之源川菜",
       "product": "水之源川菜",
@@ -3910,7 +3918,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "7648b3ffbcb6a723": {
       "id": "7648b3ffbcb6a723",
@@ -3931,14 +3939,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "b6ed72a8d09ee2a0": {
       "id": "b6ed72a8d09ee2a0",
       "originalId": "53110000928048202512060762615770",
       "time": "2025-12-06 19:53:15",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "扫二维码付款",
       "counterparty": "翱翔水果家园生鲜",
       "product": "收款方备注:二维码收款",
@@ -3952,7 +3960,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "16bb9ff4d2ff7f19": {
       "id": "16bb9ff4d2ff7f19",
@@ -3973,14 +3981,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "b167852755977768": {
       "id": "b167852755977768",
       "originalId": "4200002897202512061153308201",
       "time": "2025-12-06 18:38:56",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "商户消费",
       "counterparty": "有凤来仪",
       "product": "/",
@@ -3994,14 +4002,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "0ea0c7d68755a53d": {
       "id": "0ea0c7d68755a53d",
       "originalId": "1000039901000512066298398864040",
       "time": "2025-12-06 11:48:26",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "微信红包",
       "counterparty": "亲爱的",
       "product": "/",
@@ -4015,14 +4023,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "f4cf31c40531f65c": {
       "id": "f4cf31c40531f65c",
       "originalId": "4200002847202512065239704872",
       "time": "2025-12-06 11:40:31",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "商户消费",
       "counterparty": "西安市长安区杨青青黄焖鸡米饭店",
       "product": "点餐44.0元",
@@ -4036,7 +4044,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "b6923320eb0133d8": {
       "id": "b6923320eb0133d8",
@@ -4057,7 +4065,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "586ca71e6c4bfbd7": {
       "id": "586ca71e6c4bfbd7",
@@ -4078,7 +4086,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "4f27eed544910874": {
       "id": "4f27eed544910874",
@@ -4099,7 +4107,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "e39bc1142a529e53": {
       "id": "e39bc1142a529e53",
@@ -4120,14 +4128,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "6479e4e10a729652": {
       "id": "6479e4e10a729652",
       "originalId": "4200002888202512056445699364",
       "time": "2025-12-05 15:59:09",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "商户消费",
       "counterparty": "西安每一天",
       "product": "微信支付0513",
@@ -4141,14 +4149,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "1c6926f2c5594a71": {
       "id": "1c6926f2c5594a71",
       "originalId": "53110000783169202512052647905490",
       "time": "2025-12-05 14:08:59",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "扫二维码付款",
       "counterparty": "曾仁立",
       "product": "收款方备注:二维码收款",
@@ -4162,7 +4170,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "9536048b3a17eab1": {
       "id": "9536048b3a17eab1",
@@ -4183,14 +4191,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "e7886bd3deee71d4": {
       "id": "e7886bd3deee71d4",
       "originalId": "4200002927202512042597942339",
       "time": "2025-12-04 21:52:59",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "商户消费",
       "counterparty": "莘莘出行",
       "product": "用户充值",
@@ -4204,14 +4212,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "90eeedc18055b72a": {
       "id": "90eeedc18055b72a",
       "originalId": "53110000760175202512042041659747",
       "time": "2025-12-04 20:06:09",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "扫二维码付款",
       "counterparty": "强文复印室",
       "product": "收款方备注:二维码收款",
@@ -4225,14 +4233,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "9b7b356bc146373f": {
       "id": "9b7b356bc146373f",
       "originalId": "4200002984202512044435260317",
       "time": "2025-12-04 20:04:03",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "商户消费",
       "counterparty": "西安美汁鸭",
       "product": "西安美汁鸭西工大店",
@@ -4246,14 +4254,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "7dad66d4ceb73519": {
       "id": "7dad66d4ceb73519",
       "originalId": "1000039901000512046277673671031",
       "time": "2025-12-04 19:24:24",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "微信红包",
       "counterparty": "亲爱的",
       "product": "/",
@@ -4267,14 +4275,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "739a731d50b89228": {
       "id": "739a731d50b89228",
       "originalId": "4200002958202512046127758400",
       "time": "2025-12-04 19:24:13",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "商户消费",
       "counterparty": "水之源川菜",
       "product": "水之源川菜",
@@ -4288,14 +4296,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "2bab8c2fe62d2c53": {
       "id": "2bab8c2fe62d2c53",
       "originalId": "4200002934202512046699454128",
       "time": "2025-12-04 12:29:55",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "商户消费",
       "counterparty": "立印",
       "product": "025F68打印",
@@ -4309,14 +4317,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "703ea9391a835227": {
       "id": "703ea9391a835227",
       "originalId": "4200002904202512046882939394",
       "time": "2025-12-04 12:18:45",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "商户消费",
       "counterparty": "西北工业大学",
       "product": "一卡通支付_864",
@@ -4330,7 +4338,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "6605aa78a0cd4b64": {
       "id": "6605aa78a0cd4b64",
@@ -4351,7 +4359,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "60299ea6f0eefe37": {
       "id": "60299ea6f0eefe37",
@@ -4372,14 +4380,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "1d3c969d822a1b60": {
       "id": "1d3c969d822a1b60",
       "originalId": "4200002963202512035088024107",
       "time": "2025-12-03 22:34:08",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "商户消费",
       "counterparty": "立印",
       "product": "026BEC打印",
@@ -4393,14 +4401,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "63116b52892e5963": {
       "id": "63116b52892e5963",
       "originalId": "53110000757188202512031167531328",
       "time": "2025-12-03 20:13:30",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "扫二维码付款",
       "counterparty": "翱翔水果家园生鲜",
       "product": "收款方备注:二维码收款",
@@ -4414,14 +4422,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "912eb61216ebd7e4": {
       "id": "912eb61216ebd7e4",
       "originalId": "4200002912202512037740592008",
       "time": "2025-12-03 18:50:40",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "商户消费",
       "counterparty": "西安市长安区杨青青黄焖鸡米饭店",
       "product": "点餐44.0元",
@@ -4435,14 +4443,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "301cc1790252b5a5": {
       "id": "301cc1790252b5a5",
       "originalId": "4200002908202512034145493772",
       "time": "2025-12-03 18:49:06",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "商户消费",
       "counterparty": "有凤来仪",
       "product": "/",
@@ -4456,14 +4464,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "e68960d28544a438": {
       "id": "e68960d28544a438",
       "originalId": "1000039901000512036414320101045",
       "time": "2025-12-03 12:27:06",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "微信红包",
       "counterparty": "亲爱的",
       "product": "/",
@@ -4477,7 +4485,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "33d8e5f89a27b3c8": {
       "id": "33d8e5f89a27b3c8",
@@ -4498,14 +4506,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "02d770b411fde7a9": {
       "id": "02d770b411fde7a9",
       "originalId": "4200002898202512034821955879",
       "time": "2025-12-03 11:49:32",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "商户消费",
       "counterparty": "文昊超市",
       "product": "/",
@@ -4519,7 +4527,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "52138c525d71ae16": {
       "id": "52138c525d71ae16",
@@ -4540,14 +4548,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "cc984843e67a7786": {
       "id": "cc984843e67a7786",
       "originalId": "4200002975202512035183376919",
       "time": "2025-12-03 08:25:17",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "商户消费",
       "counterparty": "西北工业大学",
       "product": "一卡通支付_690",
@@ -4561,14 +4569,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "d0d3cc4d768e8c21": {
       "id": "d0d3cc4d768e8c21",
       "originalId": "4200002884202512024360796848",
       "time": "2025-12-02 23:54:41",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "商户消费",
       "counterparty": "共享洗衣房",
       "product": "'-",
@@ -4582,14 +4590,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "9fc0a6a6017d6923": {
       "id": "9fc0a6a6017d6923",
       "originalId": "4200002914202512024147367607",
       "time": "2025-12-02 23:36:24",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "商户消费",
       "counterparty": "得物平台商户",
       "product": "商品交易",
@@ -4603,14 +4611,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "b2fa68e470fee733": {
       "id": "b2fa68e470fee733",
       "originalId": "4200002888202512025421037399",
       "time": "2025-12-02 21:02:00",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "商户消费",
       "counterparty": "滴滴出行",
       "product": "先乘车后付款",
@@ -4624,7 +4632,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "54813ecf60ddddae": {
       "id": "54813ecf60ddddae",
@@ -4645,14 +4653,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "54e07f495a20770c": {
       "id": "54e07f495a20770c",
       "originalId": "4200002920202512029835407206",
       "time": "2025-12-02 19:48:10",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "商户消费",
       "counterparty": "momopark娃娃优格糖",
       "product": "西安momopark店内购物",
@@ -4666,7 +4674,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "1248e8e3e6d50a8a": {
       "id": "1248e8e3e6d50a8a",
@@ -4687,7 +4695,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "cae90b9054d1a641": {
       "id": "cae90b9054d1a641",
@@ -4708,7 +4716,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "dee9ca708f8569bc": {
       "id": "dee9ca708f8569bc",
@@ -4729,7 +4737,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "e3cd1ae199b2a42d": {
       "id": "e3cd1ae199b2a42d",
@@ -4750,14 +4758,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "756f94248cc39135": {
       "id": "756f94248cc39135",
       "originalId": "4200002889202512022284254272",
       "time": "2025-12-02 10:09:48",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "商户消费",
       "counterparty": "西北工业大学",
       "product": "一卡通支付_687",
@@ -4771,7 +4779,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "d88f3170bfddfe2f": {
       "id": "d88f3170bfddfe2f",
@@ -4792,14 +4800,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "25b977def0a75ddf": {
       "id": "25b977def0a75ddf",
       "originalId": "4200002857202512012705540754",
       "time": "2025-12-01 18:06:06",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "商户消费",
       "counterparty": "西安市长安区杨青青黄焖鸡米饭店",
       "product": "点餐44.0元",
@@ -4813,14 +4821,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "f6db6a900d1b0fea": {
       "id": "f6db6a900d1b0fea",
       "originalId": "4200002850202512011918270784",
       "time": "2025-12-01 16:20:11",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "商户消费",
       "counterparty": "翱翔大学生超市长安校区",
       "product": "条码支付",
@@ -4834,7 +4842,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "e18e4315473fe1f1": {
       "id": "e18e4315473fe1f1",
@@ -4855,7 +4863,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "a3baac5a7f2b9f18": {
       "id": "a3baac5a7f2b9f18",
@@ -4876,14 +4884,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "d4e12b354a8f927d": {
       "id": "d4e12b354a8f927d",
       "originalId": "100004950125120100083341965518053799",
       "time": "2025-12-01 08:16:33",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "群收款",
       "counterparty": "张林诰",
       "product": "/",
@@ -4897,7 +4905,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "ceff751a12ed14d8": {
       "id": "ceff751a12ed14d8",
@@ -4918,7 +4926,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "91b5b21b1b55ee90": {
       "id": "91b5b21b1b55ee90",
@@ -4939,7 +4947,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "a1a84a41dd95875b": {
       "id": "a1a84a41dd95875b",
@@ -4960,7 +4968,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "a53f73bf9e9e47d5": {
       "id": "a53f73bf9e9e47d5",
@@ -4981,7 +4989,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "f42ec693028cab8a": {
       "id": "f42ec693028cab8a",
@@ -5002,14 +5010,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "8f4c407718e14377": {
       "id": "8f4c407718e14377",
       "originalId": "4200002954202511309286012141",
       "time": "2025-11-30 13:17:56",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "商户消费",
       "counterparty": "莘莘出行",
       "product": "用户充值",
@@ -5023,7 +5031,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "c3dc85558a136f92": {
       "id": "c3dc85558a136f92",
@@ -5044,7 +5052,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "01c5a7fd2aaefe82": {
       "id": "01c5a7fd2aaefe82",
@@ -5065,7 +5073,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "635989c0185f1771": {
       "id": "635989c0185f1771",
@@ -5086,7 +5094,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "faeda77b49e4a991": {
       "id": "faeda77b49e4a991",
@@ -5107,7 +5115,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "29702be8cd1ed164": {
       "id": "29702be8cd1ed164",
@@ -5128,7 +5136,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "3586c2da7cb9854b": {
       "id": "3586c2da7cb9854b",
@@ -5149,7 +5157,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "a702fcda4982812a": {
       "id": "a702fcda4982812a",
@@ -5170,7 +5178,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "c73a56946d3a0639": {
       "id": "c73a56946d3a0639",
@@ -5191,7 +5199,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "cd23ab0495f6a118": {
       "id": "cd23ab0495f6a118",
@@ -5212,7 +5220,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "791091d33d3ded08": {
       "id": "791091d33d3ded08",
@@ -5233,7 +5241,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "6c08d7337a29bf90": {
       "id": "6c08d7337a29bf90",
@@ -5254,7 +5262,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "febc11b3ce1eb28a": {
       "id": "febc11b3ce1eb28a",
@@ -5275,7 +5283,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "d59c4e0c4648aaa1": {
       "id": "d59c4e0c4648aaa1",
@@ -5296,7 +5304,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "5824f309ae889fd2": {
       "id": "5824f309ae889fd2",
@@ -5317,7 +5325,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "0750b4a2243cc5ba": {
       "id": "0750b4a2243cc5ba",
@@ -5338,14 +5346,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "242dd99df990e34e": {
       "id": "242dd99df990e34e",
       "originalId": "4200002894202511281525972017",
       "time": "2025-11-28 11:16:52",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "商户消费",
       "counterparty": "智能自助服务",
       "product": "企鹅共享",
@@ -5359,14 +5367,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "b58bdb69fc744658": {
       "id": "b58bdb69fc744658",
       "originalId": "4200002886202511284317859043",
       "time": "2025-11-28 10:58:56",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "商户消费",
       "counterparty": "智能自助服务",
       "product": "企鹅共享",
@@ -5380,14 +5388,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "ec7a66e690c0bdb5": {
       "id": "ec7a66e690c0bdb5",
       "originalId": "4200002867202511284727166272",
       "time": "2025-11-28 09:56:07",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "商户消费",
       "counterparty": "西北工业大学",
       "product": "一卡通支付_631",
@@ -5401,7 +5409,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "64ccf3766519e524": {
       "id": "64ccf3766519e524",
@@ -5422,14 +5430,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "b15f016a65527fe3": {
       "id": "b15f016a65527fe3",
       "originalId": "4200002962202511279334881545",
       "time": "2025-11-27 21:45:27",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "商户消费",
       "counterparty": "立印",
       "product": "026BEC打印",
@@ -5443,14 +5451,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "8ab6f462e76bc104": {
       "id": "8ab6f462e76bc104",
       "originalId": "100004950125112700083341566672605799",
       "time": "2025-11-27 19:36:39",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "群收款",
       "counterparty": "郑宇",
       "product": "/",
@@ -5464,7 +5472,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "012f39a33b98c322": {
       "id": "012f39a33b98c322",
@@ -5485,14 +5493,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "19d9519b82122fda": {
       "id": "19d9519b82122fda",
       "originalId": "4200002860202511273574297369",
       "time": "2025-11-27 12:47:26",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "商户消费",
       "counterparty": "西北工业大学",
       "product": "一卡通支付_841",
@@ -5506,14 +5514,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "f075696104b2728e": {
       "id": "f075696104b2728e",
       "originalId": "4200002891202511277653001909",
       "time": "2025-11-27 12:43:00",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "商户消费",
       "counterparty": "西北工业大学",
       "product": "一卡通支付_857",
@@ -5527,14 +5535,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "7adfba3324ab8c39": {
       "id": "7adfba3324ab8c39",
       "originalId": "4200002854202511276908459165",
       "time": "2025-11-27 10:14:52",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "商户消费",
       "counterparty": "西北工业大学",
       "product": "一卡通支付_690",
@@ -5548,14 +5556,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "9aeb61e53524d7e9": {
       "id": "9aeb61e53524d7e9",
       "originalId": "4200002857202511273689456714",
       "time": "2025-11-27 10:10:48",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "商户消费",
       "counterparty": "西北工业大学",
       "product": "一卡通支付_631",
@@ -5569,7 +5577,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "b9cae2b227c43b9e": {
       "id": "b9cae2b227c43b9e",
@@ -5590,7 +5598,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "02c391f7c3c3b233": {
       "id": "02c391f7c3c3b233",
@@ -5611,7 +5619,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "06d03c3b8f12549b": {
       "id": "06d03c3b8f12549b",
@@ -5632,14 +5640,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "27a9a8ba649587bd": {
       "id": "27a9a8ba649587bd",
       "originalId": "4200002859202511260912452688",
       "time": "2025-11-26 13:45:33",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "商户消费",
       "counterparty": "文昊超市",
       "product": "/",
@@ -5653,7 +5661,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "de7956761fa51d56": {
       "id": "de7956761fa51d56",
@@ -5674,14 +5682,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "1398bf25c8269c97": {
       "id": "1398bf25c8269c97",
       "originalId": "4200002897202511268701395327",
       "time": "2025-11-26 08:18:55",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "商户消费",
       "counterparty": "西北工业大学",
       "product": "一卡通支付_690",
@@ -5695,7 +5703,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "d203072415b0a0f2": {
       "id": "d203072415b0a0f2",
@@ -5716,14 +5724,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "6f8fa82fd50797f9": {
       "id": "6f8fa82fd50797f9",
       "originalId": "53110000774247202511254004515184",
       "time": "2025-11-25 16:10:32",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "扫二维码付款",
       "counterparty": "良食记",
       "product": "收款方备注:二维码收款",
@@ -5737,7 +5745,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "e238e815538a831c": {
       "id": "e238e815538a831c",
@@ -5758,14 +5766,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "d3572934a3eefd8d": {
       "id": "d3572934a3eefd8d",
       "originalId": "1000039901000511256338412687053",
       "time": "2025-11-25 13:26:42",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "微信红包",
       "counterparty": "亲爱的",
       "product": "/",
@@ -5779,7 +5787,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "d1582ebeebeb14fb": {
       "id": "d1582ebeebeb14fb",
@@ -5800,7 +5808,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "98da2bc86bf2d47a": {
       "id": "98da2bc86bf2d47a",
@@ -5821,7 +5829,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "79fd7274ddbe52eb": {
       "id": "79fd7274ddbe52eb",
@@ -5842,7 +5850,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "84b70c1d79208d9f": {
       "id": "84b70c1d79208d9f",
@@ -5863,7 +5871,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "2baa8e9e4b6ea4ee": {
       "id": "2baa8e9e4b6ea4ee",
@@ -5884,14 +5892,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "d46542be1b46af03": {
       "id": "d46542be1b46af03",
       "originalId": "4200002953202511246574184880",
       "time": "2025-11-24 18:01:22",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "商户消费",
       "counterparty": "BOLE BURGER波乐堡超筷乐",
       "product": "美团/大众点评点餐订单-11245008032156904042513",
@@ -5905,7 +5913,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "882bfa7db98b1cec": {
       "id": "882bfa7db98b1cec",
@@ -5926,7 +5934,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "60b403a97005305c": {
       "id": "60b403a97005305c",
@@ -5947,7 +5955,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "96988e9331567dc6": {
       "id": "96988e9331567dc6",
@@ -5968,7 +5976,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "df54afde1f307188": {
       "id": "df54afde1f307188",
@@ -5989,7 +5997,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "b1494caa4c8a9b6a": {
       "id": "b1494caa4c8a9b6a",
@@ -6010,7 +6018,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "db3c413a08f1e3a7": {
       "id": "db3c413a08f1e3a7",
@@ -6031,7 +6039,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "789d4cead398ce9e": {
       "id": "789d4cead398ce9e",
@@ -6052,7 +6060,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "6cdc289c6529d897": {
       "id": "6cdc289c6529d897",
@@ -6073,14 +6081,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "f5a1563471398c96": {
       "id": "f5a1563471398c96",
       "originalId": "4200002905202511235153802929",
       "time": "2025-11-23 19:29:22",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "商户消费",
       "counterparty": "有凤来仪",
       "product": "/",
@@ -6094,7 +6102,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "b0f71343cb30b363": {
       "id": "b0f71343cb30b363",
@@ -6115,14 +6123,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "564b720ae19bc55d": {
       "id": "564b720ae19bc55d",
       "originalId": "53010002202076202511231038870418",
       "time": "2025-11-23 16:44:46",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "转账",
       "counterparty": "电动车维修",
       "product": "转账备注:270元换电池+120元换后轮胎",
@@ -6136,7 +6144,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "f67edf6d3ee53423": {
       "id": "f67edf6d3ee53423",
@@ -6157,7 +6165,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "d7d50419ffa9991b": {
       "id": "d7d50419ffa9991b",
@@ -6178,14 +6186,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "f24152bdedf36f42": {
       "id": "f24152bdedf36f42",
       "originalId": "4200002961202511231875722742",
       "time": "2025-11-23 11:13:55",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "商户消费",
       "counterparty": "广州骑安",
       "product": "先乘车后付款",
@@ -6199,7 +6207,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "5452b4cc9aed42eb": {
       "id": "5452b4cc9aed42eb",
@@ -6220,7 +6228,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "99e95a7ad39f6f40": {
       "id": "99e95a7ad39f6f40",
@@ -6241,14 +6249,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "5e5609d673a3f731": {
       "id": "5e5609d673a3f731",
       "originalId": "4200002942202511220416582997",
       "time": "2025-11-22 12:46:17",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "商户消费",
       "counterparty": "莘莘出行",
       "product": "用户充值",
@@ -6262,14 +6270,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "0785b127d2a0308d": {
       "id": "0785b127d2a0308d",
       "originalId": "4200002929202511223344022448",
       "time": "2025-11-22 10:43:28",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "商户消费",
       "counterparty": "莘莘出行",
       "product": "用户充值",
@@ -6283,14 +6291,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "fd07fee14a694acb": {
       "id": "fd07fee14a694acb",
       "originalId": "4200002954202511226773834740",
       "time": "2025-11-22 09:06:44",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "商户消费",
       "counterparty": "莘莘出行",
       "product": "用户充值",
@@ -6304,7 +6312,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "689ebd5fc384388f": {
       "id": "689ebd5fc384388f",
@@ -6325,7 +6333,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "9633ef4fa1253ef7": {
       "id": "9633ef4fa1253ef7",
@@ -6346,7 +6354,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "6cbc44448e652314": {
       "id": "6cbc44448e652314",
@@ -6367,7 +6375,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "1bd01afcd81444eb": {
       "id": "1bd01afcd81444eb",
@@ -6388,14 +6396,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "2484b5938665b844": {
       "id": "2484b5938665b844",
       "originalId": "100004950125112000083341696915457799",
       "time": "2025-11-20 23:15:30",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "群收款",
       "counterparty": "郑宇",
       "product": "/",
@@ -6409,7 +6417,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "416928ae2cbe524a": {
       "id": "416928ae2cbe524a",
@@ -6430,14 +6438,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "51bb71ff4c46ed4a": {
       "id": "51bb71ff4c46ed4a",
       "originalId": "4200002885202511203509450178",
       "time": "2025-11-20 20:24:16",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "商户消费",
       "counterparty": "西北工业大学",
       "product": "校园卡支付",
@@ -6451,14 +6459,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "81ec4525f3544393": {
       "id": "81ec4525f3544393",
       "originalId": "53110000781245202511204082911032",
       "time": "2025-11-20 20:20:32",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "扫二维码付款",
       "counterparty": "初见情深",
       "product": "收款方备注:二维码收款",
@@ -6472,7 +6480,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "58cfdc724301bd13": {
       "id": "58cfdc724301bd13",
@@ -6493,7 +6501,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "a859f0dc29f3f780": {
       "id": "a859f0dc29f3f780",
@@ -6514,14 +6522,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "41241cf7a3bb4b32": {
       "id": "41241cf7a3bb4b32",
       "originalId": "53110000772049202511190452330107",
       "time": "2025-11-19 18:56:34",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "扫二维码付款",
       "counterparty": "翱翔水果家园生鲜",
       "product": "收款方备注:二维码收款",
@@ -6535,7 +6543,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "c3049dc01e77af66": {
       "id": "c3049dc01e77af66",
@@ -6556,7 +6564,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "9a62bb8ea860c744": {
       "id": "9a62bb8ea860c744",
@@ -6577,7 +6585,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "0e15d2f8d985c3a1": {
       "id": "0e15d2f8d985c3a1",
@@ -6598,7 +6606,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "1464c27812ad02f8": {
       "id": "1464c27812ad02f8",
@@ -6619,7 +6627,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "5049afd9bc611881": {
       "id": "5049afd9bc611881",
@@ -6640,7 +6648,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "56fe7303fd26231a": {
       "id": "56fe7303fd26231a",
@@ -6661,14 +6669,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "09c050f5de3359d5": {
       "id": "09c050f5de3359d5",
       "originalId": "4200002903202511185292921666",
       "time": "2025-11-18 18:56:50",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "商户消费",
       "counterparty": "西北工业大学",
       "product": "校园卡支付",
@@ -6682,14 +6690,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "a9bb6c98ac7bffdf": {
       "id": "a9bb6c98ac7bffdf",
       "originalId": "4200002845202511189680706871",
       "time": "2025-11-18 18:36:44",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "商户消费",
       "counterparty": "西北工业大学",
       "product": "校园卡支付",
@@ -6703,14 +6711,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "58b574b4830b1fd5": {
       "id": "58b574b4830b1fd5",
       "originalId": "4200002890202511184889468200",
       "time": "2025-11-18 18:30:01",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "商户消费",
       "counterparty": "西北工业大学",
       "product": "校园卡支付",
@@ -6724,7 +6732,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "f05bbef368959556": {
       "id": "f05bbef368959556",
@@ -6745,14 +6753,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "dfcd7a730c362c17": {
       "id": "dfcd7a730c362c17",
       "originalId": "4200002895202511181796932161",
       "time": "2025-11-18 10:19:09",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "商户消费",
       "counterparty": "智能自助服务",
       "product": "企鹅共享",
@@ -6766,14 +6774,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "a2fcd6b8551b95cc": {
       "id": "a2fcd6b8551b95cc",
       "originalId": "4200002865202511189787666687",
       "time": "2025-11-18 01:07:52",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "商户消费",
       "counterparty": "智能自助服务",
       "product": "企鹅共享",
@@ -6787,14 +6795,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "8a72aed3588cf1f4": {
       "id": "8a72aed3588cf1f4",
       "originalId": "4200002901202511170146341592",
       "time": "2025-11-17 23:41:19",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "商户消费",
       "counterparty": "智能自助服务",
       "product": "企鹅共享",
@@ -6808,7 +6816,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "db39ea9fb9c18aed": {
       "id": "db39ea9fb9c18aed",
@@ -6829,7 +6837,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "1816de2bc6db878d": {
       "id": "1816de2bc6db878d",
@@ -6850,7 +6858,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "bf83eb30aaedcc6f": {
       "id": "bf83eb30aaedcc6f",
@@ -6871,7 +6879,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "2aaf5e976341d8b6": {
       "id": "2aaf5e976341d8b6",
@@ -6892,7 +6900,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "07a5c0305fa8d773": {
       "id": "07a5c0305fa8d773",
@@ -6913,7 +6921,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "7dd1daf492968c38": {
       "id": "7dd1daf492968c38",
@@ -6934,7 +6942,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "befca5a646bcfd8c": {
       "id": "befca5a646bcfd8c",
@@ -6955,14 +6963,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "64ec1127bfadd1be": {
       "id": "64ec1127bfadd1be",
       "originalId": "4200002852202511168934425172",
       "time": "2025-11-16 08:21:06",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "商户消费",
       "counterparty": "西北工业大学",
       "product": "校园卡支付",
@@ -6976,14 +6984,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "773bd82968cb98d9": {
       "id": "773bd82968cb98d9",
       "originalId": "4200002890202511163877387538",
       "time": "2025-11-16 02:27:11",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "商户消费",
       "counterparty": "智能自助服务",
       "product": "企鹅共享",
@@ -6997,14 +7005,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "47fb16de3003b811": {
       "id": "47fb16de3003b811",
       "originalId": "4200002880202511158009740343",
       "time": "2025-11-15 23:58:33",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "商户消费",
       "counterparty": "莘莘出行",
       "product": "用户充值",
@@ -7018,14 +7026,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "f92825b13777eef6": {
       "id": "f92825b13777eef6",
       "originalId": "4200002874202511151632234144",
       "time": "2025-11-15 20:21:36",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "商户消费",
       "counterparty": "莘莘出行",
       "product": "用户充值",
@@ -7039,7 +7047,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "89e3789aebdaff97": {
       "id": "89e3789aebdaff97",
@@ -7060,7 +7068,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "e7f05797069dbe1a": {
       "id": "e7f05797069dbe1a",
@@ -7081,7 +7089,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "a7126bda281c6e98": {
       "id": "a7126bda281c6e98",
@@ -7102,14 +7110,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "9bd1c4687da6e3dd": {
       "id": "9bd1c4687da6e3dd",
       "originalId": "4200002868202511157519301712",
       "time": "2025-11-15 08:22:41",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "商户消费",
       "counterparty": "西北工业大学",
       "product": "校园卡支付",
@@ -7123,7 +7131,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "17bff26705338e8b": {
       "id": "17bff26705338e8b",
@@ -7144,7 +7152,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "380b98e292aa09ab": {
       "id": "380b98e292aa09ab",
@@ -7165,7 +7173,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "e785a1a4585c0ff0": {
       "id": "e785a1a4585c0ff0",
@@ -7186,7 +7194,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "e6c1187d7ccd3605": {
       "id": "e6c1187d7ccd3605",
@@ -7207,7 +7215,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "24204a06079c4d88": {
       "id": "24204a06079c4d88",
@@ -7228,7 +7236,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "54b5e63bb87c15cb": {
       "id": "54b5e63bb87c15cb",
@@ -7249,7 +7257,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "fc087cc2c7629c61": {
       "id": "fc087cc2c7629c61",
@@ -7270,7 +7278,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "04fb9f395eb47333": {
       "id": "04fb9f395eb47333",
@@ -7291,14 +7299,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "6ccd04dd180e6c0a": {
       "id": "6ccd04dd180e6c0a",
       "originalId": "4200002904202511134584422775",
       "time": "2025-11-13 12:29:40",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "商户消费",
       "counterparty": "西北工业大学",
       "product": "校园卡支付",
@@ -7312,14 +7320,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "98a8c8d53d2b086e": {
       "id": "98a8c8d53d2b086e",
       "originalId": "4200002904202511135267496324",
       "time": "2025-11-13 12:11:45",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "商户消费",
       "counterparty": "西北工业大学",
       "product": "校园卡支付",
@@ -7333,14 +7341,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "bdeefd440d67635f": {
       "id": "bdeefd440d67635f",
       "originalId": "4200002868202511131480076622",
       "time": "2025-11-13 12:08:56",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "商户消费",
       "counterparty": "西北工业大学",
       "product": "校园卡支付",
@@ -7354,7 +7362,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "24a265e81950214c": {
       "id": "24a265e81950214c",
@@ -7375,7 +7383,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "503ba55fa4a7abe4": {
       "id": "503ba55fa4a7abe4",
@@ -7396,7 +7404,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "c4c3e0e016f535de": {
       "id": "c4c3e0e016f535de",
@@ -7417,7 +7425,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "25546afbaa64a945": {
       "id": "25546afbaa64a945",
@@ -7438,14 +7446,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "d6770579f9616ef1": {
       "id": "d6770579f9616ef1",
       "originalId": "53110000799127202511112998071283",
       "time": "2025-11-11 22:26:36",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "扫二维码付款",
       "counterparty": "翱翔水果家园生鲜",
       "product": "收款方备注:二维码收款",
@@ -7459,7 +7467,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "e7323f944ef9f730": {
       "id": "e7323f944ef9f730",
@@ -7480,7 +7488,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "a2e9bca77c1f6163": {
       "id": "a2e9bca77c1f6163",
@@ -7501,14 +7509,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "f0246fb637130d84": {
       "id": "f0246fb637130d84",
       "originalId": "4200002929202511115305524878",
       "time": "2025-11-11 14:01:23",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "商户消费",
       "counterparty": "水之源川菜",
       "product": "水之源川菜",
@@ -7522,14 +7530,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "5bc426da5437422c": {
       "id": "5bc426da5437422c",
       "originalId": "4200002845202511118317235104",
       "time": "2025-11-11 08:21:05",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "商户消费",
       "counterparty": "西北工业大学",
       "product": "校园卡支付",
@@ -7543,14 +7551,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "0ce18773fada4074": {
       "id": "0ce18773fada4074",
       "originalId": "53010002172222202511103174881162",
       "time": "2025-11-10 18:56:57",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "转账",
       "counterparty": "Q",
       "product": "转账备注:按照二手回收差价850的一半",
@@ -7564,7 +7572,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "06b6618590486f13": {
       "id": "06b6618590486f13",
@@ -7585,14 +7593,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "19c2c1b33403b83a": {
       "id": "19c2c1b33403b83a",
       "originalId": "4200002933202511102684467874",
       "time": "2025-11-10 18:14:52",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "商户消费",
       "counterparty": "益禾堂",
       "product": "【堂食】_西安市长安区西北工业大学店_297318_Y815016023_无_无",
@@ -7606,7 +7614,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "703a6e498e39ec33": {
       "id": "703a6e498e39ec33",
@@ -7627,14 +7635,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "c7135e3fa3f0401e": {
       "id": "c7135e3fa3f0401e",
       "originalId": "4200002914202511106744732921",
       "time": "2025-11-10 13:15:59",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "商户消费",
       "counterparty": "西北工业大学",
       "product": "校园卡支付",
@@ -7648,14 +7656,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "8c056afd3cd12fdb": {
       "id": "8c056afd3cd12fdb",
       "originalId": "53110000886010202511101771885615",
       "time": "2025-11-10 13:04:37",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "扫二维码付款",
       "counterparty": "悲伤小学生（已黑化）",
       "product": "收款方备注:二维码收款",
@@ -7669,7 +7677,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "9ea32046340dc86e": {
       "id": "9ea32046340dc86e",
@@ -7690,14 +7698,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "7ef2f7ebc899f68a": {
       "id": "7ef2f7ebc899f68a",
       "originalId": "4200002916202511106555129166",
       "time": "2025-11-10 08:20:36",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "商户消费",
       "counterparty": "西北工业大学",
       "product": "校园卡支付",
@@ -7711,14 +7719,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "f53a0c5093a867df": {
       "id": "f53a0c5093a867df",
       "originalId": "53110000771074202511091146781389",
       "time": "2025-11-09 22:22:34",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "扫二维码付款",
       "counterparty": "张成荣水果配送。18191855586",
       "product": "收款方备注:二维码收款",
@@ -7732,14 +7740,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "dd0e04d658515eb4": {
       "id": "dd0e04d658515eb4",
       "originalId": "4200002871202511090972558413",
       "time": "2025-11-09 18:26:48",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "商户消费",
       "counterparty": "云上南山咖啡",
       "product": "美团/大众点评点餐订单-11094719801130596182613",
@@ -7753,14 +7761,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "36e05b87464fda6b": {
       "id": "36e05b87464fda6b",
       "originalId": "4200002876202511095637135689",
       "time": "2025-11-09 16:23:09",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "商户消费",
       "counterparty": "云上南山咖啡",
       "product": "美团/大众点评点餐订单-11094719801120403387989",
@@ -7774,7 +7782,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "d4d6f81f29ded97c": {
       "id": "d4d6f81f29ded97c",
@@ -7795,14 +7803,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "36791d2765fa7c6d": {
       "id": "36791d2765fa7c6d",
       "originalId": "4200002907202511090651618372",
       "time": "2025-11-09 12:27:07",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "商户消费",
       "counterparty": "滴滴出行平台商户",
       "product": "先乘车后付款",
@@ -7816,14 +7824,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "d7701d7b7942e071": {
       "id": "d7701d7b7942e071",
       "originalId": "4200002916202511092703998604",
       "time": "2025-11-09 11:33:09",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "商户消费",
       "counterparty": "滴滴出行",
       "product": "先乘车后付款",
@@ -7837,7 +7845,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "ae59d6477332c277": {
       "id": "ae59d6477332c277",
@@ -7858,14 +7866,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "7a08bd0fe819c110": {
       "id": "7a08bd0fe819c110",
       "originalId": "4200002910202511089167832048",
       "time": "2025-11-08 19:29:40",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "商户消费",
       "counterparty": "西北工业大学",
       "product": "校园卡支付",
@@ -7879,14 +7887,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "3b4de73d50fceb09": {
       "id": "3b4de73d50fceb09",
       "originalId": "4200002916202511084954710762",
       "time": "2025-11-08 19:17:46",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "商户消费",
       "counterparty": "西北工业大学",
       "product": "校园卡支付",
@@ -7900,14 +7908,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "ae57e1b95b2482e9": {
       "id": "ae57e1b95b2482e9",
       "originalId": "53110000796088202511082067735033",
       "time": "2025-11-08 14:13:00",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "扫二维码付款",
       "counterparty": "嫩汁烤肉东大店丨高新店",
       "product": "收款方备注:二维码收款",
@@ -7921,14 +7929,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "76b4111c57603612": {
       "id": "76b4111c57603612",
       "originalId": "53110000781005202511080718444525",
       "time": "2025-11-08 13:06:26",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "扫二维码付款",
       "counterparty": "刘永景",
       "product": "收款方备注:二维码收款",
@@ -7942,7 +7950,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "0c220904add1e5ce": {
       "id": "0c220904add1e5ce",
@@ -7963,14 +7971,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "9c4fcf5b8d640c48": {
       "id": "9c4fcf5b8d640c48",
       "originalId": "53110000765247202511073314784359",
       "time": "2025-11-07 20:12:58",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "扫二维码付款",
       "counterparty": "翱翔水果家园生鲜",
       "product": "收款方备注:二维码收款",
@@ -7984,14 +7992,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "07a8b82b0aa2ebac": {
       "id": "07a8b82b0aa2ebac",
       "originalId": "4200002963202511071906919393",
       "time": "2025-11-07 19:07:45",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "商户消费",
       "counterparty": "水之源川菜",
       "product": "水之源川菜",
@@ -8005,14 +8013,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "257f3a73dff35044": {
       "id": "257f3a73dff35044",
       "originalId": "4200002861202511070026044607",
       "time": "2025-11-07 16:01:36",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "商户消费",
       "counterparty": "翱翔大学生超市长安校区",
       "product": "条码支付",
@@ -8026,7 +8034,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "4509a0b439c8d2b5": {
       "id": "4509a0b439c8d2b5",
@@ -8047,7 +8055,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "4e63feaba2bed214": {
       "id": "4e63feaba2bed214",
@@ -8068,7 +8076,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "118b07b250416290": {
       "id": "118b07b250416290",
@@ -8089,7 +8097,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "af808fc97ca9f156": {
       "id": "af808fc97ca9f156",
@@ -8110,14 +8118,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "d8d70f73d7a64ea4": {
       "id": "d8d70f73d7a64ea4",
       "originalId": "50103705192025110687426979988",
       "time": "2025-11-06 16:29:44",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "西安市雁塔区盛之运海鲜牛排自助店-退款",
       "counterparty": "西安市雁塔区盛之运海鲜牛排自助店",
       "product": "西安市雁塔区盛之运海鲜牛排自助店",
@@ -8131,7 +8139,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "bb16106cc5c5516a": {
       "id": "bb16106cc5c5516a",
@@ -8152,14 +8160,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "072bcd7d8356c515": {
       "id": "072bcd7d8356c515",
       "originalId": "4200002919202511066641162927",
       "time": "2025-11-06 14:37:34",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "商户消费",
       "counterparty": "西安市雁塔区盛之运海鲜牛排自助店",
       "product": "西安市雁塔区盛之运海鲜牛排自助店",
@@ -8173,7 +8181,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "a79dbc13d02b2ca8": {
       "id": "a79dbc13d02b2ca8",
@@ -8194,14 +8202,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "e93e4da09e9d05a6": {
       "id": "e93e4da09e9d05a6",
       "originalId": "4200002950202511069899549532",
       "time": "2025-11-06 12:26:30",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "商户消费",
       "counterparty": "西安市公共交通",
       "product": "2025-11-06 12:26乘车费用",
@@ -8215,7 +8223,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "a09837556f8f35fb": {
       "id": "a09837556f8f35fb",
@@ -8236,7 +8244,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "d169238a7e20a4e0": {
       "id": "d169238a7e20a4e0",
@@ -8257,7 +8265,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "613c3931cff786d7": {
       "id": "613c3931cff786d7",
@@ -8278,14 +8286,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "a23b9fe1ac026006": {
       "id": "a23b9fe1ac026006",
       "originalId": "1000039901000511056003591367013",
       "time": "2025-11-05 18:58:57",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "微信红包",
       "counterparty": "亲爱的",
       "product": "/",
@@ -8299,7 +8307,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "92b926b905d2404a": {
       "id": "92b926b905d2404a",
@@ -8320,14 +8328,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "d97598dc9779bda5": {
       "id": "d97598dc9779bda5",
       "originalId": "4200002902202511059796508917",
       "time": "2025-11-05 12:06:08",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "商户消费",
       "counterparty": "西北工业大学云餐便利店",
       "product": "西北工业大学云餐便利店",
@@ -8341,7 +8349,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "4332c4c14f86176e": {
       "id": "4332c4c14f86176e",
@@ -8362,14 +8370,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "a146ca8f3285ccfd": {
       "id": "a146ca8f3285ccfd",
       "originalId": "4200002901202511056777017992",
       "time": "2025-11-05 08:22:06",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "商户消费",
       "counterparty": "西北工业大学",
       "product": "校园卡支付",
@@ -8383,14 +8391,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "7760d4bb063b68e1": {
       "id": "7760d4bb063b68e1",
       "originalId": "1000039901000511046252250858037",
       "time": "2025-11-05 08:17:52",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "微信红包",
       "counterparty": "亲爱的",
       "product": "/",
@@ -8404,14 +8412,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "40c23f55d212cc02": {
       "id": "40c23f55d212cc02",
       "originalId": "53110000754083202511041208554808",
       "time": "2025-11-04 19:55:45",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "扫二维码付款",
       "counterparty": "张成荣水果配送。18191855586",
       "product": "收款方备注:二维码收款",
@@ -8425,14 +8433,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "a80aa63d096ab8a8": {
       "id": "a80aa63d096ab8a8",
       "originalId": "4200002932202511043541207323",
       "time": "2025-11-04 18:06:57",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "商户消费",
       "counterparty": "水之源川菜",
       "product": "水之源川菜",
@@ -8446,14 +8454,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "9c3b5d0fabec3b45": {
       "id": "9c3b5d0fabec3b45",
       "originalId": "1000039901000511036241274313057",
       "time": "2025-11-04 17:33:13",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "微信红包",
       "counterparty": "亲爱的",
       "product": "/",
@@ -8467,7 +8475,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "0cfae5bc00737475": {
       "id": "0cfae5bc00737475",
@@ -8488,7 +8496,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "407e8ea873285e6a": {
       "id": "407e8ea873285e6a",
@@ -8509,7 +8517,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "8f79eccf340e6fe0": {
       "id": "8f79eccf340e6fe0",
@@ -8530,14 +8538,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "0426b9790e1b73da": {
       "id": "0426b9790e1b73da",
       "originalId": "53010002187253202511041427180689",
       "time": "2025-11-04 14:22:19",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "转账",
       "counterparty": "亲爱的",
       "product": "转账备注:微信转账",
@@ -8551,7 +8559,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "ddbc08bb850ef1fd": {
       "id": "ddbc08bb850ef1fd",
@@ -8572,14 +8580,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "506470ac1dd58b38": {
       "id": "506470ac1dd58b38",
       "originalId": "4200002898202511043586309563",
       "time": "2025-11-04 12:18:42",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "商户消费",
       "counterparty": "西北工业大学",
       "product": "校园卡支付",
@@ -8593,14 +8601,14 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "6da28c91194c2376": {
       "id": "6da28c91194c2376",
       "originalId": "4200002892202511041067260059",
       "time": "2025-11-04 12:17:31",
       "sourceType": "wechat",
-      "category": "others",
+      "category": "uncategorized",
       "rawClass": "商户消费",
       "counterparty": "西北工业大学",
       "product": "校园卡支付",
@@ -8614,7 +8622,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "7802fcfd4bf31ef0": {
       "id": "7802fcfd4bf31ef0",
@@ -8635,7 +8643,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "857c929ce39f7259": {
       "id": "857c929ce39f7259",
@@ -8656,7 +8664,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "010931562e87b1e7": {
       "id": "010931562e87b1e7",
@@ -8677,7 +8685,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "232885def8f97768": {
       "id": "232885def8f97768",
@@ -8698,7 +8706,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "7113def33302bda1": {
       "id": "7113def33302bda1",
@@ -8719,7 +8727,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "269a861d950993ee": {
       "id": "269a861d950993ee",
@@ -8740,7 +8748,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "7117bb2392a9160c": {
       "id": "7117bb2392a9160c",
@@ -8761,7 +8769,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "041d67f2802fa257": {
       "id": "041d67f2802fa257",
@@ -8782,7 +8790,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "d22ee6ac589d60f8": {
       "id": "d22ee6ac589d60f8",
@@ -8803,7 +8811,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "6d116ecd3e1c9dc8": {
       "id": "6d116ecd3e1c9dc8",
@@ -8824,7 +8832,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "10f13ee5029e99b7": {
       "id": "10f13ee5029e99b7",
@@ -8845,7 +8853,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "28b9a066ae7171e1": {
       "id": "28b9a066ae7171e1",
@@ -8866,7 +8874,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "a32ada7ece7c92ee": {
       "id": "a32ada7ece7c92ee",
@@ -8887,7 +8895,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "8a847b65477dbfb5": {
       "id": "8a847b65477dbfb5",
@@ -8908,7 +8916,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "d703c33b379ecb3e": {
       "id": "d703c33b379ecb3e",
@@ -8929,7 +8937,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "07f868e4529d62f7": {
       "id": "07f868e4529d62f7",
@@ -8950,7 +8958,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "a6784200d69e7a89": {
       "id": "a6784200d69e7a89",
@@ -8971,7 +8979,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "35aa16fd01469b11": {
       "id": "35aa16fd01469b11",
@@ -8992,7 +9000,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "b3c00e6f071827c4": {
       "id": "b3c00e6f071827c4",
@@ -9013,7 +9021,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "0a5e364d75e26f83": {
       "id": "0a5e364d75e26f83",
@@ -9034,7 +9042,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "9a0a14f736566222": {
       "id": "9a0a14f736566222",
@@ -9055,7 +9063,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "6529dd5895cb3ba9": {
       "id": "6529dd5895cb3ba9",
@@ -9076,7 +9084,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "b8b1516eef59c301": {
       "id": "b8b1516eef59c301",
@@ -9097,7 +9105,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "4e919fcefd11efc8": {
       "id": "4e919fcefd11efc8",
@@ -9118,7 +9126,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "9170792a6061d2a4": {
       "id": "9170792a6061d2a4",
@@ -9139,7 +9147,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "852a31278a4a7af4": {
       "id": "852a31278a4a7af4",
@@ -9160,7 +9168,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "a75a6aef6c1a7669": {
       "id": "a75a6aef6c1a7669",
@@ -9181,7 +9189,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "58e052020e8ab039": {
       "id": "58e052020e8ab039",
@@ -9202,7 +9210,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "90e374b0c6c1861b": {
       "id": "90e374b0c6c1861b",
@@ -9223,7 +9231,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "6ed5d369e5d687b3": {
       "id": "6ed5d369e5d687b3",
@@ -9244,7 +9252,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "33fcbbd873bf4b8f": {
       "id": "33fcbbd873bf4b8f",
@@ -9265,7 +9273,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "976cec981d200434": {
       "id": "976cec981d200434",
@@ -9286,7 +9294,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "436539e0e24fb2be": {
       "id": "436539e0e24fb2be",
@@ -9307,7 +9315,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "ae96b26111cea959": {
       "id": "ae96b26111cea959",
@@ -9328,7 +9336,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "cb6f47642da5a123": {
       "id": "cb6f47642da5a123",
@@ -9349,7 +9357,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "2ac7ca07e0af82a4": {
       "id": "2ac7ca07e0af82a4",
@@ -9370,7 +9378,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "428d25a0c78e0af9": {
       "id": "428d25a0c78e0af9",
@@ -9391,7 +9399,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "1b8e8eb1f48b97f3": {
       "id": "1b8e8eb1f48b97f3",
@@ -9412,7 +9420,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "ca3952f9ab2e2d47": {
       "id": "ca3952f9ab2e2d47",
@@ -9433,7 +9441,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "eaefa1c809a27918": {
       "id": "eaefa1c809a27918",
@@ -9454,7 +9462,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "3cc0e4e3542cd561": {
       "id": "3cc0e4e3542cd561",
@@ -9475,7 +9483,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "a2af885ddecba824": {
       "id": "a2af885ddecba824",
@@ -9496,7 +9504,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "55a3356d1f568073": {
       "id": "55a3356d1f568073",
@@ -9517,7 +9525,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "ab266d72d6666ac5": {
       "id": "ab266d72d6666ac5",
@@ -9538,7 +9546,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "01542223686df6ad": {
       "id": "01542223686df6ad",
@@ -9559,7 +9567,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "48248447db1dc0d2": {
       "id": "48248447db1dc0d2",
@@ -9580,7 +9588,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "61885e1e673d2c0c": {
       "id": "61885e1e673d2c0c",
@@ -9601,7 +9609,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "b0df56e28fe6e16f": {
       "id": "b0df56e28fe6e16f",
@@ -9622,7 +9630,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "be89e9121dc42538": {
       "id": "be89e9121dc42538",
@@ -9643,7 +9651,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "24b9b88a1af7ee6d": {
       "id": "24b9b88a1af7ee6d",
@@ -9664,7 +9672,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "287176c6d491c7e1": {
       "id": "287176c6d491c7e1",
@@ -9685,7 +9693,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "d4ee08dfea9dd85f": {
       "id": "d4ee08dfea9dd85f",
@@ -9706,7 +9714,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "ff15f5d5a486adc2": {
       "id": "ff15f5d5a486adc2",
@@ -9727,7 +9735,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "07c1603293e80031": {
       "id": "07c1603293e80031",
@@ -9748,7 +9756,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "18788c1dc4b1bb64": {
       "id": "18788c1dc4b1bb64",
@@ -9769,7 +9777,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "d33f7028e6b5621b": {
       "id": "d33f7028e6b5621b",
@@ -9790,7 +9798,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "6f832bf3b339a74f": {
       "id": "6f832bf3b339a74f",
@@ -9811,7 +9819,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "ec1f3bb8322d728d": {
       "id": "ec1f3bb8322d728d",
@@ -9832,7 +9840,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "22df77da47ee24b1": {
       "id": "22df77da47ee24b1",
@@ -9853,7 +9861,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "66f2340aa5b411c3": {
       "id": "66f2340aa5b411c3",
@@ -9874,7 +9882,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "4027c5269b7ef69b": {
       "id": "4027c5269b7ef69b",
@@ -9895,7 +9903,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "aa35d6b63c44fbed": {
       "id": "aa35d6b63c44fbed",
@@ -9916,7 +9924,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "2eee1cf25f34308c": {
       "id": "2eee1cf25f34308c",
@@ -9937,7 +9945,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "58e58f445a550696": {
       "id": "58e58f445a550696",
@@ -9958,7 +9966,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "349d5f4892727211": {
       "id": "349d5f4892727211",
@@ -9979,7 +9987,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "50c3293ede242753": {
       "id": "50c3293ede242753",
@@ -10000,7 +10008,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "29ee1be407e7f86f": {
       "id": "29ee1be407e7f86f",
@@ -10021,7 +10029,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "1afd592da10058fa": {
       "id": "1afd592da10058fa",
@@ -10042,7 +10050,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "00ffd3364e8f0edd": {
       "id": "00ffd3364e8f0edd",
@@ -10063,7 +10071,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "f3c1ab8a699db1e2": {
       "id": "f3c1ab8a699db1e2",
@@ -10084,7 +10092,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "263071e3d4adea64": {
       "id": "263071e3d4adea64",
@@ -10105,7 +10113,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "612ce920a732c29d": {
       "id": "612ce920a732c29d",
@@ -10126,7 +10134,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "d920fb4f3d13e72c": {
       "id": "d920fb4f3d13e72c",
@@ -10147,7 +10155,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "b203f09a079e9464": {
       "id": "b203f09a079e9464",
@@ -10168,7 +10176,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "a77b658b6a922aed": {
       "id": "a77b658b6a922aed",
@@ -10189,7 +10197,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "7632ad75d192eeac": {
       "id": "7632ad75d192eeac",
@@ -10210,7 +10218,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "13e306bcb7b5c0df": {
       "id": "13e306bcb7b5c0df",
@@ -10231,7 +10239,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "9e6b2d57084539d5": {
       "id": "9e6b2d57084539d5",
@@ -10252,7 +10260,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "6fa23debe97f419a": {
       "id": "6fa23debe97f419a",
@@ -10273,7 +10281,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "3cdb89d5d07f5acb": {
       "id": "3cdb89d5d07f5acb",
@@ -10294,7 +10302,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "ce23b95dacd468fe": {
       "id": "ce23b95dacd468fe",
@@ -10315,7 +10323,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "05aea10e5eda43e7": {
       "id": "05aea10e5eda43e7",
@@ -10336,7 +10344,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "ef8b140c9d984d82": {
       "id": "ef8b140c9d984d82",
@@ -10357,7 +10365,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "e724963b3776b848": {
       "id": "e724963b3776b848",
@@ -10378,7 +10386,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "983d7bfdecaa980c": {
       "id": "983d7bfdecaa980c",
@@ -10399,7 +10407,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "15aeac8e648093a2": {
       "id": "15aeac8e648093a2",
@@ -10420,7 +10428,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "c65bd054b0aa8bc4": {
       "id": "c65bd054b0aa8bc4",
@@ -10441,7 +10449,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "6b7c98781da0d2e2": {
       "id": "6b7c98781da0d2e2",
@@ -10462,7 +10470,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "29c30e27a7282f9d": {
       "id": "29c30e27a7282f9d",
@@ -10483,7 +10491,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "fdb1fa36af9c9807": {
       "id": "fdb1fa36af9c9807",
@@ -10504,7 +10512,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "e9f21fd5f86be8e7": {
       "id": "e9f21fd5f86be8e7",
@@ -10525,7 +10533,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "5207e4a298ccd7aa": {
       "id": "5207e4a298ccd7aa",
@@ -10546,7 +10554,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "cc9d72bdb38609ed": {
       "id": "cc9d72bdb38609ed",
@@ -10567,7 +10575,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "4984b6ce30dba2bf": {
       "id": "4984b6ce30dba2bf",
@@ -10588,7 +10596,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "63da135b1b42ea3c": {
       "id": "63da135b1b42ea3c",
@@ -10609,7 +10617,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "8da576a95eb31f67": {
       "id": "8da576a95eb31f67",
@@ -10630,7 +10638,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "17e6ae2381bbb68c": {
       "id": "17e6ae2381bbb68c",
@@ -10651,7 +10659,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "f136ea88894f25e9": {
       "id": "f136ea88894f25e9",
@@ -10672,7 +10680,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "ef2b16d4b75c5ede": {
       "id": "ef2b16d4b75c5ede",
@@ -10693,7 +10701,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "30568372e75422d0": {
       "id": "30568372e75422d0",
@@ -10714,7 +10722,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "40ed8524d01b5d44": {
       "id": "40ed8524d01b5d44",
@@ -10735,7 +10743,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "53c0819fdac197fb": {
       "id": "53c0819fdac197fb",
@@ -10756,7 +10764,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "d63ce60bc5ea7154": {
       "id": "d63ce60bc5ea7154",
@@ -10777,7 +10785,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "a7886b734efa5d3b": {
       "id": "a7886b734efa5d3b",
@@ -10798,7 +10806,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "02527b35b94fd79b": {
       "id": "02527b35b94fd79b",
@@ -10819,7 +10827,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "1b8efa8b0cf1f3fb": {
       "id": "1b8efa8b0cf1f3fb",
@@ -10840,7 +10848,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "d7c7650624a66e1f": {
       "id": "d7c7650624a66e1f",
@@ -10861,7 +10869,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "06399920af7e8e3c": {
       "id": "06399920af7e8e3c",
@@ -10882,7 +10890,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "1a4bec8f961470d2": {
       "id": "1a4bec8f961470d2",
@@ -10903,7 +10911,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "493cba9f8c1976fa": {
       "id": "493cba9f8c1976fa",
@@ -10924,7 +10932,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "179763d3873512e5": {
       "id": "179763d3873512e5",
@@ -10945,7 +10953,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "5eec03abb9bc98c4": {
       "id": "5eec03abb9bc98c4",
@@ -10966,7 +10974,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "2883367aaa07ecf3": {
       "id": "2883367aaa07ecf3",
@@ -10987,7 +10995,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "f1154f199b1f344e": {
       "id": "f1154f199b1f344e",
@@ -11008,7 +11016,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "5872b93c7422d249": {
       "id": "5872b93c7422d249",
@@ -11029,7 +11037,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "27f17eac761d2233": {
       "id": "27f17eac761d2233",
@@ -11050,7 +11058,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     },
     "bfdc658fc252c158": {
       "id": "bfdc658fc252c158",
@@ -11071,7 +11079,7 @@
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-20 20:23:14"
+      "updated_at": "2026-02-20 21:27:39"
     }
   }
 }

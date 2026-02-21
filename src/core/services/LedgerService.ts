@@ -1,11 +1,9 @@
 
 import {
-  getAutoDirectoryHandle,
   getMemoryFileHandle,
   readMemoryFile,
   writeMemoryFile,
-  DEFAULT_MEMORY,
-  isNativePlatform
+  DEFAULT_MEMORY
 } from '../../utils/fs-storage';
 import type { StorageHandle, StorageDirHandle } from '../../utils/fs-storage';
 import type { Transaction } from '../../types';
@@ -229,83 +227,6 @@ export class LedgerService {
     // Consistency check can be added here if needed
   }
 
-  private performStartupConsistencyCheck(computed: Transaction[], memory: LedgerMemory) {
-    let hasChanges = false;
-    const updatedRecords = { ...memory.records };
-
-    computed.forEach(tx => {
-      const stored = updatedRecords[tx.id];
-      // Check if stored category differs from computed category
-      // We also check if stored exists to avoid adding ghosts
-      if (stored && stored.category !== tx.category) {
-        console.log(`[Consistency] Fix category for ${tx.id}: '${stored.category}' -> '${tx.category}'`);
-        updatedRecords[tx.id] = {
-          ...stored,
-          category: tx.category,
-          // We don't necessarily update 'updated_at' for automatic consistency fixes 
-          // to avoid looking like a user action, but it is a change.
-          // Let's keep timestamp as is or update it? 
-          // If we don't update timestamp, it might look like old data.
-          // But it's just a cache fix. Let's leave timestamp alone to preserve "last user edit" time if possible.
-          // Wait, 'category' is the cached result field. It's fine to update it.
-        };
-        hasChanges = true;
-      }
-    });
-
-    if (hasChanges) {
-      console.log('[Consistency] Startup consistency check found mismatches. Scheduling write...');
-      const newMemory = {
-        ...memory,
-        records: updatedRecords,
-        last_sync: format(new Date(), 'yyyy-MM-dd HH:mm:ss')
-      };
-      
-      // Update State (to ensure UI and Service are in sync with what will be written)
-      this.state.ledgerMemory = newMemory; 
-      
-      // We don't need to call setState here because handleInitLedgerNative will call it 
-      // with the *original* memory object if we don't return the new one or update the reference it uses.
-      // Wait, handleInitLedgerNative uses 'currentMemory' variable.
-      // We need to update 'currentMemory' in handleInitLedgerNative or 
-      // make sure handleInitLedgerNative uses the updated state.
-      // Actually, handleInitLedgerNative calls setState with 'currentMemory'.
-      // So this method should probably return the new memory or modify it in place?
-      // Modifying 'memory' (which is 'currentMemory') in place is risky if it's immutable pattern.
-      // But 'updatedRecords' is a shallow copy.
-      // Let's rely on PersistenceManager to write to disk.
-      // And we should probably update the local state too.
-      
-      if (this.memoryFileHandle) {
-        this.persistenceManager.scheduleWrite(this.memoryFileHandle, newMemory);
-      }
-      
-      // IMPORTANT: The caller (handleInitLedgerNative) continues to use 'currentMemory' 
-      // to set state. We should ideally return the new memory so the caller uses it.
-      // But refactoring that is intrusive.
-      // Instead, since we are inside the class, we can update the state *after* the caller finishes?
-      // No, caller calls setState right after this.
-      // Actually, let's look at handleInitLedgerNative again.
-      // It calls setState({ ledgerMemory: currentMemory ... }).
-      // If I don't return it, the UI will see the OLD memory (with wrong categories in meta),
-      // even though computedTransactions has the NEW categories.
-      // Wait, computedTransactions has the correct categories (from Arbiter).
-      // The UI usually displays computedTransactions.
-      // So the UI *will* be correct.
-      // The issue is just the disk file (JSON) being out of sync.
-      // So scheduling the write here is sufficient to fix the JSON.
-      // The in-memory 'ledgerMemory' state might be slightly stale regarding 'category' field
-      // until the next reload or write, but 'computedTransactions' is what matters for display.
-      // AND, since we scheduled a write, the PersistenceManager might eventually trigger a reload?
-      // No, PersistenceManager just writes.
-      // So: UI is correct (computed). Disk will be correct (scheduled write).
-      // The only minor issue is this.state.ledgerMemory.records[].category is stale until next update.
-      // This is acceptable for a background consistency fix.
-    } else {
-        console.log('[Consistency] No mismatches found.');
-    }
-  }
-
   private recomputeTransactions(raw: Transaction[], memory: LedgerMemory | null): Transaction[] {
     if (!memory) return raw;
 
@@ -461,9 +382,11 @@ export class LedgerService {
 
         if (memoryHandle) {
             this.memoryFileHandle = memoryHandle;
+            this.transactionCache.clear();
+            globalArbiter.clearProposals(parsedData.map(tx => tx.id));
             
             // Sync
-            const newMemory = await this.syncWithLedger(parsedData, memoryHandle, currentMemory);
+            const newMemory = await this.syncWithLedger(parsedData, memoryHandle, currentMemory, true);
             
             // If new file created, ensure we save it
             if (isNewFile && newMemory === currentMemory) {
@@ -502,12 +425,14 @@ export class LedgerService {
         this.setState({ rawTransactions: parsedData });
         const currentMemory = this.state.ledgerMemory || DEFAULT_MEMORY;
         let newMemory = currentMemory;
+        this.transactionCache.clear();
+        globalArbiter.clearProposals(parsedData.map(tx => tx.id));
         
         // Sync with ledger (memory + disk)
         if (this.memoryFileHandle) {
-             newMemory = await this.syncWithLedger(parsedData, this.memoryFileHandle, currentMemory);
+             newMemory = await this.syncWithLedger(parsedData, this.memoryFileHandle, currentMemory, true);
         } else {
-            newMemory = await this.syncWithLedger(parsedData, null, currentMemory);
+            newMemory = await this.syncWithLedger(parsedData, null, currentMemory, true);
         }
         
         this.hydrateArbiter(newMemory);
@@ -532,7 +457,8 @@ export class LedgerService {
   private async syncWithLedger(
     parsedData: Transaction[], 
     memoryHandle: StorageHandle | null, 
-    currentMemory: LedgerMemory
+    currentMemory: LedgerMemory,
+    forceUncategorized: boolean = false
   ) {
     if (!memoryHandle) return currentMemory;
 
@@ -543,10 +469,12 @@ export class LedgerService {
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { originalDate, ...tData } = t;
       const existing = updatedRecords[t.id];
+      const normalizedCategory = 'uncategorized';
 
       if (!existing) {
         updatedRecords[t.id] = {
           ...tData,
+          category: normalizedCategory,
           ai_category: "",
           ai_reasoning: "",
           user_category: "",
@@ -560,20 +488,30 @@ export class LedgerService {
         const { category: _ignored, ...coreData } = tData;
         
         const hasNullMeta = existing.ai_category === null || existing.ai_reasoning === null || existing.user_category === null || existing.user_note === null;
+        const shouldResetMeta = forceUncategorized && (
+          existing.category !== normalizedCategory ||
+          existing.ai_category !== "" ||
+          existing.ai_reasoning !== "" ||
+          existing.user_category !== "" ||
+          existing.user_note !== "" ||
+          existing.is_verified !== false
+        );
         
         const isChanged = Object.keys(coreData).some(key => {
           const k = key as keyof typeof coreData;
           return existing[k] !== coreData[k];
-        }) || typeof existing.updated_at === 'number' || hasNullMeta;
+        }) || typeof existing.updated_at === 'number' || hasNullMeta || shouldResetMeta;
 
         if (isChanged) {
           updatedRecords[t.id] = {
             ...(existing as Partial<FullTransactionRecord>),
             ...coreData,
-            ai_category: existing.ai_category ?? "",
-            ai_reasoning: existing.ai_reasoning ?? "",
-            user_category: existing.user_category ?? "",
-            user_note: existing.user_note ?? "",
+            category: forceUncategorized ? normalizedCategory : (existing.category ?? normalizedCategory),
+            ai_category: forceUncategorized ? "" : (existing.ai_category ?? ""),
+            ai_reasoning: forceUncategorized ? "" : (existing.ai_reasoning ?? ""),
+            user_category: forceUncategorized ? "" : (existing.user_category ?? ""),
+            user_note: forceUncategorized ? "" : (existing.user_note ?? ""),
+            is_verified: forceUncategorized ? false : (existing.is_verified ?? false),
             updated_at: format(new Date(), 'yyyy-MM-dd HH:mm:ss')
           } as FullTransactionRecord;
           hasUpdates = true;
@@ -610,6 +548,7 @@ export class LedgerService {
 
     this.memoryFileHandle = handle;
     this.transactionCache.clear();
+    globalArbiter.clearAllProposals();
 
     // 水合 Arbiter
     this.hydrateArbiter(memory);

@@ -96,7 +96,7 @@ const parseWeChatCSV = async (csvText: string): Promise<Transaction[]> => {
       originalDate: date,
       time: format(date, 'yyyy-MM-dd HH:mm:ss'), // 生成标准时间字符串
       sourceType: 'wechat',
-      category: 'others', // 默认分类，等待 AI/人工处理
+      category: 'uncategorized', // 默认分类，等待 AI/人工处理
       rawClass: category, // 原始分类
       counterparty: counterparty,
       product: product,
