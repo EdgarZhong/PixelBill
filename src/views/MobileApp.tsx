@@ -3,7 +3,6 @@ import { ActivityMatrix } from '../components/mobile/ActivityMatrix';
 import { TransactionList } from '../components/TransactionList';
 import { DateRangePicker } from '../components/mobile/DateRangePicker';
 import { DetailPage } from '../components/mobile/DetailPage';
-import { LedgerSwitcher } from '../components/mobile/LedgerSwitcher';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAppLogic } from '../hooks/useAppLogic';
 import { useSafeArea, injectSafeAreaCSS } from '../hooks/useSafeArea';
@@ -12,7 +11,6 @@ import { isSameDay } from 'date-fns';
 import { BatchProcessor } from '../core/ai_engine/BatchProcessor';
 import { LedgerService } from '../core/services/LedgerService';
 import { LedgerManager } from '../core/services/LedgerManager';
-import { triggerHaptic, HapticFeedbackLevel } from '../utils/haptics';
 import type { Transaction } from '../types';
 import type { LedgerMeta } from '../utils/fs-storage';
 import { format } from 'date-fns';
@@ -47,7 +45,6 @@ export function MobileApp() {
   const [lastSelectedId, setLastSelectedId] = useState<string | null>(null);
 
   // [CHOOSE_LEDGER]状态
-  const [isLedgerSwitcherOpen, setIsLedgerSwitcherOpen] = useState(false);
   const [ledgers, setLedgers] = useState<LedgerMeta[]>([]);
   const [activeLedger, setActiveLedger] = useState<string>('default');
 
@@ -71,6 +68,8 @@ export function MobileApp() {
   const hadAiPatchRef = useRef(false);
   const delayTimeoutRef = useRef<number | null>(null);
   const auraOffTimeoutRef = useRef<number | null>(null);
+  // 账本面板打开后的延迟同步定时器，避免首帧卡顿
+  const ledgerOpenSyncTimeoutRef = useRef<number | null>(null);
 
   const triggerPulse = useCallback(() => {
     const now = Date.now();
@@ -141,11 +140,14 @@ export function MobileApp() {
     }
   }, [aiStatus, applyAiStatus, handleLoadData, transactions.length]);
 
-  // 账本管理回调函数
-  const loadLedgers = useCallback(async () => {
+  // 账本管理回调函数：支持跳过同步扫描以降低首帧卡顿
+  const loadLedgers = useCallback(async (options?: { syncWithFiles?: boolean }) => {
     try {
       const manager = LedgerManager.getInstance();
-      const ledgerList = await manager.listLedgers();
+      // 默认同步索引与文件系统，打开面板时允许跳过同步
+      const ledgerList = await manager.listLedgers({
+        syncWithFiles: options?.syncWithFiles !== false
+      });
       setLedgers(ledgerList);
       const active = manager.getActiveLedgerName();
       setActiveLedger(active);
@@ -154,10 +156,21 @@ export function MobileApp() {
     }
   }, []);
 
-  const handleChooseLedger = useCallback(async () => {
-    await triggerHaptic(HapticFeedbackLevel.LIGHT);
-    await loadLedgers();
-    setIsLedgerSwitcherOpen(true);
+  // 打开账本面板时的加载策略：先快速读索引，再延迟同步扫描
+  const handleLedgerPanelOpen = useCallback(() => {
+    // 先使用快速读取，避免展开动画被阻塞
+    void loadLedgers({ syncWithFiles: false });
+
+    // 清理上一次定时器，防止重复同步
+    if (ledgerOpenSyncTimeoutRef.current) {
+      window.clearTimeout(ledgerOpenSyncTimeoutRef.current);
+    }
+
+    // 延迟执行同步扫描，确保动画完成后再做重操作
+    ledgerOpenSyncTimeoutRef.current = window.setTimeout(() => {
+      void loadLedgers({ syncWithFiles: true });
+      ledgerOpenSyncTimeoutRef.current = null;
+    }, 320);
   }, [loadLedgers]);
 
   const handleSwitchLedger = useCallback(async (name: string) => {
@@ -190,6 +203,11 @@ export function MobileApp() {
 
   useEffect(() => {
     return () => {
+      // 清理账本面板打开后的延迟同步定时器
+      if (ledgerOpenSyncTimeoutRef.current) {
+        window.clearTimeout(ledgerOpenSyncTimeoutRef.current);
+        ledgerOpenSyncTimeoutRef.current = null;
+      }
       if (auraOffTimeoutRef.current) {
         window.clearTimeout(auraOffTimeoutRef.current);
         auraOffTimeoutRef.current = null;
@@ -597,7 +615,12 @@ export function MobileApp() {
         <Header
           isLoading={isLoading}
           onImportData={handleImportData}
-          onChooseLedger={handleChooseLedger}
+          ledgers={ledgers}
+          activeLedger={activeLedger}
+          onSwitchLedger={handleSwitchLedger}
+          onCreateLedger={handleCreateLedger}
+          onDeleteLedger={handleDeleteLedger}
+          onLoadLedgers={handleLedgerPanelOpen}
           aiStatus={aiStatus}
           onAIAction={handleAIAction}
         />
@@ -850,17 +873,6 @@ export function MobileApp() {
           />
         )}
       </AnimatePresence>
-
-      {/* [CHOOSE_LEDGER]器 */}
-      <LedgerSwitcher
-        isOpen={isLedgerSwitcherOpen}
-        onClose={() => setIsLedgerSwitcherOpen(false)}
-        ledgers={ledgers}
-        activeLedger={activeLedger}
-        onSwitch={handleSwitchLedger}
-        onCreate={handleCreateLedger}
-        onDelete={handleDeleteLedger}
-      />
     </>
   );
 }

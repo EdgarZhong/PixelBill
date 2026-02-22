@@ -1,0 +1,8 @@
+- [x] LedgerSwitcher component exports a self-contained unit with Trigger and Modal
+- [x] LedgerSwitcher is used inside Header.tsx
+- [x] MobileApp.tsx no longer renders a separate LedgerSwitcher at the bottom
+- [x] Clicking [CHOOSE_LEDGER] triggers a morphing animation (layoutId)
+- [x] The text [CHOOSE_LEDGER] smoothly transitions from button to modal header
+- [x] Closing the modal smoothly shrinks it back to the button in Header
+- [x] All existing functionalities (Switch, Create, Delete) work as before
+- [x] No "flash" or "jump" of DOM elements during the animation

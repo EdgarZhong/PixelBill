@@ -5,37 +5,42 @@ import { triggerHaptic, HapticFeedbackLevel } from '../../utils/haptics';
 import type { LedgerMeta } from '../../utils/fs-storage';
 
 interface LedgerSwitcherProps {
-  isOpen: boolean;
-  onClose: () => void;
   ledgers: LedgerMeta[];
   activeLedger: string;
   onSwitch: (name: string) => void;
   onCreate: (name: string) => void;
   onDelete: (name: string) => void;
+  isLoading?: boolean;
+  onOpen?: () => void;
 }
 
 /**
  * [CHOOSE_LEDGER]组件
  * 采用与 DateRangePicker 相同的二级面板样式
- * 支持左划删除、添加新账本功能
+ * 包含 Trigger (Header Button) 和 Modal (Portal)
+ * 使用 layoutId 实现平滑过渡动画
  * 
  * 2024-05 Refactor:
  * - 移除全局删除弹窗，改为面板内覆盖层 (DeleteOverlay)
  * - 优化 LedgerItem 左滑交互 (Revealing Action)
+ * - 集成 Trigger 按钮，实现 Header 按钮到 Modal 的 morphing 动画
  */
 export const LedgerSwitcher: React.FC<LedgerSwitcherProps> = ({
-  isOpen,
-  onClose,
   ledgers,
   activeLedger,
   onSwitch,
   onCreate,
-  onDelete
+  onDelete,
+  isLoading = false,
+  onOpen
 }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [isClosing, setIsClosing] = useState(false);
   const [isAdding, setIsAdding] = useState(false);
   const [newLedgerName, setNewLedgerName] = useState('');
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const closeTimeoutRef = useRef<number | null>(null);
 
   // 输入框引用，用于自动聚焦
   const inputRef = useRef<HTMLInputElement>(null);
@@ -46,6 +51,36 @@ export const LedgerSwitcher: React.FC<LedgerSwitcherProps> = ({
       inputRef.current.focus();
     }
   }, [isAdding]);
+
+  const handleOpen = async () => {
+    if (isLoading) return;
+    await triggerHaptic(HapticFeedbackLevel.LIGHT);
+    if (closeTimeoutRef.current) {
+      window.clearTimeout(closeTimeoutRef.current);
+      closeTimeoutRef.current = null;
+    }
+    setIsClosing(false);
+    setIsOpen(true);
+    requestAnimationFrame(() => {
+      onOpen?.();
+    });
+  };
+
+  const handleClose = async () => {
+    await triggerHaptic(HapticFeedbackLevel.LIGHT);
+    setIsClosing(true);
+    setIsOpen(false);
+    setIsAdding(false);
+    setDeleteConfirm(null);
+    setNewLedgerName('');
+    if (closeTimeoutRef.current) {
+      window.clearTimeout(closeTimeoutRef.current);
+    }
+    closeTimeoutRef.current = window.setTimeout(() => {
+      setIsClosing(false);
+      closeTimeoutRef.current = null;
+    }, 320);
+  };
 
   // 验证账本名称：仅允许中文、字母、数字、下划线，最大 50 字符
   const isValidName = (name: string): boolean => {
@@ -70,7 +105,7 @@ export const LedgerSwitcher: React.FC<LedgerSwitcherProps> = ({
     onCreate(newLedgerName.trim());
     setIsAdding(false);
     setNewLedgerName('');
-    onClose();
+    // 保持打开状态
   };
 
   const handleCancelClick = async () => {
@@ -84,21 +119,16 @@ export const LedgerSwitcher: React.FC<LedgerSwitcherProps> = ({
 
     await triggerHaptic(HapticFeedbackLevel.MEDIUM);
     onSwitch(name);
-    onClose();
   };
 
   const handleDeleteClick = async (name: string) => {
     await triggerHaptic(HapticFeedbackLevel.HEAVY);
     onDelete(name);
     setDeleteConfirm(null);
-    // 保持面板打开，直到用户手动关闭或切换
   };
 
   const handleBackdropClick = async () => {
-    await triggerHaptic(HapticFeedbackLevel.LIGHT);
-    setIsAdding(false);
-    setDeleteConfirm(null);
-    onClose();
+    await handleClose();
   };
 
   const transition = {
@@ -147,28 +177,64 @@ export const LedgerSwitcher: React.FC<LedgerSwitcherProps> = ({
     </motion.div>
   );
 
+  const isTriggerHidden = isOpen || isClosing;
+
+  useEffect(() => {
+    return () => {
+      if (closeTimeoutRef.current) {
+        window.clearTimeout(closeTimeoutRef.current);
+        closeTimeoutRef.current = null;
+      }
+    };
+  }, []);
+
   return (
     <>
+      <div className="flex-1 relative">
+        <motion.button
+          layoutId="ledger-switcher-container"
+          key="trigger"
+          transition={transition}
+          onClick={handleOpen}
+          disabled={isLoading}
+          className={`
+            w-full
+            relative overflow-hidden group
+            flex justify-center items-center gap-2 px-3 py-3
+            font-pixel text-[10px] tracking-tight
+            border border-gray-800
+            bg-card
+            ${isTriggerHidden ? 'opacity-0 pointer-events-none transition-none' : 'opacity-100 transition-colors duration-300'}
+            disabled:opacity-50 disabled:cursor-default
+            enabled:hover:border-gray-600 enabled:hover:bg-white/5 enabled:hover:text-pixel-green
+          `}
+        >
+          <span className="relative z-10">
+            [CHOOSE_LEDGER]
+          </span>
+        </motion.button>
+      </div>
+
       {/* Portal Modal */}
       {createPortal(
         <AnimatePresence>
           {isOpen && (
-            <div className="fixed inset-0 z-[9998] flex items-center justify-center px-4">
-              {/* Backdrop */}
+            <div className="fixed inset-0 z-[9998] flex items-center justify-center p-4">
+              {/* 背景遮罩 */}
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.2 }}
-                className="absolute inset-0 bg-black/40 backdrop-blur-[1px]"
+                className="absolute inset-0 bg-black/60 backdrop-blur-sm"
                 onClick={handleBackdropClick}
               />
 
-              {/* Modal Content - 使用与 DateRangePicker 相同的 layoutId 模式 */}
+              {/* 内容容器 */}
               <motion.div
                 layoutId="ledger-switcher-container"
                 transition={transition}
-                className="relative bg-card border border-gray-600 shadow-[0_0_15px_rgba(255,255,255,0.05)] rounded-lg overflow-hidden flex flex-col"
+                className="relative z-10 w-full bg-card border border-gray-800 rounded-lg shadow-2xl flex flex-col overflow-hidden"
                 style={{ padding: '1.25rem', width: '85vw', maxWidth: '400px', minHeight: '300px' }}
                 onClick={(e) => e.stopPropagation()}
                 ref={containerRef}
@@ -180,13 +246,9 @@ export const LedgerSwitcher: React.FC<LedgerSwitcherProps> = ({
 
                 {/* 标题 */}
                 <div className="flex justify-center w-full mb-4">
-                  <motion.div
-                    layoutId="ledger-switcher-title"
-                    transition={transition}
-                    className="text-dim text-xs font-mono tracking-wider"
-                  >
+                  <div className="text-dim text-[10px] font-mono tracking-wider">
                     [CHOOSE_LEDGER]
-                  </motion.div>
+                  </div>
                 </div>
 
                 {/* 账本列表 */}

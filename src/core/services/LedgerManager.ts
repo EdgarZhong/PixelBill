@@ -255,9 +255,10 @@ export class LedgerManager {
   }
 
   /**
-   * 获取账本列表（同步后的）
+   * 获取账本列表（可选同步）
+   * @param options 控制是否同步索引与文件系统
    */
-  public async listLedgers(): Promise<LedgerMeta[]> {
+  public async listLedgers(options?: { syncWithFiles?: boolean }): Promise<LedgerMeta[]> {
     await this.ensureInitialized();
 
     if (!this.ledgerDirHandle) {
@@ -265,9 +266,14 @@ export class LedgerManager {
       return DEFAULT_LEDGER_INDEX.ledgers;
     }
 
-    // 在返回列表前，先同步索引与文件
-    await this.syncIndexWithFiles();
+    // 是否需要同步索引与文件系统（默认同步，避免列表与实际文件不一致）
+    const shouldSyncWithFiles = options?.syncWithFiles !== false;
+    if (shouldSyncWithFiles) {
+      // 同步索引可能触发文件系统扫描，属于重操作
+      await this.syncIndexWithFiles();
+    }
 
+    // 读取索引用于快速返回列表，避免重复扫描
     const index = await this.readIndex();
     return index.ledgers;
   }

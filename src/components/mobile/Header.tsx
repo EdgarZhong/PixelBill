@@ -2,11 +2,21 @@ import React from 'react';
 import { DotMatrixText } from '../DotMatrixText';
 import { triggerHaptic, HapticFeedbackLevel } from '../../utils/haptics';
 import { Cpu } from 'lucide-react';
+import { LedgerSwitcher } from './LedgerSwitcher';
+import type { LedgerMeta } from '../../utils/fs-storage';
 
 interface HeaderProps {
   isLoading: boolean;
   onImportData?: () => void;
-  onChooseLedger?: () => void;
+  
+  // Ledger Props
+  ledgers?: LedgerMeta[];
+  activeLedger?: string;
+  onSwitchLedger?: (name: string) => void;
+  onCreateLedger?: (name: string) => void;
+  onDeleteLedger?: (name: string) => void;
+  onLoadLedgers?: () => void;
+
   aiStatus?: 'IDLE' | 'ANALYZING' | 'STOPPING' | 'ERROR';
   onAIAction?: () => void;
 }
@@ -14,7 +24,12 @@ interface HeaderProps {
 export const Header: React.FC<HeaderProps> = ({
   isLoading,
   onImportData,
-  onChooseLedger,
+  ledgers = [],
+  activeLedger = 'default',
+  onSwitchLedger = () => {},
+  onCreateLedger = () => {},
+  onDeleteLedger = () => {},
+  onLoadLedgers,
   aiStatus = 'IDLE',
   onAIAction
 }) => {
@@ -35,11 +50,6 @@ export const Header: React.FC<HeaderProps> = ({
   const handleImportData = async () => {
     await triggerHaptic(HapticFeedbackLevel.LIGHT);
     onImportData?.();
-  };
-
-  const handleChooseLedger = async () => {
-    await triggerHaptic(HapticFeedbackLevel.LIGHT);
-    onChooseLedger?.();
   };
 
   return (
@@ -79,24 +89,16 @@ export const Header: React.FC<HeaderProps> = ({
 
       {onImportData && (
         <div className="flex gap-3 w-full">
-          {/* Ledger Button */}
-          <button
-            onClick={handleChooseLedger}
-            disabled={isLoading}
-            className="
-              flex-1
-              relative overflow-hidden group
-              flex justify-center items-center gap-2 px-3 py-3
-              font-pixel text-[10px] tracking-tight
-              border border-gray-800
-              bg-card
-              transition-all duration-300
-              disabled:opacity-50 disabled:cursor-default
-              enabled:hover:border-gray-600 enabled:hover:bg-white/5 enabled:hover:text-pixel-green
-            "
-          >
-            <span className="relative z-10">[CHOOSE_LEDGER]</span>
-          </button>
+          {/* Ledger Switcher */}
+          <LedgerSwitcher
+            ledgers={ledgers}
+            activeLedger={activeLedger}
+            onSwitch={onSwitchLedger}
+            onCreate={onCreateLedger}
+            onDelete={onDeleteLedger}
+            isLoading={isLoading}
+            onOpen={onLoadLedgers}
+          />
 
           {/* Import Button */}
           <button 
