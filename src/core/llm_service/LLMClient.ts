@@ -12,7 +12,9 @@ export class LLMClient {
   }
 
   async chat(messages: ChatMessage[]): Promise<string> {
-    const url = `${this.config.baseUrl}/chat/completions`;
+    // 修复双斜杠问题：如果 baseUrl 以 / 结尾，去掉它
+    const baseUrl = this.config.baseUrl.replace(/\/$/, '');
+    const url = `${baseUrl}/chat/completions`;
     
     const payload = {
       model: this.config.model,

@@ -3,6 +3,8 @@ import { ActivityMatrix } from '../components/mobile/ActivityMatrix';
 import { TransactionList } from '../components/TransactionList';
 import { DateRangePicker } from '../components/mobile/DateRangePicker';
 import { DetailPage } from '../components/mobile/DetailPage';
+import { PullIndicator } from '../components/mobile/PullIndicator';
+import { SettingsPage } from '../components/mobile/SettingsPage';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAppLogic } from '../hooks/useAppLogic';
 import { useSafeArea, injectSafeAreaCSS } from '../hooks/useSafeArea';
@@ -14,6 +16,8 @@ import { LedgerManager } from '../core/services/LedgerManager';
 import type { Transaction } from '../types';
 import type { LedgerMeta } from '../utils/fs-storage';
 import { format } from 'date-fns';
+import { triggerHaptic, HapticFeedbackLevel } from '../utils/haptics';
+import { ConfigManager } from '../core/config/ConfigManager';
 
 export function MobileApp() {
   const {
@@ -47,6 +51,13 @@ export function MobileApp() {
   // [CHOOSE_LEDGER]状态
   const [ledgers, setLedgers] = useState<LedgerMeta[]>([]);
   const [activeLedger, setActiveLedger] = useState<string>('default');
+
+  // [SETTINGS]下拉设置页面状态
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [pullProgress, setPullProgress] = useState(0);
+  const [isPullTriggered, setIsPullTriggered] = useState(false);
+  const pullStartY = useRef<number | null>(null);
+  const mainContentRef = useRef<HTMLDivElement>(null);
 
   const selectedTransaction = useMemo(() => 
     selectedTxId ? transactions.find(t => t.id === selectedTxId) || null : null
@@ -122,16 +133,40 @@ export function MobileApp() {
     setAiStatus(nextStatus);
   }, [scheduleAuraOff]);
 
+  // AI 操作错误提示状态
+  const [aiError, setAiError] = useState<string | null>(null);
+
   const handleAIAction = useCallback(async () => {
+    // 清除之前的错误
+    setAiError(null);
+
     if (aiStatus === 'IDLE' || aiStatus === 'ERROR') {
       if (transactions.length === 0) {
         handleLoadData();
       } else {
-        // Trigger AI Analysis directly if data is present
+        // 先检查 API 配置
         try {
+          const configManager = ConfigManager.getInstance();
+          const llmConfig = await configManager.getActiveModelConfig();
+
+          if (!llmConfig.apiKey) {
+            const errorMsg = '[AI_API_NOT_CONFIGURED] 请先下拉打开设置，配置 AI API';
+            setAiError(errorMsg);
+            console.error(errorMsg);
+            await triggerHaptic(HapticFeedbackLevel.HEAVY);
+            return;
+          }
+
+          console.log('[MobileApp] Starting AI analysis with model:', llmConfig.model, 'baseUrl:', llmConfig.baseUrl);
+
+          // Trigger AI Analysis directly if data is present
           await BatchProcessor.getInstance().run();
         } catch (e) {
-          console.error("AI Engine failed to start:", e);
+          const errorMsg = e instanceof Error ? e.message : String(e);
+          console.error("[MobileApp] AI Engine failed to start:", e);
+          setAiError(`[AI_ERROR] ${errorMsg}`);
+          await triggerHaptic(HapticFeedbackLevel.HEAVY);
+          applyAiStatus('ERROR');
         }
       }
     } else if (aiStatus === 'ANALYZING') {
@@ -200,6 +235,95 @@ export function MobileApp() {
       await loadLedgers();
     }
   }, [loadLedgers]);
+
+  // [SETTINGS]下拉手势处理 - 处理从主页面顶部下拉打开设置
+  const PULL_THRESHOLD = 80; // 触发阈值（像素）
+
+  /**
+   * 处理触摸开始事件
+   * 仅在滚动位置为顶部时启用手势
+   */
+  const handleTouchStart = useCallback((e: React.TouchEvent | TouchEvent) => {
+    // 如果设置页面已打开，不处理下拉手势
+    if (isSettingsOpen) return;
+
+    // 检查滚动位置是否在顶部
+    const scrollTop = window.scrollY || document.documentElement.scrollTop;
+    if (scrollTop > 0) return;
+
+    // 记录起始位置
+    pullStartY.current = e.touches[0].clientY;
+  }, [isSettingsOpen]);
+
+  /**
+   * 处理触摸移动事件
+   * 计算下拉距离并更新指示器状态
+   */
+  const handleTouchMove = useCallback((e: React.TouchEvent | TouchEvent) => {
+    if (pullStartY.current === null || isSettingsOpen) return;
+
+    const currentY = e.touches[0].clientY;
+    const deltaY = currentY - pullStartY.current;
+
+    // 只处理向下滑动
+    if (deltaY < 0) return;
+
+    // 阻止默认行为（防止下拉刷新）
+    if (deltaY > 10) {
+      e.preventDefault();
+    }
+
+    // 计算进度 (0-1)，最大为1.2以提供视觉反馈
+    const progress = Math.min(deltaY / PULL_THRESHOLD, 1.2);
+    setPullProgress(progress);
+
+    // 检测是否达到阈值
+    if (deltaY >= PULL_THRESHOLD && !isPullTriggered) {
+      setIsPullTriggered(true);
+      void triggerHaptic(HapticFeedbackLevel.LIGHT);
+    } else if (deltaY < PULL_THRESHOLD && isPullTriggered) {
+      setIsPullTriggered(false);
+    }
+  }, [isSettingsOpen, isPullTriggered]);
+
+  /**
+   * 处理触摸结束事件
+   * 达到阈值时打开设置页面，否则重置状态
+   */
+  const handleTouchEnd = useCallback(async () => {
+    if (pullStartY.current === null) return;
+
+    pullStartY.current = null;
+
+    // 如果达到阈值，打开设置页面
+    if (isPullTriggered) {
+      await triggerHaptic(HapticFeedbackLevel.MEDIUM);
+      setIsSettingsOpen(true);
+    }
+
+    // 重置状态
+    setPullProgress(0);
+    setIsPullTriggered(false);
+  }, [isPullTriggered]);
+
+  /**
+   * 关闭设置页面
+   */
+  const handleCloseSettings = useCallback(() => {
+    setIsSettingsOpen(false);
+  }, []);
+
+  /**
+   * 从设置页面点击"切换账本"时的处理
+   * 关闭设置页面后打开账本切换器
+   */
+  const handleSwitchLedgerFromSettings = useCallback(() => {
+    setIsSettingsOpen(false);
+    // 延迟打开账本切换器，等待设置页面关闭动画完成
+    setTimeout(() => {
+      handleLedgerPanelOpen();
+    }, 300);
+  }, [handleLedgerPanelOpen]);
 
   useEffect(() => {
     return () => {
@@ -583,32 +707,42 @@ export function MobileApp() {
     <>
       {/* 固定背景层 */}
       <div className="fixed inset-0 z-[-1] bg-background bg-dot-matrix pointer-events-none" />
-      
+
       {/* 主页面 - 始终渲染 */}
-      <motion.div 
-        className="min-h-screen"
+      <motion.div
+        ref={mainContentRef}
+        className="min-h-screen relative"
         style={{
           paddingLeft: `max(0.75rem, ${safeArea.left}px)`,
           paddingRight: `max(0.75rem, ${safeArea.right}px)`,
           transformOrigin: scaleOrigin
         }}
         animate={{
-          scale: selectedTransaction ? 0.95 : 1,
-          filter: selectedTransaction ? 'blur(4px)' : 'blur(0px)',
-          opacity: selectedTransaction ? 0.6 : 1
+          filter: selectedTransaction ? 'blur(4px)' : isSettingsOpen ? 'blur(2px)' : 'blur(0px)',
+          opacity: selectedTransaction ? 0.6 : isSettingsOpen ? 0.3 : 1
         }}
         transition={{
-          duration: 0.4,
-          ease: [0.4, 0.0, 0.2, 1]
+          duration: 0.35,
+          ease: [0.32, 0.72, 0, 1] // 使用与设置页面一致的缓动
         }}
+        // 下拉手势处理
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
       >
+        {/* 下拉指示器 - 显示在 Header 下方 */}
+        <PullIndicator
+          progress={pullProgress}
+          isTriggered={isPullTriggered}
+        />
+
         {/* 隐藏的 CSV 选择输入框 (Mobile: 文件选择器) */}
         <input
           type="file"
           ref={fileInputRef}
           onChange={handleFileChange}
           className="hidden"
-          accept="*/*" 
+          accept="*/*"
           multiple
         />
 
@@ -624,6 +758,38 @@ export function MobileApp() {
           aiStatus={aiStatus}
           onAIAction={handleAIAction}
         />
+
+        {/* AI 错误提示 */}
+        <AnimatePresence>
+          {aiError && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="mb-3 p-3 bg-expense-red/10 border border-expense-red/30 rounded"
+            >
+              <div className="flex items-start gap-2">
+                <span className="text-expense-red text-lg">⚠</span>
+                <div className="flex-1">
+                  <div className="text-expense-red text-xs font-mono">{aiError}</div>
+                  <button
+                    onClick={() => setIsSettingsOpen(true)}
+                    className="mt-2 text-[10px] text-pixel-green font-mono underline"
+                  >
+                    [OPEN_SETTINGS]
+                  </button>
+                </div>
+                <button
+                  onClick={() => setAiError(null)}
+                  className="text-dim hover:text-white"
+                >
+                  ×
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         <main className="animate-fade-in">
           {/* 统计栏 - 移动端网格布局 */}
           <div className="grid grid-cols-2 gap-4 mb-3 border-b border-gray-800 pb-3">
@@ -873,6 +1039,16 @@ export function MobileApp() {
           />
         )}
       </AnimatePresence>
+
+      {/* 设置页面覆盖层 - 下拉唤出 */}
+      <SettingsPage
+        isOpen={isSettingsOpen}
+        onClose={handleCloseSettings}
+        activeLedger={activeLedger}
+        ledgers={ledgers.map(l => ({ name: l.name, transactionCount: transactions.length }))}
+        onSwitchLedger={handleSwitchLedgerFromSettings}
+        version="v1.0.0"
+      />
     </>
   );
 }

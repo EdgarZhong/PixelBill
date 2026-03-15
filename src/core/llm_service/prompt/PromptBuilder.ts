@@ -1,6 +1,7 @@
 import { generateSystemPrompt } from './SystemPrompt';
 import { RuleLoader } from './RuleLoader';
 import { LedgerLoader } from './LedgerLoader';
+import { ConfigManager } from '../../config/ConfigManager';
 import type { ChatMessage } from '../types';
 import type { TransactionBase } from '../../../types/metadata';
 import { format } from 'date-fns';
@@ -21,11 +22,16 @@ export class PromptBuilder {
   ): Promise<ChatMessage[]> {
     // 1. 加载用户规则
     const userRules = await RuleLoader.load(ledgerName);
-    
+
     // 2. 加载类别列表
     const categoryList = await LedgerLoader.loadCategories();
 
-    // 3. 序列化交易数据
+    // 3. 加载用户自定义上下文
+    const configManager = ConfigManager.getInstance();
+    const config = await configManager.getConfig();
+    const userContext = config.userContext;
+
+    // 4. 序列化交易数据
     // 仅保留 AI 需要的字段：时间、金额、描述、对方、方向、原有分类
     const txData = transactions.map(tx => ({
       id: tx.id,
@@ -39,7 +45,7 @@ export class PromptBuilder {
       raw_category: tx.rawClass
     }));
 
-    // 4. 构建 Prompt Payload
+    // 5. 构建 Prompt Payload
     // 严格遵循 DAY3_IMPLEMENTATION.md 定义的结构
     const payload = {
       user_rules: userRules,
@@ -51,13 +57,13 @@ export class PromptBuilder {
       transactions: txData
     };
 
-    // 4. 组装 User Message
+    // 6. 组装 User Message
     const userContent = JSON.stringify(payload, null, 2);
 
     return [
       {
         role: 'system',
-        content: generateSystemPrompt({ language })
+        content: generateSystemPrompt({ language, userContext })
       },
       {
         role: 'user',

@@ -5,6 +5,7 @@ import { configManager } from './core/config/ConfigManager';
 import { FetchClient } from './core/network/FetchClient';
 import { AnimatePresence } from 'framer-motion';
 import { SplashScreen } from './components/SplashScreen';
+import { SettingsProvider } from './contexts/SettingsContext';
 // import { generateSystemPrompt } from './core/llm_service/prompt/SystemPrompt';
 
 function App() {
@@ -34,7 +35,7 @@ function App() {
     const timer = setTimeout(() => {
       setShowSplash(false);
     }, 1500);
-    
+
     return () => clearTimeout(timer);
   }, []);
 
@@ -46,24 +47,38 @@ function App() {
       window.__DEBUG_TOOLS__ = {
         configManager,
         FetchClient,
+        /**
+         * 检查当前 AI 配置状态
+         * 在控制台运行: window.__DEBUG_TOOLS__.checkAIConfig()
+         */
+        checkAIConfig: async () => {
+          const cfg = await configManager.getConfig();
+          const activeModel = await configManager.getActiveModelConfig();
+          console.log('[Debug] Full Config:', cfg);
+          console.log('[Debug] Active Model Config:', activeModel);
+          console.log('[Debug] API Key configured:', activeModel.apiKey ? 'Yes (length: ' + activeModel.apiKey.length + ')' : 'No');
+          return { fullConfig: cfg, activeModel };
+        },
       };
     }
   }, []);
 
   return (
-    <div className="relative w-full h-full">
-      {/* 1. Main App Layer (Base Layer) */}
-      {/* It is always rendered in the background to ensure "No Flash" when splash exits */}
-      <div className="absolute inset-0 z-0">
-        {isMobile ? <MobileApp /> : <DesktopApp />}
-      </div>
+    <SettingsProvider>
+      <div className="relative w-full h-full">
+        {/* 1. Main App Layer (Base Layer) */}
+        {/* It is always rendered in the background to ensure "No Flash" when splash exits */}
+        <div className="absolute inset-0 z-0">
+          {isMobile ? <MobileApp /> : <DesktopApp />}
+        </div>
 
-      {/* 2. Splash Screen Overlay Layer */}
-      {/* High z-index ensures it covers everything */}
-      <AnimatePresence>
-        {showSplash && <SplashScreen key="splash" />}
-      </AnimatePresence>
-    </div>
+        {/* 2. Splash Screen Overlay Layer */}
+        {/* High z-index ensures it covers everything */}
+        <AnimatePresence>
+          {showSplash && <SplashScreen key="splash" />}
+        </AnimatePresence>
+      </div>
+    </SettingsProvider>
   );
 }
 

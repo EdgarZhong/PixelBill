@@ -1,0 +1,1233 @@
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { createPortal } from 'react-dom';
+import { triggerHaptic, HapticFeedbackLevel } from '../../utils/haptics';
+import { ConfigManager, type MultiProviderConfig, type ProviderConfig } from '../../core/config/ConfigManager';
+import { useSettings } from '../../hooks/useSettings';
+
+interface SettingsPageProps {
+  /** 是否打开 */
+  isOpen: boolean;
+  /** 关闭回调 */
+  onClose: () => void;
+  /** 当前账本名称 */
+  activeLedger: string;
+  /** 账本列表 */
+  ledgers: Array<{ name: string; transactionCount: number }>;
+  /** 切换账本回调 */
+  onSwitchLedger: () => void;
+  /** 版本号 */
+  version?: string;
+}
+
+// 设置项数据结构
+interface SettingItem {
+  id: string;
+  icon: React.ReactNode;
+  label: string;
+  value?: string;
+  onClick?: () => void;
+  danger?: boolean;
+}
+
+// 设置分类数据结构
+interface SettingCategory {
+  title: string;
+  items: SettingItem[];
+}
+
+// 预定义的提供商列表
+// 注意：baseUrl 包含 API 版本路径，如 /v1
+const PREDEFINED_PROVIDERS = [
+  { key: 'deepseek', name: 'DeepSeek', baseUrl: 'https://api.deepseek.com' },
+  { key: 'moonshot', name: 'Moonshot (Kimi)', baseUrl: 'https://api.moonshot.cn/v1' },
+  { key: 'siliconflow', name: 'SiliconFlow', baseUrl: 'https://api.siliconflow.cn/v1' },
+  { key: 'modelscope', name: 'ModelScope', baseUrl: 'https://api-inference.modelscope.cn/v1' },
+  { key: 'zhipu', name: '智谱 AI', baseUrl: 'https://open.bigmodel.cn/api/paas/v4' },
+  { key: 'custom', name: '自定义', baseUrl: '' },
+] as const;
+
+// 预定义的模型列表
+// Moonshot (Kimi) 模型列表来源: https://platform.moonshot.cn/docs/introduction
+const PREDEFINED_MODELS: Record<string, string[]> = {
+  deepseek: ['deepseek-chat', 'deepseek-reasoner'],
+  // Moonshot v1 系列: https://platform.moonshot.cn/docs/introduction#%E6%96%87%E6%9C%AC%E7%94%9F%E6%88%90%E6%A8%A1%E5%9E%8B
+  moonshot: [
+    'moonshot-v1-8k',      // 标准版，8k 上下文
+    'moonshot-v1-32k',     // 长上下文版，32k 上下文
+    'moonshot-v1-128k',    // 超长上下文版，128k 上下文
+    'moonshot-v1-auto',    // 自动选择上下文长度
+    'kimi-k2.5',           // Kimi K2.5 系列模型
+  ],
+  siliconflow: ['deepseek-ai/DeepSeek-V3', 'deepseek-ai/DeepSeek-R1', 'Qwen/Qwen2.5-72B-Instruct'],
+  modelscope: ['deepseek-ai/DeepSeek-V3', 'deepseek-ai/DeepSeek-R1'],
+  zhipu: ['glm-4-flash', 'glm-4-air', 'glm-4-plus'],
+  custom: [],
+};
+
+type PanelView = 'main' | 'ai-config' | 'theme' | 'user-context';
+
+/**
+ * [设置页面] 组件
+ * 采用二级面板样式，从顶部滑入
+ * 包含全局设置和账本设置两个分类
+ *
+ * 设计规范：
+ * - 顶部绿色边框暗示"入口"隐喻
+ * - 双栏分类布局
+ * - 列表项左侧 3x3 像素图标
+ * - 与 LedgerSwitcher 保持一致的视觉语言
+ */
+export const SettingsPage: React.FC<SettingsPageProps> = ({
+  isOpen,
+  onClose,
+  activeLedger,
+  ledgers,
+  onSwitchLedger,
+  version = 'v1.0.0'
+}) => {
+  // 当前显示的面板
+  const [currentView, setCurrentView] = useState<PanelView>('main');
+  // 使用全局设置上下文 - 只保留主题
+  const { theme, setTheme } = useSettings();
+
+  // 重置视图状态当设置页面关闭时
+  useEffect(() => {
+    if (!isOpen) {
+      const timer = setTimeout(() => setCurrentView('main'), 300);
+      return () => clearTimeout(timer);
+    }
+  }, [isOpen]);
+
+  // 全局设置项
+  const globalSettings: SettingCategory = {
+    title: '[GLOBAL_SETTINGS]',
+    items: [
+      {
+        id: 'ai-api',
+        icon: <PixelIcon color="pixel-green" pattern="ai" />,
+        label: 'AI_API_CONFIG',
+        value: 'CONFIGURE',
+        onClick: () => setCurrentView('ai-config')
+      },
+      {
+        id: 'theme',
+        icon: <PixelIcon color="pixel-green" pattern={theme} />,
+        label: 'THEME',
+        value: theme === 'dark' ? 'DARK' : 'LIGHT',
+        onClick: () => setCurrentView('theme')
+      },
+      {
+        id: 'export',
+        icon: <PixelIcon color="income-yellow" />,
+        label: 'EXPORT_DATA',
+        onClick: () => console.log('Export data')
+      },
+      {
+        id: 'about',
+        icon: <PixelIcon color="text-dim" />,
+        label: 'ABOUT',
+        onClick: () => console.log('About')
+      }
+    ]
+  };
+
+  // 账本设置项
+  const ledgerSettings: SettingCategory = {
+    title: '[LEDGER_SETTINGS]',
+    items: [
+      {
+        id: 'current-ledger',
+        icon: <PixelIcon color="pixel-green" />,
+        label: 'CURRENT_LEDGER',
+        value: activeLedger.toUpperCase(),
+        onClick: onSwitchLedger
+      },
+      {
+        id: 'user-context',
+        icon: <PixelIcon color="pixel-green" pattern="ai" />,
+        label: 'AI_USER_CONTEXT',
+        value: 'CONFIGURE',
+        onClick: () => setCurrentView('user-context')
+      },
+      {
+        id: 'categories',
+        icon: <PixelIcon color="income-yellow" />,
+        label: 'CATEGORIES',
+        onClick: () => console.log('Manage categories')
+      },
+      {
+        id: 'rules',
+        icon: <PixelIcon color="alipay-blue" />,
+        label: 'AUTO_RULES',
+        onClick: () => console.log('Auto rules')
+      },
+      {
+        id: 'clear',
+        icon: <PixelIcon color="expense-red" />,
+        label: 'CLEAR_LEDGER',
+        danger: true,
+        onClick: () => console.log('Clear ledger')
+      }
+    ]
+  };
+
+  const handleClose = async () => {
+    await triggerHaptic(HapticFeedbackLevel.LIGHT);
+    onClose();
+  };
+
+  // 优化：使用更短的动画时长和硬件加速友好的缓动函数
+  const transition = {
+    type: "tween",
+    ease: [0.32, 0.72, 0, 1],
+    duration: 0.45
+  } as const;
+
+  const backdropTransition = {
+    duration: 0.25
+  } as const;
+
+  // 子面板动画配置
+  const panelTransition = {
+    type: "tween" as const,
+    ease: [0.32, 0.72, 0, 1],
+    duration: 0.35
+  };
+
+  return createPortal(
+    <AnimatePresence>
+      {isOpen && (
+        <div className="fixed inset-0 z-[9997] flex flex-col">
+          {/* 背景遮罩 - 点击关闭 */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={backdropTransition}
+            className="absolute inset-0 bg-black/40"
+            onClick={handleClose}
+          />
+
+          {/* 设置页面容器 - 从顶部滑入 */}
+          <motion.div
+            initial={{ y: '-100%' }}
+            animate={{ y: 0 }}
+            exit={{ y: '-100%' }}
+            transition={transition}
+            className="relative z-10 w-full bg-card border-b-2 border-pixel-green/30 rounded-b-lg shadow-2xl flex flex-col"
+            style={{
+              height: 'min(85vh, 700px)',
+              willChange: 'transform',
+            }}
+          >
+            {/* 标题栏 */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-800 flex-shrink-0">
+              <div className="text-dim text-xs font-mono tracking-wider">
+                {currentView === 'main' ? '[SETTINGS]' :
+                 currentView === 'ai-config' ? '[AI_API_CONFIG]' :
+                 currentView === 'theme' ? '[THEME]' :
+                 currentView === 'user-context' ? '[AI_USER_CONTEXT]' : '[SETTINGS]'}
+              </div>
+              <button
+                onClick={handleClose}
+                className="text-dim text-xs font-mono tracking-wider px-3 py-1.5
+                  border border-gray-700 rounded
+                  hover:border-gray-500 hover:text-white transition-colors"
+              >
+                [CLOSE]
+              </button>
+            </div>
+
+            {/* 内容区域 - 使用相对定位实现滑动切换 */}
+            <div className="flex-1 overflow-hidden relative">
+              <AnimatePresence mode="popLayout" initial={false}>
+                {currentView === 'main' && (
+                  <MainSettingsPanel
+                    key="main"
+                    globalSettings={globalSettings}
+                    ledgerSettings={ledgerSettings}
+                    ledgers={ledgers}
+                    activeLedger={activeLedger}
+                    transition={panelTransition}
+                  />
+                )}
+                {currentView === 'ai-config' && (
+                  <AIConfigPanel
+                    key="ai-config"
+                    onBack={() => setCurrentView('main')}
+                    transition={panelTransition}
+                  />
+                )}
+                {currentView === 'theme' && (
+                  <ThemePanel
+                    key="theme"
+                    currentTheme={theme}
+                    onBack={() => setCurrentView('main')}
+                    transition={panelTransition}
+                    onChange={setTheme}
+                  />
+                )}
+                {currentView === 'user-context' && (
+                  <UserContextPanel
+                    key="user-context"
+                    onBack={() => setCurrentView('main')}
+                    transition={panelTransition}
+                  />
+                )}
+              </AnimatePresence>
+            </div>
+
+            {/* 底部版本信息 */}
+            <div className="flex-shrink-0 py-3 text-center border-t border-gray-800 bg-card">
+              <div className="text-[10px] font-mono text-dim/60 tracking-wider">
+                PIXELBILL {version} • DESIGNED BY CYBERZEN
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      )}
+    </AnimatePresence>,
+    document.body
+  );
+};
+
+/**
+ * 主设置面板组件
+ */
+interface MainSettingsPanelProps {
+  globalSettings: SettingCategory;
+  ledgerSettings: SettingCategory;
+  ledgers: Array<{ name: string; transactionCount: number }>;
+  activeLedger: string;
+  transition: { type: string; ease: number[]; duration: number };
+}
+
+const MainSettingsPanel: React.FC<MainSettingsPanelProps> = ({
+  globalSettings,
+  ledgerSettings,
+  ledgers,
+  activeLedger,
+  transition
+}) => {
+  return (
+    <motion.div
+      initial={{ x: 0, opacity: 1 }}
+      animate={{ x: 0, opacity: 1 }}
+      exit={{ x: -50, opacity: 0 }}
+      transition={transition}
+      className="absolute inset-0 overflow-y-auto p-6"
+    >
+      <div className="space-y-6">
+        {/* 全局设置 */}
+        <SettingCategorySection
+          category={globalSettings}
+          delay={0}
+        />
+
+        {/* 账本设置 */}
+        <SettingCategorySection
+          category={ledgerSettings}
+          delay={0.05}
+        />
+      </div>
+
+      {/* 账本统计信息 */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.1, duration: 0.35 }}
+        className="mt-6 p-4 bg-zinc-950 rounded border border-gray-800"
+      >
+        <div className="text-dim text-[10px] font-mono mb-3 tracking-wider">
+          [LEDGER_STATISTICS]
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          <div className="text-center">
+            <div className="text-2xl font-mono text-pixel-green">
+              {ledgers.length}
+            </div>
+            <div className="text-[10px] text-dim font-mono mt-1">
+              TOTAL_LEDGERS
+            </div>
+          </div>
+          <div className="text-center">
+            <div className="text-2xl font-mono text-income-yellow">
+              {ledgers.find(l => l.name === activeLedger)?.transactionCount || 0}
+            </div>
+            <div className="text-[10px] text-dim font-mono mt-1">
+              ACTIVE_TXNS
+            </div>
+          </div>
+        </div>
+      </motion.div>
+
+      {/* 底部垫片 */}
+      <div className="h-4" />
+    </motion.div>
+  );
+};
+
+/**
+ * AI API 配置面板组件
+ */
+interface AIConfigPanelProps {
+  onBack: () => void;
+  transition: { type: string; ease: number[]; duration: number };
+}
+
+const AIConfigPanel: React.FC<AIConfigPanelProps> = ({ onBack, transition }) => {
+  const [selectedProvider, setSelectedProvider] = useState<string>('deepseek');
+  const [apiKey, setApiKey] = useState<string>('');
+  const [baseUrl, setBaseUrl] = useState<string>('');
+  const [selectedModel, setSelectedModel] = useState<string>('');
+  const [customModel, setCustomModel] = useState<string>('');
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'success' | 'error'>('idle');
+  // 连接测试状态
+  const [testStatus, setTestStatus] = useState<'idle' | 'testing' | 'success' | 'error'>('idle');
+  const [testMessage, setTestMessage] = useState<string>('');
+
+  // 加载配置
+  useEffect(() => {
+    const loadConfig = async () => {
+      try {
+        const manager = ConfigManager.getInstance();
+        const cfg = await manager.getConfig();
+
+        // 解析当前激活的提供商和模型
+        const candidate = cfg.candidateModels[0] || 'deepseek::deepseek-chat';
+        const [provider, model] = candidate.split('::');
+
+        setSelectedProvider(provider in cfg.providers ? provider : 'custom');
+        setSelectedModel(model || '');
+
+        const provConfig = cfg.providers[provider];
+        if (provConfig) {
+          setApiKey(provConfig.apiKey || '');
+          // 如果 baseUrl 与预设不同，说明是自定义
+          const predefined = PREDEFINED_PROVIDERS.find(p => p.key === provider);
+          if (predefined && provConfig.baseUrl !== predefined.baseUrl) {
+            setBaseUrl(provConfig.baseUrl || '');
+          } else if (!predefined) {
+            setBaseUrl(provConfig.baseUrl || '');
+          }
+        }
+      } catch (e) {
+        console.error('[AIConfigPanel] Failed to load config:', e);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    void loadConfig();
+  }, []);
+
+  // 当选择提供商变化时更新 baseUrl
+  useEffect(() => {
+    const predefined = PREDEFINED_PROVIDERS.find(p => p.key === selectedProvider);
+    if (predefined && predefined.baseUrl) {
+      setBaseUrl(predefined.baseUrl);
+    } else if (selectedProvider === 'custom') {
+      setBaseUrl('');
+    }
+  }, [selectedProvider]);
+
+  // 保存配置
+  const handleSave = useCallback(async () => {
+    setIsSaving(true);
+    setSaveStatus('idle');
+
+    try {
+      const manager = ConfigManager.getInstance();
+      const currentConfig = await manager.getConfig();
+
+      // 构建新的提供商配置
+      const providerConfig: ProviderConfig = {
+        apiKey: apiKey.trim(),
+        baseUrl: selectedProvider === 'custom' ? baseUrl.trim() : (PREDEFINED_PROVIDERS.find(p => p.key === selectedProvider)?.baseUrl || baseUrl.trim()),
+      };
+
+      // 确定使用的模型名称
+      const modelName = selectedProvider === 'custom' ? customModel.trim() : selectedModel;
+
+      const newConfig: Partial<MultiProviderConfig> = {
+        providers: {
+          ...currentConfig.providers,
+          [selectedProvider]: providerConfig,
+        },
+        candidateModels: [`${selectedProvider}::${modelName || 'default'}`],
+      };
+
+      await manager.saveConfig(newConfig);
+      setSaveStatus('success');
+      await triggerHaptic(HapticFeedbackLevel.MEDIUM);
+
+      // 2秒后返回主面板
+      setTimeout(() => {
+        onBack();
+      }, 800);
+    } catch (e) {
+      console.error('[AIConfigPanel] Failed to save config:', e);
+      setSaveStatus('error');
+    } finally {
+      setIsSaving(false);
+    }
+  }, [apiKey, baseUrl, selectedProvider, selectedModel, customModel, onBack]);
+
+  // 测试连接
+  const handleTest = useCallback(async () => {
+    await triggerHaptic(HapticFeedbackLevel.LIGHT);
+    setTestStatus('testing');
+    setTestMessage('');
+
+    try {
+      // 构建测试用的配置
+      const finalBaseUrl = selectedProvider === 'custom'
+        ? baseUrl.trim()
+        : (PREDEFINED_PROVIDERS.find(p => p.key === selectedProvider)?.baseUrl || baseUrl.trim());
+
+      const finalModel = selectedProvider === 'custom' ? customModel.trim() : selectedModel;
+
+      if (!apiKey.trim()) {
+        throw new Error('API Key is required');
+      }
+      if (!finalBaseUrl) {
+        throw new Error('Base URL is required');
+      }
+
+      // 构建请求 URL（去掉末尾的 /，避免双斜杠）
+      const cleanBaseUrl = finalBaseUrl.replace(/\/$/, '');
+      const url = `${cleanBaseUrl}/chat/completions`;
+
+      // 发送一个简单的测试请求
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey.trim()}`,
+        },
+        body: JSON.stringify({
+          model: finalModel || 'default',
+          messages: [{ role: 'user', content: 'Hi' }],
+          max_tokens: 5,
+          temperature: 0.1,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        const errorMsg = errorData.error?.message || errorData.message || `HTTP ${response.status}`;
+        throw new Error(errorMsg);
+      }
+
+      // 解析响应验证模型是否正常工作
+      const data = await response.json();
+      if (data.choices?.[0]?.message?.content) {
+        setTestStatus('success');
+        const successMsg = `✓ Connected (${finalModel || 'default'})`;
+        setTestMessage(successMsg);
+        await triggerHaptic(HapticFeedbackLevel.MEDIUM);
+      } else {
+        throw new Error('Invalid response format');
+      }
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : String(err);
+      setTestStatus('error');
+      setTestMessage(`✗ ${errorMsg}`);
+      console.error('[AIConfigPanel] Test connection failed:', err);
+    }
+  }, [apiKey, baseUrl, selectedProvider, selectedModel, customModel]);
+
+  if (isLoading) {
+    return (
+      <motion.div
+        initial={{ x: 50, opacity: 0 }}
+        animate={{ x: 0, opacity: 1 }}
+        exit={{ x: 50, opacity: 0 }}
+        transition={transition}
+        className="absolute inset-0 flex items-center justify-center"
+      >
+        <div className="text-dim text-xs font-mono">[LOADING_CONFIG...]</div>
+      </motion.div>
+    );
+  }
+
+  const availableModels = PREDEFINED_MODELS[selectedProvider] || [];
+  const isCustomProvider = selectedProvider === 'custom';
+  const canSave = apiKey.trim() && (isCustomProvider ? baseUrl.trim() && customModel.trim() : selectedModel);
+
+  return (
+    <motion.div
+      initial={{ x: 50, opacity: 0 }}
+      animate={{ x: 0, opacity: 1 }}
+      exit={{ x: 50, opacity: 0 }}
+      transition={transition}
+      className="absolute inset-0 overflow-y-auto p-6"
+    >
+      {/* 返回按钮 */}
+      <button
+        onClick={onBack}
+        className="flex items-center gap-2 text-dim text-xs font-mono mb-6
+          hover:text-white transition-colors"
+      >
+        <span>‹</span>
+        <span>[BACK_TO_SETTINGS]</span>
+      </button>
+
+      {/* 提供商选择 */}
+      <div className="mb-6">
+        <div className="text-dim text-[10px] font-mono tracking-wider mb-3">
+          [SELECT_PROVIDER]
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          {PREDEFINED_PROVIDERS.map((provider) => (
+            <button
+              key={provider.key}
+              onClick={() => setSelectedProvider(provider.key)}
+              className={`px-3 py-2.5 rounded border text-xs font-mono transition-all duration-200
+                ${selectedProvider === provider.key
+                  ? 'border-pixel-green bg-pixel-green/10 text-pixel-green'
+                  : 'border-gray-700 bg-zinc-950 text-gray-400 hover:border-gray-500'
+                }`}
+            >
+              {provider.name}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* API Key 输入 */}
+      <div className="mb-6">
+        <div className="text-dim text-[10px] font-mono tracking-wider mb-3">
+          [API_KEY]
+        </div>
+        <div className="relative">
+          <input
+            type="password"
+            value={apiKey}
+            onChange={(e) => setApiKey(e.target.value)}
+            placeholder="sk-xxxxxxxxxxxxxxxx"
+            className="w-full px-4 py-3 bg-zinc-950 border border-gray-700 rounded
+              text-sm font-mono text-gray-200 placeholder-gray-600
+              focus:border-pixel-green focus:outline-none focus:ring-1 focus:ring-pixel-green/30
+              transition-all"
+          />
+          {apiKey && (
+            <div className="absolute right-3 top-1/2 -translate-y-1/2">
+              <PixelIcon color="pixel-green" size="sm" />
+            </div>
+          )}
+        </div>
+        <div className="mt-2 text-[10px] text-dim font-mono">
+          您的 API Key 将被加密存储在本地设备上
+        </div>
+      </div>
+
+      {/* Base URL 输入（仅自定义提供商时显示） */}
+      {isCustomProvider && (
+        <div className="mb-6">
+          <div className="text-dim text-[10px] font-mono tracking-wider mb-3">
+            [BASE_URL]
+          </div>
+          <input
+            type="text"
+            value={baseUrl}
+            onChange={(e) => setBaseUrl(e.target.value)}
+            placeholder="https://api.example.com/v1"
+            className="w-full px-4 py-3 bg-zinc-950 border border-gray-700 rounded
+              text-sm font-mono text-gray-200 placeholder-gray-600
+              focus:border-pixel-green focus:outline-none focus:ring-1 focus:ring-pixel-green/30
+              transition-all"
+          />
+          <div className="mt-2 text-[10px] text-dim font-mono"
+          >
+            提示：Kimi/Moonshot 请使用 https://api.moonshot.cn/v1
+          </div>
+        </div>
+      )}
+
+      {/* 模型选择 */}
+      <div className="mb-8">
+        <div className="text-dim text-[10px] font-mono tracking-wider mb-3">
+          [MODEL_SELECTION]
+        </div>
+        {isCustomProvider ? (
+          <input
+            type="text"
+            value={customModel}
+            onChange={(e) => setCustomModel(e.target.value)}
+            placeholder="输入模型名称，如 gpt-4"
+            className="w-full px-4 py-3 bg-zinc-950 border border-gray-700 rounded
+              text-sm font-mono text-gray-200 placeholder-gray-600
+              focus:border-pixel-green focus:outline-none focus:ring-1 focus:ring-pixel-green/30
+              transition-all"
+          />
+        ) : (
+          <div className="space-y-2">
+            {availableModels.map((model) => (
+              <button
+                key={model}
+                onClick={() => setSelectedModel(model)}
+                className={`w-full px-4 py-3 rounded border text-left text-sm font-mono transition-all duration-200
+                  ${selectedModel === model
+                    ? 'border-pixel-green bg-pixel-green/10 text-pixel-green'
+                    : 'border-gray-700 bg-zinc-950 text-gray-400 hover:border-gray-500'
+                  }`}
+              >
+                <div className="flex items-center justify-between">
+                  <span>{model}</span>
+                  {selectedModel === model && <PixelIcon color="pixel-green" size="sm" />}
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* 操作按钮 */}
+      <div className="space-y-3">
+        <button
+          onClick={handleSave}
+          disabled={!canSave || isSaving}
+          className={`w-full py-3.5 rounded font-mono text-sm tracking-wider transition-all duration-200
+            ${canSave && !isSaving
+              ? 'bg-pixel-green/20 border border-pixel-green text-pixel-green hover:bg-pixel-green/30 active:bg-pixel-green/40'
+              : 'bg-gray-800/50 border border-gray-700 text-gray-500 cursor-not-allowed'
+            }`}
+        >
+          {isSaving ? '[SAVING...]' : saveStatus === 'success' ? '[SAVED ✓]' : '[SAVE_CONFIGURATION]'}
+        </button>
+
+        <button
+          onClick={handleTest}
+          disabled={!canSave || testStatus === 'testing'}
+          className={`w-full py-3.5 rounded font-mono text-sm tracking-wider transition-all duration-200
+            ${!canSave
+              ? 'bg-gray-800/30 border border-gray-700 text-gray-600 cursor-not-allowed'
+              : testStatus === 'testing'
+                ? 'bg-zinc-950 border border-gray-600 text-gray-400 cursor-wait'
+                : testStatus === 'success'
+                  ? 'bg-pixel-green/10 border border-pixel-green text-pixel-green'
+                  : testStatus === 'error'
+                    ? 'bg-expense-red/10 border border-expense-red text-expense-red'
+                    : 'bg-zinc-950 border border-gray-600 text-gray-300 hover:border-gray-400 hover:text-white'
+            }`}
+        >
+          {testStatus === 'testing' ? '[TESTING...]' :
+           testStatus === 'success' ? '[CONNECTION_OK]' :
+           testStatus === 'error' ? '[CONNECTION_FAILED]' :
+           '[TEST_CONNECTION]'}
+        </button>
+
+        {/* 测试结果提示 */}
+        {testMessage && (
+          <motion.div
+            initial={{ opacity: 0, y: -5 }}
+            animate={{ opacity: 1, y: 0 }}
+            className={`text-xs font-mono text-center py-2 rounded ${
+              testStatus === 'success' ? 'text-pixel-green bg-pixel-green/5' : 'text-expense-red bg-expense-red/5'
+            }`}
+          >
+            {testMessage}
+          </motion.div>
+        )}
+
+        {saveStatus === 'error' && (
+          <div className="text-center text-expense-red text-xs font-mono py-2">
+            [SAVE_FAILED_PLEASE_RETRY]
+          </div>
+        )}
+      </div>
+
+      {/* 安全提示 */}
+      <div className="mt-8 p-4 bg-zinc-950/50 border border-gray-800 rounded">
+        <div className="text-[10px] text-dim font-mono leading-relaxed">
+          <span className="text-pixel-green">[SECURITY_NOTICE]</span>
+          <br />
+          所有配置信息均使用 AES-256 加密存储在设备本地，不会上传到任何服务器。
+        </div>
+      </div>
+
+      {/* 底部垫片 */}
+      <div className="h-4" />
+    </motion.div>
+  );
+};
+
+/**
+ * 主题选择面板组件
+ */
+interface ThemePanelProps {
+  currentTheme: 'dark' | 'light';
+  onBack: () => void;
+  onChange: (theme: 'dark' | 'light') => Promise<void>;
+  transition: { type: string; ease: number[]; duration: number };
+}
+
+const ThemePanel: React.FC<ThemePanelProps> = ({
+  currentTheme,
+  onBack,
+  onChange,
+  transition
+}) => {
+  const themes = [
+    { key: 'dark' as const, label: 'Dark Mode', desc: 'For night use' },
+    { key: 'light' as const, label: 'Light Mode', desc: 'For day use' },
+  ];
+
+  const handleSelect = async (theme: 'dark' | 'light') => {
+    await triggerHaptic(HapticFeedbackLevel.LIGHT);
+    await onChange(theme);
+  };
+
+  return (
+    <motion.div
+      initial={{ x: 50, opacity: 0 }}
+      animate={{ x: 0, opacity: 1 }}
+      exit={{ x: 50, opacity: 0 }}
+      transition={transition}
+      className="absolute inset-0 overflow-y-auto p-6"
+    >
+      {/* 返回按钮 */}
+      <button
+        onClick={onBack}
+        className="flex items-center gap-2 text-dim text-xs font-mono mb-6
+          hover:text-white transition-colors"
+      >
+        <span>‹</span>
+        <span>[BACK_TO_SETTINGS]</span>
+      </button>
+
+      {/* 主题选项 */}
+      <div className="space-y-4">
+        {themes.map((theme) => (
+          <button
+            key={theme.key}
+            onClick={() => handleSelect(theme.key as 'dark' | 'light')}
+            className={`w-full p-4 rounded border text-left transition-all duration-200
+              ${currentTheme === theme.key
+                ? 'border-pixel-green bg-pixel-green/10'
+                : 'border-gray-700 bg-zinc-950 hover:border-gray-500'
+              }`}
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <div className={`text-sm font-mono ${
+                  currentTheme === theme.key ? 'text-pixel-green' : 'text-gray-200'
+                }`}>
+                  {theme.label}
+                </div>
+                <div className="text-[10px] text-dim font-mono mt-1">
+                  {theme.desc}
+                </div>
+              </div>
+              {currentTheme === theme.key && (
+                <PixelIcon color="pixel-green" size="sm" />
+              )}
+            </div>
+          </button>
+        ))}
+      </div>
+
+      {/* 提示 */}
+      <div className="mt-8 p-4 bg-zinc-950/50 border border-gray-800 rounded">
+        <div className="text-[10px] text-dim font-mono leading-relaxed">
+          <span className="text-pixel-green">[NOTE]</span>
+          <br />
+          Theme settings applied and saved. Some elements may require a page refresh.
+        </div>
+      </div>
+
+      {/* 底部垫片 */}
+      <div className="h-4" />
+    </motion.div>
+  );
+};
+
+/**
+ * 用户 AI 上下文配置面板组件
+ * 允许用户输入自定义上下文，帮助 AI 更好地理解分类偏好
+ */
+interface UserContextPanelProps {
+  onBack: () => void;
+  transition: { type: string; ease: number[]; duration: number };
+}
+
+const UserContextPanel: React.FC<UserContextPanelProps> = ({ onBack, transition }) => {
+  const [userContext, setUserContext] = useState<string>('');
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'success' | 'error'>('idle');
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // 加载保存的用户上下文
+  useEffect(() => {
+    const loadContext = async () => {
+      try {
+        const manager = ConfigManager.getInstance();
+        const cfg = await manager.getConfig();
+        setUserContext(cfg.userContext || '');
+      } catch (e) {
+        console.error('[UserContextPanel] Failed to load context:', e);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    void loadContext();
+  }, []);
+
+  // 自动调整 textarea 高度
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+      textareaRef.current.style.height = `${Math.max(200, textareaRef.current.scrollHeight)}px`;
+    }
+  }, [userContext, isLoading]);
+
+  // 保存用户上下文
+  const handleSave = useCallback(async () => {
+    setIsSaving(true);
+    setSaveStatus('idle');
+
+    try {
+      const manager = ConfigManager.getInstance();
+      await manager.saveConfig({ userContext: userContext.trim() });
+      setSaveStatus('success');
+      await triggerHaptic(HapticFeedbackLevel.MEDIUM);
+
+      // 2秒后返回主面板
+      setTimeout(() => {
+        onBack();
+      }, 800);
+    } catch (e) {
+      console.error('[UserContextPanel] Failed to save context:', e);
+      setSaveStatus('error');
+    } finally {
+      setIsSaving(false);
+    }
+  }, [userContext, onBack]);
+
+  // 清空上下文
+  const handleClear = useCallback(async () => {
+    await triggerHaptic(HapticFeedbackLevel.LIGHT);
+    setUserContext('');
+    if (textareaRef.current) {
+      textareaRef.current.focus();
+    }
+  }, []);
+
+  if (isLoading) {
+    return (
+      <motion.div
+        initial={{ x: 50, opacity: 0 }}
+        animate={{ x: 0, opacity: 1 }}
+        exit={{ x: 50, opacity: 0 }}
+        transition={transition}
+        className="absolute inset-0 flex items-center justify-center"
+      >
+        <div className="text-dim text-xs font-mono">[LOADING...]</div>
+      </motion.div>
+    );
+  }
+
+  return (
+    <motion.div
+      initial={{ x: 50, opacity: 0 }}
+      animate={{ x: 0, opacity: 1 }}
+      exit={{ x: 50, opacity: 0 }}
+      transition={transition}
+      className="absolute inset-0 overflow-y-auto p-6"
+    >
+      {/* 返回按钮 */}
+      <button
+        onClick={onBack}
+        className="flex items-center gap-2 text-dim text-xs font-mono mb-6
+          hover:text-white transition-colors"
+      >
+        <span>‹</span>
+        <span>[BACK_TO_SETTINGS]</span>
+      </button>
+
+      {/* 标题和说明 */}
+      <div className="mb-6">
+        <h3 className="text-sm font-mono text-gray-200 mb-2">[AI_USER_CONTEXT]</h3>
+        <p className="text-[10px] text-dim font-mono leading-relaxed">
+          Add personal context to help AI better understand your classification preferences.
+          This context will be prepended to the system prompt.
+        </p>
+      </div>
+
+      {/* 输入区域 */}
+      <div className="space-y-4">
+        <div className="relative">
+          <textarea
+            ref={textareaRef}
+            value={userContext}
+            onChange={(e) => setUserContext(e.target.value)}
+            placeholder={`Example:\nI usually categorize Starbucks as work meals because I drink coffee during meetings.\n\nAll transportation expenses under 50 yuan should be categorized as 'daily transport', while those over 50 yuan should be 'travel'.`}
+            className="w-full min-h-[200px] p-4 bg-zinc-950 border border-gray-700 rounded
+              text-xs font-mono text-gray-200 placeholder:text-gray-600
+              focus:border-pixel-green focus:outline-none resize-none
+              leading-relaxed"
+            style={{ fieldSizing: 'content' }}
+          />
+          {/* 字符计数 */}
+          <div className="absolute bottom-2 right-2 text-[10px] text-dim font-mono">
+            {userContext.length} / 2000
+          </div>
+        </div>
+
+        {/* 操作按钮 */}
+        <div className="flex gap-3">
+          <button
+            onClick={handleClear}
+            disabled={isSaving || userContext.length === 0}
+            className="px-4 py-2 border border-gray-700 rounded text-xs font-mono text-dim
+              hover:border-gray-500 hover:text-white transition-colors
+              disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            [CLEAR]
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={isSaving}
+            className={`flex-1 px-4 py-2 rounded text-xs font-mono transition-all
+              ${saveStatus === 'success'
+                ? 'bg-pixel-green/20 border border-pixel-green text-pixel-green'
+                : saveStatus === 'error'
+                  ? 'bg-expense-red/20 border border-expense-red text-expense-red'
+                  : 'bg-pixel-green/10 border border-pixel-green/50 text-pixel-green hover:bg-pixel-green/20'
+              }
+              disabled:opacity-50 disabled:cursor-not-allowed`}
+          >
+            {isSaving ? '[SAVING...]' :
+             saveStatus === 'success' ? '[SAVED]' :
+             saveStatus === 'error' ? '[ERROR]' : '[SAVE]'}
+          </button>
+        </div>
+      </div>
+
+      {/* 提示信息 */}
+      <div className="mt-8 p-4 bg-zinc-950/50 border border-gray-800 rounded">
+        <div className="text-[10px] text-dim font-mono leading-relaxed space-y-2">
+          <div>
+            <span className="text-pixel-green">[USAGE_TIPS]</span>
+          </div>
+          <ul className="list-disc list-inside space-y-1 text-gray-500">
+            <li>Describe your spending habits and preferences</li>
+            <li>Explain special categorization rules</li>
+            <li>Mention specific merchants and how to categorize them</li>
+            <li>Keep it concise for best results (under 500 characters recommended)</li>
+          </ul>
+        </div>
+      </div>
+
+      {/* 隔离说明 */}
+      <div className="mt-4 p-4 bg-zinc-950/50 border border-gray-800 rounded">
+        <div className="text-[10px] text-dim font-mono leading-relaxed">
+          <span className="text-alipay-blue">[ISOLATION_NOTE]</span>
+          <br />
+          User context is isolated from system prompts and transaction data.
+          It is only used to supplement AI understanding and will not affect the rules engine.
+        </div>
+      </div>
+
+      {/* 底部垫片 */}
+      <div className="h-4" />
+    </motion.div>
+  );
+};
+
+/**
+ * 设置分类区域组件
+ */
+interface SettingCategorySectionProps {
+  category: SettingCategory;
+  delay: number;
+}
+
+const SettingCategorySection: React.FC<SettingCategorySectionProps> = ({
+  category,
+  delay
+}) => {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay, duration: 0.3, ease: [0.32, 0.72, 0, 1] }}
+    >
+      {/* 分类标题 */}
+      <div className="text-dim text-[10px] font-mono tracking-wider mb-3 px-1">
+        {category.title}
+      </div>
+
+      {/* 设置项列表 */}
+      <div className="bg-zinc-950 rounded border border-gray-800 overflow-hidden">
+        {category.items.map((item, index) => (
+          <SettingItemRow
+            key={item.id}
+            item={item}
+            index={index}
+            delay={delay + index * 0.03}
+            isLast={index === category.items.length - 1}
+          />
+        ))}
+      </div>
+    </motion.div>
+  );
+};
+
+/**
+ * 设置项行组件
+ */
+interface SettingItemRowProps {
+  item: SettingItem;
+  index: number;
+  delay: number;
+  isLast: boolean;
+}
+
+const SettingItemRow: React.FC<SettingItemRowProps> = ({
+  item,
+  delay,
+  isLast
+}) => {
+  const handleClick = async () => {
+    if (item.onClick) {
+      await triggerHaptic(HapticFeedbackLevel.LIGHT);
+      item.onClick();
+    }
+  };
+
+  return (
+    <motion.button
+      initial={{ opacity: 0, x: -8 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ delay, duration: 0.25, ease: [0.32, 0.72, 0, 1] }}
+      onClick={handleClick}
+      className={`
+        w-full flex items-center gap-4 px-4 py-3.5
+        transition-colors duration-150
+        hover:bg-white/5
+        active:bg-white/10
+        ${!isLast ? 'border-b border-gray-800/50' : ''}
+      `}
+      style={{ willChange: 'opacity, transform' }}
+    >
+      {/* 左侧像素图标 */}
+      <div className="flex-shrink-0">
+        {item.icon}
+      </div>
+
+      {/* 中间标签 */}
+      <span className={`
+        flex-1 text-left text-sm font-mono
+        ${item.danger ? 'text-expense-red' : 'text-gray-200'}
+      `}>
+        {item.label}
+      </span>
+
+      {/* 右侧值或箭头 */}
+      {item.value ? (
+        <span className="text-xs font-mono text-pixel-green">
+          {item.value}
+        </span>
+      ) : (
+        <span className={`
+          text-lg font-mono transition-transform duration-200
+          group-hover:translate-x-1
+          ${item.danger ? 'text-expense-red' : 'text-dim'}
+        `}>
+          ›
+        </span>
+      )}
+    </motion.button>
+  );
+};
+
+/**
+ * 3x3 像素图标组件
+ */
+interface PixelIconProps {
+  color: 'pixel-green' | 'alipay-blue' | 'income-yellow' | 'expense-red' | 'text-dim';
+  pattern?: 'default' | 'ai' | 'dark' | 'light';
+  size?: 'sm' | 'md';
+}
+
+const PixelIcon: React.FC<PixelIconProps> = ({ color, pattern = 'default', size = 'md' }) => {
+  const colorClasses = {
+    'pixel-green': 'bg-pixel-green shadow-[0_0_6px_rgba(16,185,129,0.6)]',
+    'alipay-blue': 'bg-alipay-blue shadow-[0_0_6px_rgba(14,165,233,0.6)]',
+    'income-yellow': 'bg-income-yellow shadow-[0_0_6px_rgba(234,179,8,0.6)]',
+    'expense-red': 'bg-expense-red shadow-[0_0_6px_rgba(239,68,68,0.6)]',
+    'text-dim': 'bg-gray-500'
+  };
+
+  const dimensions = size === 'sm' ? 'w-2 h-2' : 'w-3 h-3';
+  const gap = size === 'sm' ? 'gap-[1px]' : 'gap-0.5';
+
+  // AI 模式：不同的像素图案
+  if (pattern === 'ai') {
+    return (
+      <div className={`grid grid-cols-3 ${gap} ${dimensions}`}>
+        {/* AI 图案：一个"大脑"形状 */}
+        <div className={`w-full h-full ${colorClasses[color]} opacity-50`} />
+        <div className={`w-full h-full ${colorClasses[color]}`} />
+        <div className={`w-full h-full ${colorClasses[color]} opacity-50`} />
+        <div className={`w-full h-full ${colorClasses[color]}`} />
+        <div className={`w-full h-full ${colorClasses[color]} brightness-125`} />
+        <div className={`w-full h-full ${colorClasses[color]}`} />
+        <div className={`w-full h-full ${colorClasses[color]} opacity-50`} />
+        <div className={`w-full h-full ${colorClasses[color]}`} />
+        <div className={`w-full h-full ${colorClasses[color]} opacity-50`} />
+      </div>
+    );
+  }
+
+  // 暗黑模式图标：月亮形状
+  if (pattern === 'dark') {
+    return (
+      <div className={`grid grid-cols-3 ${gap} ${dimensions}`}>
+        <div className="w-full h-full bg-transparent" />
+        <div className={`w-full h-full ${colorClasses[color]}`} />
+        <div className={`w-full h-full ${colorClasses[color]} opacity-50`} />
+        <div className={`w-full h-full ${colorClasses[color]} opacity-80`} />
+        <div className={`w-full h-full ${colorClasses[color]}`} />
+        <div className="w-full h-full bg-transparent" />
+        <div className={`w-full h-full ${colorClasses[color]} opacity-50`} />
+        <div className={`w-full h-full ${colorClasses[color]} opacity-80`} />
+        <div className="w-full h-full bg-transparent" />
+      </div>
+    );
+  }
+
+  // 明亮模式图标：太阳形状
+  if (pattern === 'light') {
+    return (
+      <div className={`grid grid-cols-3 ${gap} ${dimensions}`}>
+        <div className={`w-full h-full ${colorClasses[color]} opacity-50`} />
+        <div className={`w-full h-full ${colorClasses[color]}`} />
+        <div className={`w-full h-full ${colorClasses[color]} opacity-50`} />
+        <div className={`w-full h-full ${colorClasses[color]}`} />
+        <div className={`w-full h-full ${colorClasses[color]} brightness-125`} />
+        <div className={`w-full h-full ${colorClasses[color]}`} />
+        <div className={`w-full h-full ${colorClasses[color]} opacity-50`} />
+        <div className={`w-full h-full ${colorClasses[color]}`} />
+        <div className={`w-full h-full ${colorClasses[color]} opacity-50`} />
+      </div>
+    );
+  }
+
+  return (
+    <div className={`grid grid-cols-3 ${gap} ${dimensions}`}>
+      {[...Array(9)].map((_, i) => (
+        <div
+          key={i}
+          className={`w-full h-full ${colorClasses[color]}`}
+        />
+      ))}
+    </div>
+  );
+};

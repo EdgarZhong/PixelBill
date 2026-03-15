@@ -4,13 +4,14 @@ export default {
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",
   ],
+  darkMode: 'class',
   theme: {
     extend: {
       colors: {
-        background: '#0a0a0a',
-        card: '#111111',
-        primary: '#d1d5db',
-        dim: '#6b7280',
+        background: 'var(--bg-primary)',
+        card: 'var(--bg-card)',
+        primary: 'var(--text-primary)',
+        dim: 'var(--text-secondary)',
         'pixel-green': '#10b981',
         'alipay-blue': '#0ea5e9',
         'expense-red': '#ef4444',

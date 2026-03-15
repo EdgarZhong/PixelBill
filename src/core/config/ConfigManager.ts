@@ -16,6 +16,16 @@ export interface MultiProviderConfig {
     temperature: number;
     enableThinking: boolean;
   };
+  ui: {
+    language: 'zh' | 'en';
+    theme: 'dark' | 'light';
+  };
+  /**
+   * 用户自定义 AI 上下文
+   * 用于补充系统提示，帮助 AI 更好地理解用户的个人分类偏好
+   * 例如："我喜欢把星巴克的消费归为工作餐，因为我通常在开会时喝"
+   */
+  userContext?: string;
 }
 
 // 兼容旧代码引用，但实际上建议使用 MultiProviderConfig
@@ -26,6 +36,7 @@ const DEFAULT_CONFIG: MultiProviderConfig = {
     'modelscope': { apiKey: '', baseUrl: 'https://api-inference.modelscope.cn/v1' },
     'siliconflow': { apiKey: '', baseUrl: 'https://api.siliconflow.cn/v1' },
     'deepseek': { apiKey: '', baseUrl: 'https://api.deepseek.com' },
+    'moonshot': { apiKey: '', baseUrl: 'https://api.moonshot.cn/v1' },
     'zhipu': { apiKey: '', baseUrl: 'https://open.bigmodel.cn/api/paas/v4' },
     'custom': { apiKey: '', baseUrl: 'https://api.openai.com/v1' }
   },
@@ -34,6 +45,10 @@ const DEFAULT_CONFIG: MultiProviderConfig = {
     maxTokens: 2000,
     temperature: 0.3,
     enableThinking: true
+  },
+  ui: {
+    language: 'zh',
+    theme: 'dark'
   }
 };
 
@@ -113,7 +128,12 @@ export class ConfigManager {
     if (!this.isInitialized) {
       await this.init();
     }
-    return this.currentConfig || JSON.parse(JSON.stringify(DEFAULT_CONFIG));
+    const config = this.currentConfig || JSON.parse(JSON.stringify(DEFAULT_CONFIG));
+    // 确保 ui 字段存在（兼容旧配置）
+    if (!config.ui) {
+      config.ui = { language: 'zh', theme: 'dark' };
+    }
+    return config;
   }
 
   /**

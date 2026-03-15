@@ -6,11 +6,55 @@ export interface FetchOptions extends RequestInit {
   retries?: number;
 }
 
+/**
+ * 开发环境下将外部 API URL 转换为本地代理 URL 以解决 CORS 问题
+ * @param originalUrl 原始 API URL
+ * @returns 转换后的 URL（开发环境下）或原始 URL（生产环境/真机）
+ */
+function transformUrlForDevProxy(originalUrl: string): string {
+  // 只在浏览器开发环境下使用代理
+  // 注意：Capacitor 真机环境下 isNativePlatform 为 true，不会走这里
+  const isDevBrowser = import.meta.env.DEV && typeof window !== 'undefined' && !(window as unknown as { Capacitor?: unknown }).Capacitor;
+
+  if (!isDevBrowser) {
+    return originalUrl;
+  }
+
+  try {
+    const url = new URL(originalUrl);
+    const hostname = url.hostname.toLowerCase();
+
+    // 映射常见 LLM API 到代理路径
+    // 支持带 /v1 的 baseUrl，代理会正确处理
+    const proxyMap: Record<string, string> = {
+      'api.moonshot.cn': '/api/moonshot',
+      'api.deepseek.com': '/api/deepseek',
+      'api.siliconflow.cn': '/api/siliconflow',
+      'api-inference.modelscope.cn': '/api/modelscope',
+    };
+
+    for (const [apiHost, proxyPath] of Object.entries(proxyMap)) {
+      if (hostname === apiHost || hostname.endsWith('.' + apiHost)) {
+        // 替换协议、主机和端口为当前开发服务器
+        const newUrl = proxyPath + url.pathname + url.search;
+        console.log(`[FetchClient] Dev proxy: ${originalUrl} → ${newUrl}`);
+        return newUrl;
+      }
+    }
+  } catch {
+    // URL 解析失败，返回原始值
+  }
+
+  return originalUrl;
+}
+
 export class FetchClient {
   private static readonly DEFAULT_TIMEOUT = 30000; // 30s
   private static readonly DEFAULT_RETRIES = 1;
 
   public static async request<T>(url: string, options: FetchOptions = {}): Promise<T> {
+    // 开发环境下转换 URL 以使用代理
+    const transformedUrl = transformUrlForDevProxy(url);
     const { timeout = this.DEFAULT_TIMEOUT, retries = this.DEFAULT_RETRIES, ...fetchInit } = options;
 
     let attempt = 0;
@@ -21,7 +65,7 @@ export class FetchClient {
         const controller = new AbortController();
         const id = setTimeout(() => controller.abort(), timeout);
 
-        const response = await fetch(url, {
+        const response = await fetch(transformedUrl, {
           ...fetchInit,
           signal: controller.signal
         });
