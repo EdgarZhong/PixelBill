@@ -29,7 +29,7 @@ export function mockFsMiddleware(): Plugin {
 
         // Simple helper to get body JSON
         const getBody = async () => {
-          return new Promise<any>((resolve) => {
+          return new Promise<Record<string, unknown>>((resolve) => {
             let body = '';
             req.on('data', chunk => body += chunk);
             req.on('end', () => {

@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useLayoutEffect } from 'react';
 import clsx from 'clsx';
 
 interface PaginationProps {
@@ -53,7 +53,8 @@ export const Pagination: React.FC<PaginationProps> = ({
 
   // 仅当 currentPage 变化时同步到 dragPage
   // 这样在松手后（isDragging 变 false 但 currentPage 还没变时），不会强制回滚
-  useEffect(() => {
+  // 使用 useLayoutEffect 在绘制前同步状态
+  useLayoutEffect(() => {
     if (!isDraggingRef.current) {
       setDragPage(currentPage);
     }

@@ -174,7 +174,7 @@ export class ConfigManager {
           encoding: Encoding.UTF8
         });
         return result.data as string;
-      } catch (e) {
+      } catch {
         return null; // File not found
       }
     } else {

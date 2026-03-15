@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useLayoutEffect } from 'react';
 import type { Transaction } from '../types';
 import { Pagination } from './Pagination';
 import { TransactionItem } from './TransactionItem';
@@ -50,7 +50,7 @@ const TransactionListComponent: React.FC<TransactionListProps> = ({
   const totalPages = Math.ceil(transactions.length / ITEMS_PER_PAGE);
   
   // When transactions change, reset to first page
-  useEffect(() => {
+  useLayoutEffect(() => {
     setCurrentPage(1);
   }, [transactions.length]);
 
@@ -108,6 +108,7 @@ const TransactionListComponent: React.FC<TransactionListProps> = ({
 
   // Animation variants for page transitions
   const variants = {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     enter: (_direction: number) => ({
       opacity: 0,
       filter: 'blur(2px)',
@@ -124,6 +125,7 @@ const TransactionListComponent: React.FC<TransactionListProps> = ({
         duration: 0.4
       }
     },
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     exit: (_direction: number) => ({
       zIndex: 0,
       opacity: 0,
@@ -176,10 +178,16 @@ const TransactionListComponent: React.FC<TransactionListProps> = ({
     exit: { opacity: 0 }
   };
 
-  const displayItems = [...paginatedTransactions];
+  // Skeleton item 类型定义
+  interface SkeletonItem {
+    id: string;
+    isSkeleton: true;
+  }
+
+  const displayItems: (Transaction | SkeletonItem)[] = [...paginatedTransactions];
   // Fill remaining slots with skeleton items to maintain fixed height (20 items)
   while (displayItems.length < ITEMS_PER_PAGE) {
-    displayItems.push({ id: `skeleton-${displayItems.length}`, isSkeleton: true } as any);
+    displayItems.push({ id: `skeleton-${displayItems.length}`, isSkeleton: true as const });
   }
 
   return (
@@ -206,7 +214,7 @@ const TransactionListComponent: React.FC<TransactionListProps> = ({
               exit="exit"
             >
               {displayItems.map((t) => (
-                (t as any).isSkeleton ? (
+                'isSkeleton' in t ? (
                   <motion.div key={t.id} variants={itemVariants}>
                     <SkeletonItem />
                   </motion.div>

@@ -26,7 +26,7 @@ export class LLMClient {
     
     try {
       // Log Request
-      const response = await NetworkClient.post<any>(
+      const response = await NetworkClient.post<Record<string, unknown>>(
         url,
         payload,
         {
@@ -57,10 +57,10 @@ export class LLMClient {
 
       return content;
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       const duration = Date.now() - startTime;
       console.error('[LLMClient] Chat request failed:', error);
-      
+
       // Log Error
       try {
         await RawLogger.log(`LLM_ERR_${Date.now()}`, {
@@ -68,7 +68,7 @@ export class LLMClient {
           response: null,
           duration_ms: duration,
           status: 'ERROR',
-          error: error.message || String(error)
+          error: error instanceof Error ? error.message : String(error)
         });
       } catch (logError) {
         console.error('[LLMClient] Failed to log error:', logError);

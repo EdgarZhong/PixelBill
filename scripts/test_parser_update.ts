@@ -1,6 +1,5 @@
 
 import { parseFiles } from '../src/utils/parser';
-import { Transaction } from '../src/types';
 
 // Mock File class if not available in Node.js environment (for testing)
 class MockFile {

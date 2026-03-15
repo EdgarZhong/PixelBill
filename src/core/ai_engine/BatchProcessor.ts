@@ -61,7 +61,7 @@ export class BatchProcessor {
     // Emit current state immediately if subscribing to status
     if (event === 'status') {
       // Cast to match the specific event type
-      (listener as any)({ status: this.status, progress: this.progress });
+      (listener as (data: BatchProcessorEventMap['status']) => void)({ status: this.status, progress: this.progress });
     }
     
     return () => {
@@ -135,7 +135,7 @@ export class BatchProcessor {
         const fileHandle = await getMemoryFileHandle(dirHandle, true);
         if (!fileHandle) throw new Error('Could not access ledger file');
         
-        let memory = await readMemoryFile(fileHandle);
+        const memory = await readMemoryFile(fileHandle);
 
         // 3. Group transactions by date
         const txs = Object.values(memory.records) as FullTransactionRecord[];
@@ -184,7 +184,7 @@ export class BatchProcessor {
             // We do not write to file directly anymore. We let Arbiter handle the persistence.
             if (this.proposalHandler) {
               const timestamp = Date.now();
-              aiResult.results.forEach((item: any) => {
+              aiResult.results.forEach((item: { id: string; category: string; reasoning?: string }) => {
                  // Only propose if we have valid data
                  if (item.id && item.category) {
                     const proposal: Proposal = {
@@ -210,9 +210,10 @@ export class BatchProcessor {
               success: true
             });
 
-          } catch (e: any) {
+          } catch (e: unknown) {
+            const errorMessage = e instanceof Error ? e.message : String(e);
             console.error(`Failed to process date ${dateStr}:`, e);
-            result.errors.push(`${dateStr}: ${e.message}`);
+            result.errors.push(`${dateStr}: ${errorMessage}`);
             
             this.emit('dayCompleted', {
               date: dateStr,
@@ -226,9 +227,10 @@ export class BatchProcessor {
         this.updateState('IDLE');
         return result;
 
-      } catch (e: any) {
+      } catch (e: unknown) {
+        const errorMessage = e instanceof Error ? e.message : String(e);
         this.updateState('ERROR');
-        return { success: false, processedCount: 0, errors: [e.message] };
+        return { success: false, processedCount: 0, errors: [errorMessage] };
       }
     });
   }

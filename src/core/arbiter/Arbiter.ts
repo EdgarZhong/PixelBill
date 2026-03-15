@@ -177,7 +177,7 @@ export class Arbiter {
     if (Object.keys(updates).length > 0) {
       // Calculate final decision to keep category in sync (View Model)
       const finalDecision = this.decide(txId);
-      (updates as any).category = finalDecision.category;
+      (updates as Partial<FullTransactionRecord> & { category?: string }).category = finalDecision.category;
 
       this.onPatchGenerated({ id: txId, updates });
     }

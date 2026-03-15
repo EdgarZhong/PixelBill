@@ -4,7 +4,9 @@ import { format } from 'date-fns';
 
 export interface LogEntry {
   timestamp: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   request: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   response: any;
   duration_ms: number;
   status: 'SUCCESS' | 'ERROR';
@@ -19,8 +21,8 @@ export class RawLogger {
    * 适配 LLMClient 的实例方法
    */
   public async logInteraction(
-    messages: any[],
-    response: any,
+    messages: unknown[],
+    response: unknown,
     duration: number,
     model: string
   ) {
@@ -57,7 +59,7 @@ export class RawLogger {
             directory: Directory.Data,
             recursive: true
           });
-        } catch (e) {
+        } catch {
           // Ignore if exists
         }
 

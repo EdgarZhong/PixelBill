@@ -14,6 +14,52 @@ interface LedgerSwitcherProps {
   onOpen?: () => void;
 }
 
+// 删除确认覆盖层组件 - 定义在组件外部以避免重复创建
+interface DeleteOverlayProps {
+  ledgerName: string;
+  onCancel: () => void;
+  onConfirm: () => void;
+}
+
+const DeleteOverlay: React.FC<DeleteOverlayProps> = ({ ledgerName, onCancel, onConfirm }) => (
+  <motion.div
+    initial={{ opacity: 0, scale: 0.95 }}
+    animate={{ opacity: 1, scale: 1 }}
+    exit={{ opacity: 0, scale: 0.95 }}
+    transition={{ duration: 0.2 }}
+    className="absolute inset-0 z-50 bg-black/95 flex flex-col items-center justify-center p-6 text-center backdrop-blur-sm"
+    onClick={(e) => e.stopPropagation()}
+  >
+    <div className="w-12 h-12 rounded-full bg-red-900/20 flex items-center justify-center mb-4 border border-red-900/50">
+      <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+      </svg>
+    </div>
+
+    <h3 className="text-red-500 font-mono text-lg mb-2 tracking-wide">确认删除?</h3>
+
+    <p className="text-gray-400 text-xs font-mono mb-8 leading-relaxed">
+      将永久删除账本<br/>
+      <span className="text-white text-sm font-bold border-b border-gray-700 pb-0.5 mx-1">{ledgerName}</span>
+    </p>
+
+    <div className="flex gap-3 w-full">
+      <button
+        onClick={onCancel}
+        className="flex-1 px-4 py-3 bg-gray-800 hover:bg-gray-700 text-gray-300 text-xs font-mono rounded border border-gray-700 transition-colors"
+      >
+        取消
+      </button>
+      <button
+        onClick={onConfirm}
+        className="flex-1 px-4 py-3 bg-red-900/20 hover:bg-red-900/40 text-red-400 text-xs font-mono rounded border border-red-900/50 transition-colors shadow-[0_0_10px_rgba(220,38,38,0.1)]"
+      >
+        确认删除
+      </button>
+    </div>
+  </motion.div>
+);
+
 /**
  * [CHOOSE_LEDGER]组件
  * 采用与 DateRangePicker 相同的二级面板样式
@@ -137,46 +183,6 @@ export const LedgerSwitcher: React.FC<LedgerSwitcherProps> = ({
     duration: 0.3
   } as const;
 
-  // 行内删除确认覆盖层
-  const DeleteOverlay = ({ ledgerName }: { ledgerName: string }) => (
-    <motion.div
-      initial={{ opacity: 0, scale: 0.95 }}
-      animate={{ opacity: 1, scale: 1 }}
-      exit={{ opacity: 0, scale: 0.95 }}
-      transition={{ duration: 0.2 }}
-      className="absolute inset-0 z-50 bg-black/95 flex flex-col items-center justify-center p-6 text-center backdrop-blur-sm"
-      onClick={(e) => e.stopPropagation()}
-    >
-      <div className="w-12 h-12 rounded-full bg-red-900/20 flex items-center justify-center mb-4 border border-red-900/50">
-        <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-        </svg>
-      </div>
-      
-      <h3 className="text-red-500 font-mono text-lg mb-2 tracking-wide">确认删除?</h3>
-      
-      <p className="text-gray-400 text-xs font-mono mb-8 leading-relaxed">
-        将永久删除账本<br/>
-        <span className="text-white text-sm font-bold border-b border-gray-700 pb-0.5 mx-1">{ledgerName}</span>
-      </p>
-      
-      <div className="flex gap-3 w-full">
-        <button
-          onClick={() => setDeleteConfirm(null)}
-          className="flex-1 px-4 py-3 bg-gray-800 hover:bg-gray-700 text-gray-300 text-xs font-mono rounded border border-gray-700 transition-colors"
-        >
-          取消
-        </button>
-        <button
-          onClick={() => handleDeleteClick(ledgerName)}
-          className="flex-1 px-4 py-3 bg-red-900/20 hover:bg-red-900/40 text-red-400 text-xs font-mono rounded border border-red-900/50 transition-colors shadow-[0_0_10px_rgba(220,38,38,0.1)]"
-        >
-          确认删除
-        </button>
-      </div>
-    </motion.div>
-  );
-
   const isTriggerHidden = isOpen || isClosing;
 
   useEffect(() => {
@@ -241,7 +247,13 @@ export const LedgerSwitcher: React.FC<LedgerSwitcherProps> = ({
               >
                 {/* 覆盖层：删除确认 */}
                 <AnimatePresence>
-                  {deleteConfirm && <DeleteOverlay ledgerName={deleteConfirm} />}
+                  {deleteConfirm && (
+                    <DeleteOverlay
+                      ledgerName={deleteConfirm}
+                      onCancel={() => setDeleteConfirm(null)}
+                      onConfirm={() => handleDeleteClick(deleteConfirm)}
+                    />
+                  )}
                 </AnimatePresence>
 
                 {/* 标题 */}

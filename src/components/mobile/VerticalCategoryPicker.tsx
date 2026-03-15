@@ -87,7 +87,7 @@ export const VerticalCategoryPicker: React.FC<VerticalCategoryPickerProps> = ({
     // So index = Math.round(scrollTop / ITEM_HEIGHT)
     
     return Math.round(container.scrollTop / ITEM_HEIGHT);
-  }, [CONTAINER_HEIGHT, ITEM_HEIGHT, categories.length]);
+  }, [ITEM_HEIGHT, categories.length]);
 
   // 4. Snap Logic
   const snapToCenter = useCallback(() => {

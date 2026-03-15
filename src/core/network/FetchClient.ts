@@ -42,12 +42,12 @@ export class FetchClient {
         // 尝试解析 JSON
         try {
           return await response.json() as T;
-        } catch (e) {
+        } catch {
           throw new Error('Invalid JSON response');
         }
 
-      } catch (err: any) {
-        lastError = err;
+      } catch (err: unknown) {
+        lastError = err instanceof Error ? err : new Error(String(err));
         
         // 如果是 AbortError (超时)，则视为可重试
         // 如果是 5xx 错误，也可重试
@@ -74,7 +74,7 @@ export class FetchClient {
   }
 
   // Helper for POST JSON
-  public static async post<T>(url: string, body: any, headers: Record<string, string> = {}, options: FetchOptions = {}): Promise<T> {
+  public static async post<T>(url: string, body: unknown, headers: Record<string, string> = {}, options: FetchOptions = {}): Promise<T> {
     return this.request<T>(url, {
       method: 'POST',
       headers: {

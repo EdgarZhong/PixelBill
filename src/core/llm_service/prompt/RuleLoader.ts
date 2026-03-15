@@ -21,7 +21,7 @@ export class RuleLoader {
       });
 
       return result.data as string;
-    } catch (e) {
+    } catch {
       console.warn(`[RuleLoader] Rules not found for ${ledgerName}, using empty rules.`);
       // 如果文件不存在，返回空字符串，或者可以返回默认的内置规则
       return '';
