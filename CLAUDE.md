@@ -47,6 +47,22 @@ CSV 导入 → Parser → LedgerService → Arbiter → Plugins → 最终分类
                          *.pixelbill.json (JSON 存储)
 ```
 
+**P0 新增：实例库数据流**
+
+```
+用户修正分类 / 锁定确认
+        ↓
+    Arbiter.ingest() / toggleVerification()
+        ↓
+    ExampleStore.addOrUpdate() ──→ classify_examples/{ledger}.json
+        ↓
+    下次分类时 PromptBuilder.retrieveRelevant()
+        ↓
+    注入 Prompt.context.reference_corrections
+        ↓
+    LLM 参考历史案例进行分类
+```
+
 #### 仲裁系统优先级链
 
 1. **USER** - 用户手动分类（最高优先级）
@@ -73,6 +89,8 @@ CSV 导入 → Parser → LedgerService → Arbiter → Plugins → 最终分类
 | CSV 导入解析 | ✅ 已完成 | 支持微信、支付宝账单格式 |
 | AI 智能分类 | ✅ 已完成 | 基于 Arbiter 的多源决策系统 |
 | AI 状态反馈 UI | ✅ 已完成 | 呼吸光效、进度指示、置信度可视化 |
+| **AI 自学习 P0** | ✅ **已完成** | **实例库自动采集 + 注入 Prompt** |
+| AI 自学习 P1 | 🚧 规划中 | 记忆文件 + 学习会话机制 |
 | 多账本管理 | ✅ 已完成 | 创建、切换、左滑删除 |
 | 账本切换器 | ✅ 已完成 | 二级面板、丝滑动画 |
 | 交易详情页 | ✅ 已完成 | 分类编辑、备注修改 |
@@ -103,11 +121,15 @@ pixel_bill/
 │   │   ├── ai_engine/         # AI 分类引擎
 │   │   ├── arbiter/           # 仲裁系统
 │   │   ├── config/            # 配置管理
-│   │   ├── llm_service/       # LLM 服务
+│   │   ├── llm_service/       # LLM 服务（含 PromptBuilder、SystemPrompt）
 │   │   ├── logging/           # 日志系统
 │   │   ├── network/           # 网络层
 │   │   ├── plugin/            # 分类插件
 │   │   └── services/          # 核心服务
+│   │       ├── LedgerService.ts      # 账本状态管理
+│   │       ├── LedgerManager.ts      # 账本生命周期管理
+│   │       ├── PersistenceManager.ts # 持久化（防抖写入）
+│   │       └── ExampleStore.ts       # 【P0 新增】实例库管理
 │   ├── debug/                 # 调试工具
 │   ├── hooks/                 # React Hooks
 │   ├── mocks/                 # 开发环境 Mock
@@ -129,6 +151,8 @@ pixel_bill/
 | 文档名称 | 内容描述 | 文件路径 |
 |----------|----------|----------|
 | 设计文档 | Cyber-Zen 视觉设计系统、色彩规范、动效规范 | `docs/DESIGN.md` |
+| **AI 自学习设计** | **P0/P1/P2/P3 完整设计文档（含实现状态）** | `AI_SELF_LEARNING_DESIGN_v4.md` |
+| **P0 测试指南** | **实例库自动采集 + 注入 测试文档** | `docs/P0_TEST_GUIDE.md` |
 | 账本切换功能规划 | 账本切换功能详细设计规范（已实施完成） | `docs/ledger-switch-feature.md` |
 | 开发日志 Day 2 | Android 文件系统适配详细记录 | `docs/DAY2_IMPLEMENTATION.md` |
 | 开发日志 Day 3 | AI 引擎集成详细记录 | `docs/DAY3_IMPLEMENTATION.md` |
@@ -187,10 +211,14 @@ const result = await Filesystem.readdir({
 
 ### 文件系统存储位置规范
 
-| 文件类型 | 存储位置 | 说明 |
-|----------|----------|------|
-| `ledgers.json` (账本索引) | APP 沙箱目录 | 应用私有存储，通过 `Directory.Data` 访问 |
-| `*.pixelbill.json` (账本数据) | `Documents/PixelBill/` | 用户可访问和手动管理 |
+| 文件类型 | 存储位置 | Directory 枚举 | 说明 |
+|----------|----------|----------------|------|
+| `ledgers.json` (账本索引) | APP 沙箱目录 | `Directory.Data` | 账本索引 |
+| `*.pixelbill.json` (账本数据) | `Documents/PixelBill/` | `Directory.Documents` | 账本主数据文件 |
+| `classify_examples/{ledger}.json` | 沙箱目录 | `Directory.Data` | **P0 新增** - 实例库（用户修正/锁定记录） |
+| `classify_memory/{ledger}.md` | `Documents/PixelBill/classify_memory/` | `Directory.Documents` | **P1 预留** - AI 记忆文件 |
+| `self_description/user_profile.md` | `Documents/PixelBill/self_description/` | `Directory.Documents` | **P1 预留** - 用户自述文件 |
+| `memory_snapshots/{ledger}/` | 沙箱目录 | `Directory.Data` | **P1 预留** - 记忆文件版本快照 |
 
 ### 代码注释规范
 
@@ -225,6 +253,19 @@ window.__DEBUG_TOOLS__.exportData()
 
 // 手动触发分类
 window.__DEBUG_TOOLS__.classify()
+
+// ===== P0: 实例库调试命令 =====
+// 运行完整的 P0 测试
+await window.__DEBUG_TOOLS__.runP0Test()
+
+// 查看实例库内容
+await window.__DEBUG_TOOLS__.listExamples()
+
+// 添加测试数据
+await window.__DEBUG_TOOLS__.addTestExample()
+
+// 测试检索功能
+await window.__DEBUG_TOOLS__.testRetrieval()
 
 // 查看更多调试功能
 window.__DEBUG_TOOLS__
@@ -275,6 +316,7 @@ npm run lint -- --fix
 
 | 任务 | 完成日期 | 提交 |
 |------|----------|------|
+| AI 自学习 P0：实例库自动采集 + 注入 | 2026-03-16 | 进行中 |
 | 账本切换器动画优化与性能提升 | 2026-03-15 | 7dc3af3 |
 | 标签轮盘动画逻辑优化 | 2026-03-14 | 8158268 |
 | 修复账本初始化时分类状态不一致 | 2026-03-14 | 15e2b6c |
@@ -284,7 +326,11 @@ npm run lint -- --fix
 
 ### 进行中 / 待处理 🚧
 
-暂无明确待处理任务。等待用户指派新功能开发。
+| 任务 | 优先级 | 说明 |
+|------|--------|------|
+| AI 自学习 P1：记忆文件 + 学习会话 | P1 | 实现学习 Prompt 和增量更新机制 |
+| AI 自学习 P2：标签管理升级 + 分类队列 | P2 | defined_categories 升级为映射 |
+| AI 自学习 P3：列表页快速修正 | P3 | 降低修正摩擦力的交互优化 |
 
 ---
 

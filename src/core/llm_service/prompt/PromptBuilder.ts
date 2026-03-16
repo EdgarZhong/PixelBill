@@ -2,6 +2,7 @@ import { generateSystemPrompt } from './SystemPrompt';
 import { RuleLoader } from './RuleLoader';
 import { LedgerLoader } from './LedgerLoader';
 import { ConfigManager } from '../../config/ConfigManager';
+import { ExampleStore } from '../../services/ExampleStore';
 import type { ChatMessage } from '../types';
 import type { TransactionBase } from '../../../types/metadata';
 import { format } from 'date-fns';
@@ -31,7 +32,18 @@ export class PromptBuilder {
     const config = await configManager.getConfig();
     const userContext = config.userContext;
 
-    // 4. 序列化交易数据
+    // 4. 从实例库检索相关案例（AI 自学习 P0 功能）
+    // 为批次中每条交易检索最多 3 条相关案例，去重合并
+    const pendingTxs = transactions.map(tx => ({
+      id: tx.id,
+      counterparty: tx.counterparty,
+      description: tx.product || tx.remark || '',
+      amount: tx.amount,
+      time: tx.time.split(' ')[1] || tx.time // 提取 HH:mm 部分
+    }));
+    const referenceCorrections = await ExampleStore.retrieveRelevant(ledgerName, pendingTxs);
+
+    // 5. 序列化交易数据
     // 仅保留 AI 需要的字段：时间、金额、描述、对方、方向、原有分类
     const txData = transactions.map(tx => ({
       id: tx.id,
@@ -45,19 +57,20 @@ export class PromptBuilder {
       raw_category: tx.rawClass
     }));
 
-    // 5. 构建 Prompt Payload
-    // 严格遵循 DAY3_IMPLEMENTATION.md 定义的结构
+    // 6. 构建 Prompt Payload
+    // 注入 reference_corrections 作为 few-shot examples
     const payload = {
       user_rules: userRules,
       category_list: categoryList,
       context: {
         date: format(date, 'yyyy-MM-dd'),
         weekday: format(date, 'EEEE'), // e.g., "Monday"
+        reference_corrections: referenceCorrections.length > 0 ? referenceCorrections : undefined
       },
       transactions: txData
     };
 
-    // 6. 组装 User Message
+    // 7. 组装 User Message
     const userContent = JSON.stringify(payload, null, 2);
 
     return [

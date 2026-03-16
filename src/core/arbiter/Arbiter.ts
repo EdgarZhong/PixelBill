@@ -20,17 +20,45 @@ export interface PersistencePatch {
   updates: Partial<FullTransactionRecord>;
 }
 
+/**
+ * 实例库写入请求
+ * 用于通知外部将交易记录写入实例库
+ */
+export interface ExampleStoreRequest {
+  txId: string;
+  /**
+   * 是否为修正（AI 分错用户纠正）
+   * true: AI 分错，用户修正 - 丢弃 ai_reasoning
+   * false: AI 分对，用户确认 - 保留 ai_reasoning
+   */
+  isCorrection: boolean;
+}
+
 export class Arbiter {
   private plugins: ICategoryPlugin[] = [];
   private proposalCache: ProposalCache = {};
-  
+
   // Callback for persistence layer
   private onPatchGenerated?: (patch: PersistencePatch) => void;
+
+  /**
+   * 实例库写入回调
+   * 当需要写入实例库时触发，由 LedgerService 监听并执行实际写入
+   */
+  private onExampleStoreWrite?: (request: ExampleStoreRequest) => void;
 
   constructor() {}
 
   public setPatchCallback(callback: (patch: PersistencePatch) => void) {
     this.onPatchGenerated = callback;
+  }
+
+  /**
+   * 设置实例库写入回调
+   * @param callback 回调函数，接收 ExampleStoreRequest
+   */
+  public setExampleStoreCallback(callback: (request: ExampleStoreRequest) => void) {
+    this.onExampleStoreWrite = callback;
   }
 
   public registerPlugin(plugin: ICategoryPlugin) {
@@ -124,6 +152,12 @@ export class Arbiter {
     };
 
     this.onPatchGenerated({ id: txId, updates });
+
+    // 用户锁定确认时，写入实例库（作为高置信参考）
+    // 不是修正（用户只是确认 AI 分类正确）
+    if (isVerified && this.onExampleStoreWrite) {
+      this.onExampleStoreWrite({ txId, isCorrection: false });
+    }
   }
 
   public updateUserNote(txId: string, userNote: string) {
@@ -161,6 +195,16 @@ export class Arbiter {
         updated_at: new Date().toISOString()
         // FIX: Do NOT auto-lock on edit. is_verified is handled separately.
       };
+
+      // 触发实例库写入 - 用户修正分类
+      // 判断是否为修正（AI 分错用户纠正）
+      const cache = this.proposalCache[txId];
+      const aiProposal = cache?.AI_AGENT;
+      const isCorrection = aiProposal !== undefined && aiProposal.category !== proposal.category;
+
+      if (this.onExampleStoreWrite) {
+        this.onExampleStoreWrite({ txId, isCorrection });
+      }
     } else if (proposal.source === 'AI_AGENT') {
       updates = {
         ai_category: proposal.category,
@@ -169,9 +213,9 @@ export class Arbiter {
       };
     } else if (proposal.source === 'RULE_ENGINE') {
         // TODO: Define Rule Engine persistence strategy
-        // For now, we do NOT persist rule engine results to file, 
+        // For now, we do NOT persist rule engine results to file,
         // they are runtime only or handled differently.
-        return; 
+        return;
     }
 
     if (Object.keys(updates).length > 0) {

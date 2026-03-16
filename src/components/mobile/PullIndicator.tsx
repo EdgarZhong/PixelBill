@@ -16,8 +16,8 @@ interface PullIndicatorProps {
  *
  * 设计规范：
  * - 常态隐藏在 Header 下方
- * - 下拉中：3个垂直像素点，间距和亮度随 progress 变化
- * - 触发态：三点收拢为横线
+ * - 下拉中：显示设置图标 + 3个垂直像素点，间距和亮度随 progress 变化
+ * - 触发态：三点收拢为横线，图标放大
  */
 export const PullIndicator: React.FC<PullIndicatorProps> = ({
   progress,
@@ -29,12 +29,58 @@ export const PullIndicator: React.FC<PullIndicatorProps> = ({
   const opacity = 0.3 + progress * 0.7;
   // 发光强度
   const glowOpacity = progress * 0.8;
+  // 图标显现进度：从 0.2 开始显现
+  const iconOpacity = progress < 0.2 ? 0 : (progress - 0.2) * 1.25;
+  // 图标缩放
+  const iconScale = 0.8 + progress * 0.4;
 
   // 避免在 progress 为 0 时渲染不必要的内容
   if (progress <= 0) return null;
 
+  // 计算指示器位置：基于下拉进度，出现在下拉创造的空间中
+  // PULL_THRESHOLD = 80px，progress = deltaY / 80
+  // 指示器位置跟随下拉距离，但稍微偏上一点
+  const pullDistance = progress * 80; // 实际下拉距离（像素）
+  const indicatorY = Math.max(8, pullDistance - 40); // 最小 8px，跟随下拉位置但偏上
+
   return (
-    <div className="absolute top-full left-0 right-0 h-12 flex items-center justify-center pointer-events-none z-20" style={{ willChange: 'opacity' }}>
+    <div
+      className="fixed left-0 right-0 flex flex-col items-center justify-start pointer-events-none z-50"
+      style={{
+        willChange: 'transform, opacity',
+        top: `${indicatorY}px`,
+        transition: 'top 0.03s linear'
+      }}
+    >
+      {/* 设置图标 - 下拉时逐渐显现 */}
+      <motion.div
+        className="mb-2"
+        initial={{ opacity: 0, scale: 0.8 }}
+        animate={{
+          opacity: isTriggered ? 1 : iconOpacity,
+          scale: isTriggered ? 1.1 : iconScale,
+          rotate: isTriggered ? 90 : progress * 45
+        }}
+        transition={{ duration: 0.15, ease: "easeOut" }}
+      >
+        {/* 3x3 像素风格的设置/齿轮图标 */}
+        <div className="grid grid-cols-3 gap-[2px] w-6 h-6">
+          {/* 第一行：点 空 点 */}
+          <div className="w-full h-full bg-pixel-green rounded-[1px]" style={{ opacity: 0.8, boxShadow: `0 0 ${4 + progress * 4}px rgba(16,185,129,${glowOpacity})` }} />
+          <div className="w-full h-full bg-transparent" />
+          <div className="w-full h-full bg-pixel-green rounded-[1px]" style={{ opacity: 0.8, boxShadow: `0 0 ${4 + progress * 4}px rgba(16,185,129,${glowOpacity})` }} />
+          {/* 第二行：空 点 空 */}
+          <div className="w-full h-full bg-transparent" />
+          <div className="w-full h-full bg-pixel-green rounded-[1px]" style={{ opacity: 1, boxShadow: `0 0 ${6 + progress * 6}px rgba(16,185,129,${glowOpacity})` }} />
+          <div className="w-full h-full bg-transparent" />
+          {/* 第三行：点 空 点 */}
+          <div className="w-full h-full bg-pixel-green rounded-[1px]" style={{ opacity: 0.8, boxShadow: `0 0 ${4 + progress * 4}px rgba(16,185,129,${glowOpacity})` }} />
+          <div className="w-full h-full bg-transparent" />
+          <div className="w-full h-full bg-pixel-green rounded-[1px]" style={{ opacity: 0.8, boxShadow: `0 0 ${4 + progress * 4}px rgba(16,185,129,${glowOpacity})` }} />
+        </div>
+      </motion.div>
+
+      {/* 下拉进度指示器 */}
       <motion.div
         className="flex flex-col items-center"
         style={{ gap: isTriggered ? 2 : gap }}
@@ -74,17 +120,18 @@ export const PullIndicator: React.FC<PullIndicatorProps> = ({
         )}
       </motion.div>
 
-      {/* 提示文字 - 仅在即将触发时显示 */}
+      {/* 提示文字 - 从早期就开始渐显，始终显示 [SETTINGS] */}
       <motion.div
-        className="absolute top-8 text-[8px] font-mono text-pixel-green tracking-wider"
-        initial={{ opacity: 0, y: -5 }}
+        className="mt-2 text-[8px] font-mono tracking-wider"
+        initial={{ opacity: 0, y: 5 }}
         animate={{
-          opacity: progress > 0.6 && !isTriggered ? (progress - 0.6) * 2.5 : 0,
-          y: progress > 0.6 ? 0 : -5
+          opacity: progress > 0.3 ? (progress - 0.3) * 1.4 : 0,
+          y: 0,
+          color: isTriggered ? '#10b981' : `rgba(107,114,128,${0.5 + progress * 0.5})`
         }}
         transition={{ duration: 0.2 }}
       >
-        [RELEASE_TO_OPEN]
+        [SETTINGS]
       </motion.div>
     </div>
   );

@@ -11,6 +11,7 @@ import type { LedgerMemory, FullTransactionRecord } from '../../types/metadata';
 import { globalArbiter, type PersistencePatch } from '../arbiter/Arbiter';
 import { RegexRulePlugin, UserMetaPlugin, AIEnginePlugin } from '../plugin';
 import { PersistenceManager } from './PersistenceManager';
+import { ExampleStore } from './ExampleStore';
 import { format, parse, startOfDay, endOfDay } from 'date-fns';
 
 export interface LedgerState {
@@ -109,7 +110,7 @@ export class LedgerService {
   private setupArbiterListener() {
     globalArbiter.setPatchCallback((patch: PersistencePatch) => {
       console.log('[LedgerService] Received patch:', patch.id);
-      
+
       const prevMemory = this.state.ledgerMemory;
       if (!prevMemory) {
         this.pendingPatches.push(patch);
@@ -118,6 +119,43 @@ export class LedgerService {
 
       this.applyPatch(patch, prevMemory);
     });
+
+    // 设置实例库写入回调 - 当用户修正分类或锁定时触发
+    globalArbiter.setExampleStoreCallback(async ({ txId, isCorrection }) => {
+      const ledgerName = this.getCurrentLedgerName();
+      const memory = this.state.ledgerMemory;
+
+      if (!ledgerName || !memory) {
+        console.warn('[LedgerService] Cannot write to example store: no ledger loaded');
+        return;
+      }
+
+      const record = memory.records[txId];
+      if (!record) {
+        console.warn('[LedgerService] Cannot write to example store: record not found', txId);
+        return;
+      }
+
+      try {
+        await ExampleStore.addOrUpdate(ledgerName, record, isCorrection);
+        console.log(`[LedgerService] Example store updated for ${txId}, isCorrection=${isCorrection}`);
+      } catch (e) {
+        console.error('[LedgerService] Failed to write to example store:', e);
+      }
+    });
+  }
+
+  /**
+   * 获取当前账本名称
+   * 从 memoryFileHandle 的文件名中提取
+   */
+  private getCurrentLedgerName(): string | null {
+    if (!this.memoryFileHandle) return null;
+
+    // 文件名格式: {ledgerName}.pixelbill.json
+    const fileName = this.memoryFileHandle.name;
+    const match = fileName.match(/^(.+)\.pixelbill\.json$/);
+    return match ? match[1] : null;
   }
 
   private applyPatch(patch: PersistencePatch, prevMemory: LedgerMemory) {
