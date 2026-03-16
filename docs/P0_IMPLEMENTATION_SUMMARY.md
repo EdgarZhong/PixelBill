@@ -147,12 +147,13 @@ await window.__DEBUG_TOOLS__.testRetrieval()
 
 ## 下一步工作（P1）
 
-P1 将实现**记忆文件 + 学习会话**机制：
-- `classify_memory/{ledger}.md` - AI 归纳的模式记忆
-- 学习会话 - 从实例库中提取模式，生成记忆条目
-- 版本快照 - 每次写入前的备份机制
-- 用户查看/编辑入口
+P1 已实现**记忆文件 + 学习会话**机制：
+- ✅ `classify_memory/{ledger}.md` - AI 归纳的模式记忆
+- ✅ 学习会话 - 从实例库中提取模式，生成记忆条目
+- ✅ 版本快照 - 每次写入前的备份机制
+- ✅ 用户查看/编辑入口
 
-详见设计文档：
-- `AI_SELF_LEARNING_DESIGN_v4.md`
-- `docs/P0_TEST_GUIDE.md`
+详见文档：
+- `docs/P1_IMPLEMENTATION_SUMMARY.md` - P1 实现总结
+- `docs/P1_TEST_GUIDE.md` - P1 测试指南
+- `AI_SELF_LEARNING_DESIGN_v4.md` - 设计文档

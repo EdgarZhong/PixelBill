@@ -4,6 +4,10 @@ import { createPortal } from 'react-dom';
 import { triggerHaptic, HapticFeedbackLevel } from '../../utils/haptics';
 import { ConfigManager, type MultiProviderConfig, type ProviderConfig } from '../../core/config/ConfigManager';
 import { useSettings } from '../../hooks/useSettings';
+import { ExampleStore } from '../../core/services/ExampleStore';
+import { MemoryManager } from '../../core/services/MemoryManager';
+import { SnapshotManager, type SnapshotMeta } from '../../core/services/SnapshotManager';
+import { LearningSession } from '../../core/ai_engine/LearningSession';
 
 interface SettingsPageProps {
   /** 是否打开 */
@@ -65,7 +69,7 @@ const PREDEFINED_MODELS: Record<string, string[]> = {
   custom: [],
 };
 
-type PanelView = 'main' | 'ai-config' | 'theme' | 'user-context';
+type PanelView = 'main' | 'ai-config' | 'theme' | 'user-context' | 'ai-memory';
 
 /**
  * [设置页面] 组件
@@ -144,8 +148,15 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
         onClick: onSwitchLedger
       },
       {
-        id: 'user-context',
+        id: 'ai-memory',
         icon: <PixelIcon color="pixel-green" pattern="ai" />,
+        label: 'AI_MEMORY',
+        value: 'CONFIGURE',
+        onClick: () => setCurrentView('ai-memory')
+      },
+      {
+        id: 'user-context',
+        icon: <PixelIcon color="pixel-green" />,
         label: 'AI_USER_CONTEXT',
         value: 'CONFIGURE',
         onClick: () => setCurrentView('user-context')
@@ -227,7 +238,8 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                 {currentView === 'main' ? '[SETTINGS]' :
                  currentView === 'ai-config' ? '[AI_API_CONFIG]' :
                  currentView === 'theme' ? '[THEME]' :
-                 currentView === 'user-context' ? '[AI_USER_CONTEXT]' : '[SETTINGS]'}
+                 currentView === 'user-context' ? '[AI_USER_CONTEXT]' :
+                 currentView === 'ai-memory' ? '[AI_MEMORY]' : '[SETTINGS]'}
               </div>
               <button
                 onClick={handleClose}
@@ -271,6 +283,14 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                 {currentView === 'user-context' && (
                   <UserContextPanel
                     key="user-context"
+                    onBack={() => setCurrentView('main')}
+                    transition={panelTransition}
+                  />
+                )}
+                {currentView === 'ai-memory' && (
+                  <AIMemoryPanel
+                    key="ai-memory"
+                    ledgerName={activeLedger}
                     onBack={() => setCurrentView('main')}
                     transition={panelTransition}
                   />
@@ -862,13 +882,13 @@ const UserContextPanel: React.FC<UserContextPanelProps> = ({ onBack, transition 
   const [saveStatus, setSaveStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // 加载保存的用户上下文
+  // 加载保存的用户上下文（从独立文件）
   useEffect(() => {
     const loadContext = async () => {
       try {
         const manager = ConfigManager.getInstance();
-        const cfg = await manager.getConfig();
-        setUserContext(cfg.userContext || '');
+        const context = await manager.getUserContext();
+        setUserContext(context);
       } catch (e) {
         console.error('[UserContextPanel] Failed to load context:', e);
       } finally {
@@ -886,14 +906,14 @@ const UserContextPanel: React.FC<UserContextPanelProps> = ({ onBack, transition 
     }
   }, [userContext, isLoading]);
 
-  // 保存用户上下文
+  // 保存用户上下文（保存到独立文件）
   const handleSave = useCallback(async () => {
     setIsSaving(true);
     setSaveStatus('idle');
 
     try {
       const manager = ConfigManager.getInstance();
-      await manager.saveConfig({ userContext: userContext.trim() });
+      await manager.saveUserContext(userContext.trim());
       setSaveStatus('success');
       await triggerHaptic(HapticFeedbackLevel.MEDIUM);
 
@@ -1032,6 +1052,281 @@ const UserContextPanel: React.FC<UserContextPanelProps> = ({ onBack, transition 
           User context is isolated from system prompts and transaction data.
           It is only used to supplement AI understanding and will not affect the rules engine.
         </div>
+      </div>
+
+      {/* 底部垫片 */}
+      <div className="h-4" />
+    </motion.div>
+  );
+};
+
+/**
+ * AI 记忆面板组件
+ * 显示当前记忆内容、修正计数、学习阈值配置和历史版本
+ */
+interface AIMemoryPanelProps {
+  ledgerName: string;
+  onBack: () => void;
+  transition: { type: string; ease: number[]; duration: number };
+}
+
+const AIMemoryPanel: React.FC<AIMemoryPanelProps> = ({
+  ledgerName,
+  onBack,
+  transition
+}) => {
+  const [memories, setMemories] = useState<string[]>([]);
+  const [exampleCount, setExampleCount] = useState(0);
+  const [snapshots, setSnapshots] = useState<SnapshotMeta[]>([]);
+  const [threshold, setThreshold] = useState(5);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isLearning, setIsLearning] = useState(false);
+  const [learnResult, setLearnResult] = useState<string>('');
+  const [showHistory, setShowHistory] = useState(false);
+
+  // 加载数据
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const [mems, stats, snaps] = await Promise.all([
+          MemoryManager.load(ledgerName),
+          ExampleStore.getStats(ledgerName),
+          SnapshotManager.list(ledgerName)
+        ]);
+        setMemories(mems);
+        setExampleCount(stats.count);
+        setSnapshots(snaps);
+      } catch (e) {
+        console.error('[AIMemoryPanel] Failed to load data:', e);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    void loadData();
+  }, [ledgerName]);
+
+  // 立即学习
+  const handleLearn = useCallback(async () => {
+    setIsLearning(true);
+    setLearnResult('');
+    await triggerHaptic(HapticFeedbackLevel.LIGHT);
+
+    try {
+      // 获取当前分类体系（简化版，实际需要传入）
+      const categories: Record<string, string> = {
+        meal: '日常正餐支出',
+        others: '其他支出'
+      };
+
+      const result = await LearningSession.run(ledgerName, categories);
+
+      if (result.success) {
+        setLearnResult(result.summary || '学习完成');
+        // 重新加载记忆
+        const mems = await MemoryManager.load(ledgerName);
+        setMemories(mems);
+        await triggerHaptic(HapticFeedbackLevel.MEDIUM);
+      } else {
+        setLearnResult(`学习失败: ${result.error || '未知错误'}`);
+      }
+    } catch (e) {
+      console.error('[AIMemoryPanel] Learning failed:', e);
+      setLearnResult('学习失败');
+    } finally {
+      setIsLearning(false);
+    }
+  }, [ledgerName]);
+
+  // 回退到指定版本
+  const handleRollback = useCallback(async (snapshotId: string) => {
+    if (!confirm(`确定要回退到 ${snapshotId} 吗？`)) return;
+
+    await triggerHaptic(HapticFeedbackLevel.LIGHT);
+    const success = await SnapshotManager.rollback(ledgerName, snapshotId);
+
+    if (success) {
+      // 重新加载
+      const mems = await MemoryManager.load(ledgerName);
+      setMemories(mems);
+      const snaps = await SnapshotManager.list(ledgerName);
+      setSnapshots(snaps);
+      await triggerHaptic(HapticFeedbackLevel.MEDIUM);
+    }
+  }, [ledgerName]);
+
+  if (isLoading) {
+    return (
+      <motion.div
+        initial={{ x: 50, opacity: 0 }}
+        animate={{ x: 0, opacity: 1 }}
+        exit={{ x: 50, opacity: 0 }}
+        transition={transition}
+        className="absolute inset-0 flex items-center justify-center"
+      >
+        <div className="text-dim text-xs font-mono">[LOADING...]</div>
+      </motion.div>
+    );
+  }
+
+  return (
+    <motion.div
+      initial={{ x: 50, opacity: 0 }}
+      animate={{ x: 0, opacity: 1 }}
+      exit={{ x: 50, opacity: 0 }}
+      transition={transition}
+      className="absolute inset-0 overflow-y-auto p-6"
+    >
+      {/* 返回按钮 */}
+      <button
+        onClick={onBack}
+        className="flex items-center gap-2 text-dim text-xs font-mono mb-6
+          hover:text-white transition-colors"
+      >
+        <span>‹</span>
+        <span>[BACK_TO_SETTINGS]</span>
+      </button>
+
+      {/* 标题 */}
+      <div className="mb-6">
+        <h3 className="text-sm font-mono text-gray-200 mb-2">[AI_MEMORY]</h3>
+        <p className="text-[10px] text-dim font-mono leading-relaxed">
+          AI 从您的修正行为中学习的分类模式。
+        </p>
+      </div>
+
+      {/* 统计信息 */}
+      <div className="grid grid-cols-2 gap-4 mb-6">
+        <div className="p-4 bg-zinc-950 border border-gray-800 rounded text-center">
+          <div className="text-2xl font-mono text-pixel-green">{exampleCount}</div>
+          <div className="text-[10px] text-dim font-mono mt-1">修正记录</div>
+        </div>
+        <div className="p-4 bg-zinc-950 border border-gray-800 rounded text-center">
+          <div className="text-2xl font-mono text-pixel-green">{memories.length}</div>
+          <div className="text-[10px] text-dim font-mono mt-1">学习条目</div>
+        </div>
+      </div>
+
+      {/* 立即学习按钮 */}
+      <div className="mb-6">
+        <button
+          onClick={handleLearn}
+          disabled={isLearning || exampleCount === 0}
+          className={`w-full py-3.5 rounded font-mono text-sm tracking-wider transition-all duration-200
+            ${isLearning
+              ? 'bg-zinc-950 border border-gray-600 text-gray-400 cursor-wait'
+              : exampleCount === 0
+                ? 'bg-gray-800/50 border border-gray-700 text-gray-500 cursor-not-allowed'
+                : 'bg-pixel-green/20 border border-pixel-green text-pixel-green hover:bg-pixel-green/30'
+            }`}
+        >
+          {isLearning ? '[LEARNING...]' : '[LEARN_NOW]'}
+        </button>
+
+        {learnResult && (
+          <motion.div
+            initial={{ opacity: 0, y: -5 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mt-3 text-xs font-mono text-center py-2 rounded bg-pixel-green/10 text-pixel-green"
+          >
+            {learnResult}
+          </motion.div>
+        )}
+      </div>
+
+      {/* 学习阈值配置 */}
+      <div className="mb-6 p-4 bg-zinc-950 border border-gray-800 rounded">
+        <div className="text-[10px] text-dim font-mono mb-3 tracking-wider">
+          [LEARNING_THRESHOLD]
+        </div>
+        <div className="flex items-center gap-4">
+          <input
+            type="range"
+            min="1"
+            max="20"
+            value={threshold}
+            onChange={(e) => setThreshold(parseInt(e.target.value))}
+            className="flex-1 accent-pixel-green"
+          />
+          <span className="text-sm font-mono text-pixel-green w-8 text-center">
+            {threshold}
+          </span>
+        </div>
+        <div className="text-[10px] text-gray-500 font-mono mt-2">
+          累计 {threshold} 条修正后自动触发学习
+        </div>
+      </div>
+
+      {/* 当前记忆内容 */}
+      <div className="mb-6">
+        <div className="text-[10px] text-dim font-mono mb-3 tracking-wider">
+          [CURRENT_MEMORY]
+        </div>
+        {memories.length === 0 ? (
+          <div className="p-4 bg-zinc-950 border border-gray-800 rounded text-center">
+            <div className="text-xs font-mono text-gray-500">暂无记忆</div>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {memories.map((mem, index) => (
+              <div
+                key={index}
+                className="p-3 bg-zinc-950 border border-gray-800 rounded text-xs font-mono text-gray-300"
+              >
+                <span className="text-pixel-green mr-2">{index + 1}.</span>
+                {mem}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* 历史版本入口 */}
+      <div className="mb-6">
+        <button
+          onClick={() => setShowHistory(!showHistory)}
+          className="w-full py-3 border border-gray-700 rounded text-xs font-mono text-gray-300
+            hover:border-gray-500 transition-colors"
+        >
+          {showHistory ? '[HIDE_HISTORY]' : `[VIEW_HISTORY (${snapshots.length})]`}
+        </button>
+
+        {showHistory && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            className="mt-3 space-y-2"
+          >
+            {snapshots.length === 0 ? (
+              <div className="p-4 bg-zinc-950 border border-gray-800 rounded text-center">
+                <div className="text-xs font-mono text-gray-500">暂无历史版本</div>
+              </div>
+            ) : (
+              snapshots.slice(0, 10).map((snap) => (
+                <div
+                  key={snap.id}
+                  className="p-3 bg-zinc-950 border border-gray-800 rounded flex items-center justify-between"
+                >
+                  <div>
+                    <div className="text-xs font-mono text-gray-300">{snap.id}</div>
+                    <div className="text-[10px] text-dim font-mono">
+                      {new Date(snap.timestamp).toLocaleString()}
+                    </div>
+                    <div className="text-[10px] text-gray-500 font-mono">
+                      {snap.summary}
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => handleRollback(snap.id)}
+                    className="px-3 py-1.5 text-[10px] font-mono text-expense-red border border-expense-red/30
+                      rounded hover:bg-expense-red/10 transition-colors"
+                  >
+                    [ROLLBACK]
+                  </button>
+                </div>
+              ))
+            )}
+          </motion.div>
+        )}
       </div>
 
       {/* 底部垫片 */}

@@ -1,8 +1,8 @@
 # PixelBill AI 自学习系统设计文档
 
-**版本**: v4.1
+**版本**: v4.2
 **日期**: 2026-03-16
-**状态**: 🚧 开发中（P0 已完成）
+**状态**: ✅ P0、P1 已完成，P2、P3 规划中
 
 ---
 
@@ -902,20 +902,101 @@ ${currentMemory}`;
 - ✅ `SystemPrompt` 更新：新增四级优先级层次和 reference_corrections 使用指引
 - ✅ 调试工具：浏览器控制台支持 `window.__DEBUG_TOOLS__.runP0Test()`
 
+**调试工具**:
+```javascript
+// 运行 P0 完整测试
+await window.__DEBUG_TOOLS__.runP0Test()
+
+// 查看实例库
+await window.__DEBUG_TOOLS__.listExamples()
+
+// 添加测试数据
+await window.__DEBUG_TOOLS__.addTestExample()
+
+// 测试检索功能
+await window.__DEBUG_TOOLS__.testRetrieval()
+
+// 清空实例库
+await window.__DEBUG_TOOLS__.clearExamples()
+```
+
+**相关文档**:
+- 测试指南：`docs/P0_TEST_GUIDE.md`
+- 实现总结：`docs/P0_IMPLEMENTATION_SUMMARY.md`
+
 **实现细节变更**:
 - 实例库存储位置：`Directory.Data/classify_examples/{ledger}.json`
 - 检索策略：每条交易最多 3 条案例，全局去重合并
 - 匹配权重：商户名(50) > 品类相似(20) > 金额区间(15) > 时段(15)
-- 测试文档：`docs/P0_TEST_GUIDE.md`
 
-### P1：记忆文件 + 学习会话（预估 3-4 天）
+### P1：记忆文件 + 学习会话（✅ 已完成）
 
-- 实现学习 Prompt 和增量更新机制（ADD / MODIFY / DELETE）
-- 记忆文件注入分类 Prompt
-- 版本快照机制（每次写入前自动拍快照）
-- 实现用户查看/编辑入口（AI 记忆 + 自述双区域 + 历史版本）
-- 学习阈值配置 + "立即学习"按钮
-- 自述文件迁移（从 secure_config.bin 中的 userContext 拆出为独立全局文件）
+**实施日期**: 2026-03-16
+**实际工作量**: 约 1 天
+
+**已完成内容**:
+- ✅ `MemoryManager` 模块：`src/core/services/MemoryManager.ts`
+  - 记忆文件读写（Documents/PixelBill/classify_memory/{ledger}.md）
+  - 增量更新（ADD / MODIFY / DELETE）
+  - 有序列表格式解析与生成
+  - **关键实现**: DELETE/MODIFY 按索引降序执行，避免偏移问题
+- ✅ `SnapshotManager` 模块：`src/core/services/SnapshotManager.ts`
+  - 版本快照（沙箱 memory_snapshots/{ledger}/）
+  - 上限清理（保留 30 个）
+  - 回退功能（回退前自动拍新快照）
+- ✅ `LearningSession` 模块：`src/core/ai_engine/LearningSession.ts`
+  - 学习 Prompt 生成
+  - LLM 调用与操作指令解析
+  - 自动拍快照后执行更新
+- ✅ `SelfDescriptionManager` 模块：`src/core/services/SelfDescriptionManager.ts`
+  - 自述文件独立管理
+  - 向后兼容旧配置（自动迁移）
+- ✅ `ConfigManager` 更新：`src/core/config/ConfigManager.ts`
+  - `getUserContext()` / `saveUserContext()` / `migrateUserContext()`
+  - 新旧配置兼容
+- ✅ `SettingsPage` 更新：`src/components/mobile/SettingsPage.tsx`
+  - AI 记忆面板（修正计数、学习阈值、立即学习按钮）
+  - 历史版本浏览与回退
+  - 当前记忆内容展示
+  - 自述文件编辑区
+- ✅ `PromptBuilder` 更新：`src/core/llm_service/prompt/PromptBuilder.ts`
+  - 注入记忆文件到 System Prompt
+  - 同时加载自述文件和记忆文件
+
+**调试工具**:
+```javascript
+// 运行 P1 完整测试
+await window.__DEBUG_TOOLS__.runP1Test()
+
+// 记忆文件操作
+await window.__DEBUG_TOOLS__.loadMemories()
+await window.__DEBUG_TOOLS__.addMemory('新记忆')
+await window.__DEBUG_TOOLS__.modifyMemory(1, '修改后')
+await window.__DEBUG_TOOLS__.deleteMemory(1)
+
+// 快照操作
+await window.__DEBUG_TOOLS__.listSnapshots()
+await window.__DEBUG_TOOLS__.createSnapshot('测试')
+await window.__DEBUG_TOOLS__.rollbackSnapshot('snap_001')
+
+// 自述文件
+await window.__DEBUG_TOOLS__.loadSelfDesc()
+await window.__DEBUG_TOOLS__.saveSelfDesc('我是西工大学生...')
+
+// 清理数据
+await window.__DEBUG_TOOLS__.clearP1Data()
+```
+
+**相关文档**:
+- 测试指南：`docs/P1_TEST_GUIDE.md`
+- 实现总结：`docs/P1_IMPLEMENTATION_SUMMARY.md`
+
+**实现细节变更**:
+- 记忆文件位置：`Documents/PixelBill/classify_memory/{ledger}.md`
+- 快照位置：`沙箱/memory_snapshots/{ledger}/`
+- 自述文件位置：`Documents/PixelBill/self_description/user_profile.md`
+- 索引偏移处理：DELETE/MODIFY 操作按索引降序执行
+- 回退机制：回退前先拍新快照，保留完整历史
 
 ### P2：标签管理升级 + 分类队列（预估 3-4 天）
 
@@ -995,26 +1076,30 @@ ${currentMemory}`;
 
 ## 十、与现有架构的兼容性
 
-### 10.1 需要修改的模块
+### 10.1 已修改/新增模块状态
 
-| 模块 | 变更内容 |
-|------|----------|
-| `PromptBuilder.ts` | 重构 Prompt 拼接逻辑，接入自述、记忆文件和实例库 |
-| `SystemPrompt.ts` | 完整重写——新增 Self-Description / Learned Preferences 动态段、四级优先级层次、reference_corrections 使用指引 |
-| `LedgerService` | 新增标签管理 API（增删改 + 连锁处理）；账本创建/删除/重命名扩展 |
-| `PersistenceManager` | 新增实例库、记忆文件、自述文件、快照的读写方法 |
-| `Arbiter` | 修正写入时同步更新实例库 |
+| 模块 | 变更内容 | 状态 |
+|------|----------|------|
+| `PromptBuilder.ts` | 重构 Prompt 拼接逻辑，接入自述、记忆文件和实例库 | ✅ P0/P1 已完成 |
+| `SystemPrompt.ts` | 新增 Self-Description / Learned Preferences 动态段、四级优先级层次 | ✅ P0/P1 已完成 |
+| `Arbiter` | 修正写入时同步更新实例库 | ✅ P0 已完成 |
+| `ConfigManager` | 新增用户上下文接口，支持自述文件迁移 | ✅ P1 已完成 |
+| `SettingsPage` | 新增 AI 记忆面板、历史版本、阈值配置 | ✅ P1 已完成 |
+| `LedgerService` | 新增标签管理 API（增删改 + 连锁处理）；账本创建/删除/重命名扩展 | 🚧 P2 规划中 |
+| `ClassifyQueue` | 分类任务队列（持久化、去重、优先级升级） | 🚧 P2 规划中 |
+| `ClassifyTrigger` | 触发层——各场景的日期筛选、实例库预清理、入队逻辑 | 🚧 P2 规划中 |
 
-### 10.2 新增模块
+### 10.2 新增模块状态
 
-| 模块 | 职责 |
-|------|------|
-| `ExampleStore` | 实例库的 CRUD + 批量检索逻辑 | `src/core/services/ExampleStore.ts` |
-| `MemoryManager` | 记忆文件的读取、增量更新、收编 |
-| `SnapshotManager` | 快照的创建、索引维护、回退执行、上限清理 |
-| `LearningSession` | 学习会话的编排（触发判断、Prompt 构建、结果执行） |
-| `ClassifyQueue` | 分类任务队列（持久化、去重、优先级升级） |
-| `ClassifyTrigger` | 触发层——各场景的日期筛选、实例库预清理、入队逻辑 |
+| 模块 | 职责 | 路径 | 状态 |
+|------|------|------|------|
+| `ExampleStore` | 实例库的 CRUD + 批量检索逻辑 | `src/core/services/ExampleStore.ts` | ✅ P0 已完成 |
+| `MemoryManager` | 记忆文件的读取、增量更新 | `src/core/services/MemoryManager.ts` | ✅ P1 已完成 |
+| `SnapshotManager` | 快照的创建、索引维护、回退执行、上限清理 | `src/core/services/SnapshotManager.ts` | ✅ P1 已完成 |
+| `SelfDescriptionManager` | 自述文件的读取、写入、迁移 | `src/core/services/SelfDescriptionManager.ts` | ✅ P1 已完成 |
+| `LearningSession` | 学习会话的编排（Prompt 构建、结果执行） | `src/core/ai_engine/LearningSession.ts` | ✅ P1 已完成 |
+| `ClassifyQueue` | 分类任务队列（持久化、去重、优先级升级） | - | 🚧 P2 规划中 |
+| `ClassifyTrigger` | 触发层——各场景的日期筛选、实例库预清理、入队逻辑 | - | 🚧 P2 规划中 |
 
 ### 10.3 不需要修改的模块
 
@@ -1025,5 +1110,24 @@ ${currentMemory}`;
 
 ---
 
+---
+
+## 十一、文档更新历史
+
+### v4.2 (2026-03-16)
+- 更新状态：P0、P1 已完成
+- 新增 P0/P1 调试工具使用说明
+- 新增相关文档链接（测试指南、实现总结）
+- 更新模块实现状态表
+- 补充 P1 实现细节（索引偏移处理、回退机制）
+
+### v4.1 (2026-03-16)
+- 初始完整设计文档
+- 包含 P0-P3 完整规划
+- 详细 Prompt 设计方案
+- 存储架构与数据流设计
+
+---
+
 **文档完成。**
-**下一步**：逐模块详细设计 + 编码实施。
+**下一步**：P2 标签管理升级 + 分类队列实施

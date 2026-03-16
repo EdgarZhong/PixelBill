@@ -90,7 +90,8 @@ CSV 导入 → Parser → LedgerService → Arbiter → Plugins → 最终分类
 | AI 智能分类 | ✅ 已完成 | 基于 Arbiter 的多源决策系统 |
 | AI 状态反馈 UI | ✅ 已完成 | 呼吸光效、进度指示、置信度可视化 |
 | **AI 自学习 P0** | ✅ **已完成** | **实例库自动采集 + 注入 Prompt** |
-| AI 自学习 P1 | 🚧 规划中 | 记忆文件 + 学习会话机制 |
+| **AI 自学习 P1** | ✅ **已完成** | **记忆文件 + 学习会话 + 版本快照** |
+| AI 自学习 P2 | 🚧 规划中 | 标签管理升级 + 分类任务队列 |
 | 多账本管理 | ✅ 已完成 | 创建、切换、左滑删除 |
 | 账本切换器 | ✅ 已完成 | 二级面板、丝滑动画 |
 | 交易详情页 | ✅ 已完成 | 分类编辑、备注修改 |
@@ -216,9 +217,9 @@ const result = await Filesystem.readdir({
 | `ledgers.json` (账本索引) | APP 沙箱目录 | `Directory.Data` | 账本索引 |
 | `*.pixelbill.json` (账本数据) | `Documents/PixelBill/` | `Directory.Documents` | 账本主数据文件 |
 | `classify_examples/{ledger}.json` | 沙箱目录 | `Directory.Data` | **P0 新增** - 实例库（用户修正/锁定记录） |
-| `classify_memory/{ledger}.md` | `Documents/PixelBill/classify_memory/` | `Directory.Documents` | **P1 预留** - AI 记忆文件 |
-| `self_description/user_profile.md` | `Documents/PixelBill/self_description/` | `Directory.Documents` | **P1 预留** - 用户自述文件 |
-| `memory_snapshots/{ledger}/` | 沙箱目录 | `Directory.Data` | **P1 预留** - 记忆文件版本快照 |
+| `classify_memory/{ledger}.md` | `Documents/PixelBill/classify_memory/` | `Directory.Documents` | **P1 新增** - AI 记忆文件 |
+| `self_description/user_profile.md` | `Documents/PixelBill/self_description/` | `Directory.Documents` | **P1 新增** - 用户自述文件 |
+| `memory_snapshots/{ledger}/` | 沙箱目录 | `Directory.Data` | **P1 新增** - 记忆文件版本快照 |
 
 ### 代码注释规范
 
@@ -266,6 +267,27 @@ await window.__DEBUG_TOOLS__.addTestExample()
 
 // 测试检索功能
 await window.__DEBUG_TOOLS__.testRetrieval()
+
+// ===== P1: 记忆文件 + 学习会话调试命令 =====
+// 运行完整的 P1 测试
+await window.__DEBUG_TOOLS__.runP1Test()
+
+// 查看记忆文件
+await window.__DEBUG_TOOLS__.loadMemories()
+
+// 添加/修改/删除记忆
+await window.__DEBUG_TOOLS__.addMemory('新记忆内容')
+await window.__DEBUG_TOOLS__.modifyMemory(1, '修改后内容')
+await window.__DEBUG_TOOLS__.deleteMemory(1)
+
+// 查看/创建快照
+await window.__DEBUG_TOOLS__.listSnapshots()
+await window.__DEBUG_TOOLS__.createSnapshot('测试快照')
+await window.__DEBUG_TOOLS__.rollbackSnapshot('snap_001')
+
+// 查看/保存自述文件
+await window.__DEBUG_TOOLS__.loadSelfDesc()
+await window.__DEBUG_TOOLS__.saveSelfDesc('我是西工大学生...')
 
 // 查看更多调试功能
 window.__DEBUG_TOOLS__
@@ -316,7 +338,8 @@ npm run lint -- --fix
 
 | 任务 | 完成日期 | 提交 |
 |------|----------|------|
-| AI 自学习 P0：实例库自动采集 + 注入 | 2026-03-16 | 进行中 |
+| AI 自学习 P1：记忆文件 + 学习会话 | 2026-03-16 | 待提交 |
+| AI 自学习 P0：实例库自动采集 + 注入 | 2026-03-16 | 55ce6f7 |
 | 账本切换器动画优化与性能提升 | 2026-03-15 | 7dc3af3 |
 | 标签轮盘动画逻辑优化 | 2026-03-14 | 8158268 |
 | 修复账本初始化时分类状态不一致 | 2026-03-14 | 15e2b6c |
@@ -328,8 +351,7 @@ npm run lint -- --fix
 
 | 任务 | 优先级 | 说明 |
 |------|--------|------|
-| AI 自学习 P1：记忆文件 + 学习会话 | P1 | 实现学习 Prompt 和增量更新机制 |
-| AI 自学习 P2：标签管理升级 + 分类队列 | P2 | defined_categories 升级为映射 |
+| AI 自学习 P2：标签管理升级 + 分类队列 | P2 | defined_categories 升级为映射，分类任务队列 |
 | AI 自学习 P3：列表页快速修正 | P3 | 降低修正摩擦力的交互优化 |
 
 ---

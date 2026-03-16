@@ -1,6 +1,7 @@
 import { CryptoUtils } from '../../utils/crypto';
 import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
 import { isNativePlatform } from '../../utils/fs-storage';
+import { SelfDescriptionManager } from '../services/SelfDescriptionManager';
 
 // 安全配置接口
 export interface ProviderConfig {
@@ -119,6 +120,54 @@ export class ConfigManager {
     }
 
     this.isInitialized = true;
+
+    // 迁移 userContext 到独立文件（异步执行，不阻塞初始化）
+    this.migrateUserContext().catch(e => {
+      console.error('[ConfigManager] Migration failed:', e);
+    });
+  }
+
+  /**
+   * 迁移 userContext 到独立文件
+   */
+  private async migrateUserContext(): Promise<void> {
+    if (!this.currentConfig) return;
+
+    const oldUserContext = this.currentConfig.userContext;
+    await SelfDescriptionManager.migrateFromOldConfig(oldUserContext);
+
+    // 可选：迁移成功后，清空旧配置的 userContext 字段
+    // 注意：这会修改配置，如果需要保留旧配置作为备份，可以注释掉以下代码
+    if (oldUserContext && oldUserContext.trim() !== '') {
+      const exists = await SelfDescriptionManager.exists();
+      if (exists) {
+        delete this.currentConfig.userContext;
+        await this.saveConfig(this.currentConfig);
+        console.log('[ConfigManager] Cleared old userContext after migration');
+      }
+    }
+  }
+
+  /**
+   * 获取用户自述（优先从独立文件读取）
+   */
+  public async getUserContext(): Promise<string> {
+    // 优先从独立文件读取
+    const fromFile = await SelfDescriptionManager.load();
+    if (fromFile) {
+      return fromFile;
+    }
+
+    // 回退到旧配置
+    const config = await this.getConfig();
+    return config.userContext || '';
+  }
+
+  /**
+   * 保存用户自述（保存到独立文件）
+   */
+  public async saveUserContext(content: string): Promise<void> {
+    await SelfDescriptionManager.save(content);
   }
 
   /**

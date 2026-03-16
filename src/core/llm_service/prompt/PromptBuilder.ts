@@ -3,6 +3,7 @@ import { RuleLoader } from './RuleLoader';
 import { LedgerLoader } from './LedgerLoader';
 import { ConfigManager } from '../../config/ConfigManager';
 import { ExampleStore } from '../../services/ExampleStore';
+import { MemoryManager } from '../../services/MemoryManager';
 import type { ChatMessage } from '../types';
 import type { TransactionBase } from '../../../types/metadata';
 import { format } from 'date-fns';
@@ -27,12 +28,15 @@ export class PromptBuilder {
     // 2. 加载类别列表
     const categoryList = await LedgerLoader.loadCategories();
 
-    // 3. 加载用户自定义上下文
+    // 3. 加载用户自述（从独立文件）
     const configManager = ConfigManager.getInstance();
-    const config = await configManager.getConfig();
-    const userContext = config.userContext;
+    const selfDescription = await configManager.getUserContext();
 
-    // 4. 从实例库检索相关案例（AI 自学习 P0 功能）
+    // 4. 加载 AI 记忆（P1 新增）
+    const memory = await MemoryManager.load(ledgerName);
+    const memoryText = memory.length > 0 ? memory.join('\n') : undefined;
+
+    // 5. 从实例库检索相关案例（AI 自学习 P0 功能）
     // 为批次中每条交易检索最多 3 条相关案例，去重合并
     const pendingTxs = transactions.map(tx => ({
       id: tx.id,
@@ -43,7 +47,7 @@ export class PromptBuilder {
     }));
     const referenceCorrections = await ExampleStore.retrieveRelevant(ledgerName, pendingTxs);
 
-    // 5. 序列化交易数据
+    // 6. 序列化交易数据
     // 仅保留 AI 需要的字段：时间、金额、描述、对方、方向、原有分类
     const txData = transactions.map(tx => ({
       id: tx.id,
@@ -57,7 +61,7 @@ export class PromptBuilder {
       raw_category: tx.rawClass
     }));
 
-    // 6. 构建 Prompt Payload
+    // 7. 构建 Prompt Payload
     // 注入 reference_corrections 作为 few-shot examples
     const payload = {
       user_rules: userRules,
@@ -70,13 +74,17 @@ export class PromptBuilder {
       transactions: txData
     };
 
-    // 7. 组装 User Message
+    // 8. 组装 User Message
     const userContent = JSON.stringify(payload, null, 2);
 
     return [
       {
         role: 'system',
-        content: generateSystemPrompt({ language, userContext })
+        content: generateSystemPrompt({
+          language,
+          userContext: selfDescription,
+          memory: memoryText
+        })
       },
       {
         role: 'user',
