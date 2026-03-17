@@ -90,7 +90,7 @@ CSV 导入 → Parser → LedgerService → Arbiter → Plugins → 最终分类
 | AI 智能分类 | ✅ 已完成 | 基于 Arbiter 的多源决策系统 |
 | AI 状态反馈 UI | ✅ 已完成 | 呼吸光效、进度指示、置信度可视化 |
 | **AI 自学习 P0** | ✅ **已完成** | **实例库自动采集 + 注入 Prompt** |
-| **AI 自学习 P1** | ✅ **已完成** | **记忆文件 + 学习会话 + 版本快照** |
+| **AI 自学习 P1** | ✅ **已完成** | **记忆文件 + 学习会话 + 版本快照**（含 Bug 修复） |
 | AI 自学习 P2 | 🚧 规划中 | 标签管理升级 + 分类任务队列 |
 | 多账本管理 | ✅ 已完成 | 创建、切换、左滑删除 |
 | 账本切换器 | ✅ 已完成 | 二级面板、丝滑动画 |
@@ -285,9 +285,22 @@ await window.__DEBUG_TOOLS__.listSnapshots()
 await window.__DEBUG_TOOLS__.createSnapshot('测试快照')
 await window.__DEBUG_TOOLS__.rollbackSnapshot('snap_001')
 
+// 删除指定快照
+await window.__DEBUG_TOOLS__.deleteSnapshot('snap_001')
+
+// 查找当前记忆匹配的快照
+await window.__DEBUG_TOOLS__.findCurrentSnapshot()
+
 // 查看/保存自述文件
 await window.__DEBUG_TOOLS__.loadSelfDesc()
 await window.__DEBUG_TOOLS__.saveSelfDesc('我是西工大学生...')
+
+// ===== P1 新增调试命令 =====
+// 查看 AI 数据状态（记忆、快照、实例库、自述）
+await window.__DEBUG_TOOLS__.checkAIData('default')
+
+// 清除 AI 记忆和快照（保留实例库，可重新学习）
+await window.__DEBUG_TOOLS__.clearCurrentLedgerAI('default')
 
 // 查看更多调试功能
 window.__DEBUG_TOOLS__
@@ -338,6 +351,7 @@ npm run lint -- --fix
 
 | 任务 | 完成日期 | 提交 |
 |------|----------|------|
+| P1 Bug 修复：快照 active 显示 + 删除逻辑 | 2026-03-17 | 待提交 |
 | AI 自学习 P1：记忆文件 + 学习会话 | 2026-03-16 | 待提交 |
 | AI 自学习 P0：实例库自动采集 + 注入 | 2026-03-16 | 55ce6f7 |
 | 账本切换器动画优化与性能提升 | 2026-03-15 | 7dc3af3 |

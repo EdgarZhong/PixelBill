@@ -298,6 +298,34 @@ function App() {
         },
 
         /**
+         * 删除指定快照
+         * 用法: await window.__DEBUG_TOOLS__.deleteSnapshot('snap_001')
+         */
+        deleteSnapshot: async (snapshotId: string, ledgerName = 'default') => {
+          const success = await SnapshotManager.delete(ledgerName, snapshotId);
+          if (success) {
+            console.log(`[SnapshotManager] 已删除快照 ${snapshotId}`);
+          } else {
+            console.error(`[SnapshotManager] 删除失败`);
+          }
+          return success;
+        },
+
+        /**
+         * 查找当前记忆匹配的快照
+         * 用法: await window.__DEBUG_TOOLS__.findCurrentSnapshot()
+         */
+        findCurrentSnapshot: async (ledgerName = 'default') => {
+          const snapId = await SnapshotManager.findMatchingSnapshot(ledgerName);
+          if (snapId) {
+            console.log(`[SnapshotManager] 当前记忆匹配的快照: ${snapId}`);
+          } else {
+            console.log('[SnapshotManager] 当前记忆与任何快照都不匹配（可能是编辑后的状态）');
+          }
+          return snapId;
+        },
+
+        /**
          * 查看自述文件内容
          * 用法: await window.__DEBUG_TOOLS__.loadSelfDesc()
          */
@@ -401,6 +429,72 @@ function App() {
             await SelfDescriptionManager.save('');
             console.log('[P1 Cleanup] 已清理所有 P1 测试数据');
           }
+        },
+
+        /**
+         * 清除当前账本的 AI 记忆和快照（保留实例库）
+         * 用法: await window.__DEBUG_TOOLS__.clearCurrentLedgerAI('default')
+         */
+        clearCurrentLedgerAI: async (ledgerName = 'default') => {
+          if (confirm(`确定要清除账本 "${ledgerName}" 的 AI 记忆和快照吗？\n\n这将删除：\n- 记忆文件 (${ledgerName}.md)\n- 所有历史快照\n\n实例库（修正记录）将保留。`)) {
+            try {
+              // 1. 清除记忆文件
+              await MemoryManager.clear(ledgerName);
+              console.log(`[Clear AI Memory] 已清除记忆文件: classify_memory/${ledgerName}.md`);
+
+              // 2. 清除所有快照
+              await SnapshotManager.clearAll(ledgerName);
+              console.log(`[Clear AI Memory] 已清除所有快照: memory_snapshots/${ledgerName}/`);
+
+              console.log('%c✅ AI 记忆和快照已清除', 'color: #10b981; font-weight: bold');
+              console.log('提示：实例库（用户修正记录）已保留，可重新触发学习会话');
+            } catch (e) {
+              console.error('[Clear AI Memory] 清除失败:', e);
+            }
+          }
+        },
+
+        /**
+         * 查看当前账本的 AI 数据状态
+         * 用法: await window.__DEBUG_TOOLS__.checkAIData('default')
+         */
+        checkAIData: async (ledgerName = 'default') => {
+          console.log(`%c📊 账本 "${ledgerName}" AI 数据状态`, 'color: #10b981; font-size: 14px; font-weight: bold');
+
+          // 1. 检查记忆文件
+          const memories = await MemoryManager.load(ledgerName);
+          console.log(`\n[记忆文件] ${memories.length} 条`);
+          if (memories.length > 0) {
+            memories.forEach((m, i) => console.log(`  ${i + 1}. ${m}`));
+          }
+
+          // 2. 检查快照
+          const snapshots = await SnapshotManager.list(ledgerName);
+          console.log(`\n[历史快照] ${snapshots.length} 个`);
+          if (snapshots.length > 0) {
+            snapshots.slice(0, 5).forEach(s => {
+              console.log(`  - ${s.id}: ${s.trigger} (${s.summary})`);
+            });
+            if (snapshots.length > 5) {
+              console.log(`  ... 还有 ${snapshots.length - 5} 个`);
+            }
+          }
+
+          // 3. 检查实例库
+          const examples = await ExampleStore.load(ledgerName);
+          console.log(`\n[实例库] ${examples.length} 条修正记录`);
+
+          // 4. 检查自述文件
+          const selfDesc = await SelfDescriptionManager.load();
+          console.log(`\n[自述文件] ${selfDesc ? '已配置 (' + selfDesc.substring(0, 30) + '...)' : '未配置'}`);
+
+          return {
+            ledgerName,
+            memoryCount: memories.length,
+            snapshotCount: snapshots.length,
+            exampleCount: examples.length,
+            hasSelfDesc: !!selfDesc
+          };
         }
       };
     }

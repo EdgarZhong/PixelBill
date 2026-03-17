@@ -192,6 +192,9 @@ export class ExampleStore {
     record: FullTransactionRecord,
     isCorrection: boolean
   ): ExampleEntry {
+    // 优先使用 user_category（用户手动分类），如果没有则使用 category（当前显示分类）
+    const finalCategory = record.user_category?.trim() || record.category;
+
     const entry: ExampleEntry = {
       tx_id: record.id,
       created_at: new Date().toISOString(),
@@ -201,7 +204,7 @@ export class ExampleStore {
       direction: record.direction,
       time: record.time.split(' ')[1] || record.time, // 提取 HH:mm 部分
       source: record.sourceType,
-      category: record.category
+      category: finalCategory
     };
 
     // 字段重组规则：
@@ -313,9 +316,12 @@ export class ExampleStore {
     }
 
     // 3. 金额区间（±50% 范围内，15 分）
-    const amountRatio = Math.abs(tx.amount - ex.amount) / Math.max(tx.amount, ex.amount);
-    if (amountRatio <= 0.5) {
-      score += 15 * (1 - amountRatio * 2); // 越接近得分越高
+    const maxAmount = Math.max(tx.amount, ex.amount);
+    if (maxAmount > 0) {
+      const amountRatio = Math.abs(tx.amount - ex.amount) / maxAmount;
+      if (amountRatio <= 0.5) {
+        score += 15 * (1 - amountRatio * 2); // 越接近得分越高
+      }
     }
 
     // 4. 时段相近（同一餐点时段，15 分）

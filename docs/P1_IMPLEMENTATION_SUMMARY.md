@@ -347,6 +347,24 @@ await window.__DEBUG_TOOLS__.clearP1Data()
 
 ---
 
+## Bug 修复记录
+
+### 2026-03-17 修复
+
+| 问题 | 修复内容 |
+|------|----------|
+| 第一个快照不显示 active | `LearningSession` 返回 `snapshotId`，UI 直接设置为当前 |
+| 第一个快照无法删除 | 删除按钮不再禁用任何快照，包括当前活跃的 |
+| 删除当前快照后状态混乱 | 删除后重新查找匹配，允许回到"无快照"状态 |
+| 删除当前快照确认提示 | 添加额外提示："删除后当前记忆将不再与任何快照关联" |
+| **快照 ID 重复问题** | 使用最大序号+1生成 ID，避免删除后 ID 冲突 |
+| **除以零风险** | `ExampleStore.calculateMatchScore` 添加 `maxAmount > 0` 检查 |
+| **修正判断逻辑优化** | 使用 `newCategory` 变量，避免重复读取 `patch.updates.user_category` |
+| **锁定确认条件改进** | 改为 `!hasUserCategoryUpdate`，避免同时修改分类和锁定时重复写入 |
+| **回退后显示错误** | 直接设置 `currentSnapshotId` 为回退目标，而非依赖查找匹配 |
+
+---
+
 ## 测试指南
 
 - `docs/P1_TEST_GUIDE.md` - 详细测试步骤

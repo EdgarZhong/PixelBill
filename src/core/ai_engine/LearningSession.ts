@@ -39,6 +39,8 @@ export interface LearningResult {
   operations: MemoryOperation[];
   summary: string;
   error?: string;
+  /** 创建的快照 ID（学习前备份） */
+  snapshotId?: string;
 }
 
 /**
@@ -163,7 +165,7 @@ ${JSON.stringify(simplified, null, 2)}
       const currentMemory = await MemoryManager.load(ledgerName);
 
       // 3. 创建快照（学习前的备份）
-      await SnapshotManager.create(
+      const snapshotId = await SnapshotManager.create(
         ledgerName,
         'ai_learn',
         `学习会话：基于 ${examples.length} 条修正记录`
@@ -234,7 +236,8 @@ ${JSON.stringify(simplified, null, 2)}
       return {
         success: true,
         operations,
-        summary
+        summary,
+        snapshotId: snapshotId || undefined
       };
     } catch (e) {
       console.error('[LearningSession] Learning failed:', e);

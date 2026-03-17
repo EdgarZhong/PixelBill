@@ -1078,6 +1078,7 @@ const AIMemoryPanel: React.FC<AIMemoryPanelProps> = ({
   const [memories, setMemories] = useState<string[]>([]);
   const [exampleCount, setExampleCount] = useState(0);
   const [snapshots, setSnapshots] = useState<SnapshotMeta[]>([]);
+  const [currentSnapshotId, setCurrentSnapshotId] = useState<string | null>(null);
   const [threshold, setThreshold] = useState(5);
   const [isLoading, setIsLoading] = useState(true);
   const [isLearning, setIsLearning] = useState(false);
@@ -1088,14 +1089,16 @@ const AIMemoryPanel: React.FC<AIMemoryPanelProps> = ({
   useEffect(() => {
     const loadData = async () => {
       try {
-        const [mems, stats, snaps] = await Promise.all([
+        const [mems, stats, snaps, currentSnapId] = await Promise.all([
           MemoryManager.load(ledgerName),
           ExampleStore.getStats(ledgerName),
-          SnapshotManager.list(ledgerName)
+          SnapshotManager.list(ledgerName),
+          SnapshotManager.findMatchingSnapshot(ledgerName)
         ]);
         setMemories(mems);
         setExampleCount(stats.count);
         setSnapshots(snaps);
+        setCurrentSnapshotId(currentSnapId);
       } catch (e) {
         console.error('[AIMemoryPanel] Failed to load data:', e);
       } finally {
@@ -1122,9 +1125,20 @@ const AIMemoryPanel: React.FC<AIMemoryPanelProps> = ({
 
       if (result.success) {
         setLearnResult(result.summary || '学习完成');
-        // 重新加载记忆
-        const mems = await MemoryManager.load(ledgerName);
+        // 重新加载记忆、快照列表
+        const [mems, snaps] = await Promise.all([
+          MemoryManager.load(ledgerName),
+          SnapshotManager.list(ledgerName)
+        ]);
         setMemories(mems);
+        setSnapshots(snaps);
+        // 使用返回的快照 ID 作为当前快照（如果没有则尝试查找匹配）
+        if (result.snapshotId) {
+          setCurrentSnapshotId(result.snapshotId);
+        } else {
+          const currentSnapId = await SnapshotManager.findMatchingSnapshot(ledgerName);
+          setCurrentSnapshotId(currentSnapId);
+        }
         await triggerHaptic(HapticFeedbackLevel.MEDIUM);
       } else {
         setLearnResult(`学习失败: ${result.error || '未知错误'}`);
@@ -1139,20 +1153,61 @@ const AIMemoryPanel: React.FC<AIMemoryPanelProps> = ({
 
   // 回退到指定版本
   const handleRollback = useCallback(async (snapshotId: string) => {
-    if (!confirm(`确定要回退到 ${snapshotId} 吗？`)) return;
+    console.log(`[SettingsPage] 点击回退按钮: ${snapshotId}`);
+    if (!confirm(`确定要回退到 ${snapshotId} 吗？`)) {
+      console.log('[SettingsPage] 用户取消回退');
+      return;
+    }
 
+    console.log(`[SettingsPage] 开始回退到 ${snapshotId}...`);
     await triggerHaptic(HapticFeedbackLevel.LIGHT);
     const success = await SnapshotManager.rollback(ledgerName, snapshotId);
+    console.log(`[SettingsPage] 回退结果: ${success ? '成功' : '失败'}`);
 
     if (success) {
-      // 重新加载
-      const mems = await MemoryManager.load(ledgerName);
+      // 重新加载记忆和快照列表
+      const [mems, snaps] = await Promise.all([
+        MemoryManager.load(ledgerName),
+        SnapshotManager.list(ledgerName)
+      ]);
       setMemories(mems);
-      const snaps = await SnapshotManager.list(ledgerName);
       setSnapshots(snaps);
+      // 直接设置当前快照为回退目标，而不是靠查找匹配
+      setCurrentSnapshotId(snapshotId);
+      console.log(`[SettingsPage] 已更新记忆和快照列表，当前快照: ${snapshotId}`);
       await triggerHaptic(HapticFeedbackLevel.MEDIUM);
+      alert(`已回退到 ${snapshotId}`);
+    } else {
+      alert('回退失败，请查看控制台日志');
     }
   }, [ledgerName]);
+
+  // 删除快照
+  const handleDeleteSnapshot = useCallback(async (snapshotId: string) => {
+    const isCurrent = snapshotId === currentSnapshotId;
+    const confirmMsg = isCurrent
+      ? `确定要删除 ${snapshotId} 吗？\n这是当前活跃的快照，删除后当前记忆将不再与任何快照关联。`
+      : `确定要删除 ${snapshotId} 吗？\n删除后无法恢复。`;
+
+    if (!confirm(confirmMsg)) return;
+
+    await triggerHaptic(HapticFeedbackLevel.LIGHT);
+    const success = await SnapshotManager.delete(ledgerName, snapshotId);
+
+    if (success) {
+      // 重新加载快照列表
+      const snaps = await SnapshotManager.list(ledgerName);
+      setSnapshots(snaps);
+
+      // 如果删除的是当前快照，重新查找匹配或设为 null
+      if (isCurrent) {
+        const newCurrentSnapId = await SnapshotManager.findMatchingSnapshot(ledgerName);
+        setCurrentSnapshotId(newCurrentSnapId);
+      }
+
+      await triggerHaptic(HapticFeedbackLevel.MEDIUM);
+    }
+  }, [ledgerName, currentSnapshotId]);
 
   if (isLoading) {
     return (
@@ -1301,29 +1356,54 @@ const AIMemoryPanel: React.FC<AIMemoryPanelProps> = ({
                 <div className="text-xs font-mono text-gray-500">暂无历史版本</div>
               </div>
             ) : (
-              snapshots.slice(0, 10).map((snap) => (
-                <div
-                  key={snap.id}
-                  className="p-3 bg-zinc-950 border border-gray-800 rounded flex items-center justify-between"
-                >
-                  <div>
-                    <div className="text-xs font-mono text-gray-300">{snap.id}</div>
-                    <div className="text-[10px] text-dim font-mono">
-                      {new Date(snap.timestamp).toLocaleString()}
+              snapshots.slice(0, 10).map((snap) => {
+                const isCurrent = snap.id === currentSnapshotId;
+                return (
+                  <div
+                    key={snap.id}
+                    className={`p-3 bg-zinc-950 border rounded flex items-center justify-between ${
+                      isCurrent ? 'border-pixel-green' : 'border-gray-800'
+                    }`}
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className={`text-xs font-mono ${isCurrent ? 'text-pixel-green' : 'text-gray-300'}`}>
+                          {snap.id}
+                          {isCurrent && ' ← 当前'}
+                        </span>
+                      </div>
+                      <div className="text-[10px] text-dim font-mono mt-1">
+                        {new Date(snap.timestamp).toLocaleString()}
+                      </div>
+                      <div className="text-[10px] text-gray-500 font-mono truncate">
+                        {snap.summary}
+                      </div>
                     </div>
-                    <div className="text-[10px] text-gray-500 font-mono">
-                      {snap.summary}
+                    <div className="flex items-center gap-2 ml-3 shrink-0">
+                      <button
+                        onClick={() => handleRollback(snap.id)}
+                        disabled={isCurrent}
+                        className={`px-3 py-1.5 text-[10px] font-mono border rounded transition-colors ${
+                          isCurrent
+                            ? 'text-gray-600 border-gray-700 cursor-not-allowed'
+                            : 'text-expense-red border-expense-red/30 hover:bg-expense-red/10'
+                        }`}
+                        title={isCurrent ? '当前已在此版本' : undefined}
+                      >
+                        {isCurrent ? '[ACTIVE]' : '[ROLLBACK]'}
+                      </button>
+                      <button
+                        onClick={() => handleDeleteSnapshot(snap.id)}
+                        className="px-2 py-1.5 text-[10px] font-mono text-gray-500 border border-gray-700
+                          rounded hover:text-expense-red hover:border-expense-red/30 transition-colors"
+                        title="删除此快照"
+                      >
+                        [X]
+                      </button>
                     </div>
                   </div>
-                  <button
-                    onClick={() => handleRollback(snap.id)}
-                    className="px-3 py-1.5 text-[10px] font-mono text-expense-red border border-expense-red/30
-                      rounded hover:bg-expense-red/10 transition-colors"
-                  >
-                    [ROLLBACK]
-                  </button>
-                </div>
-              ))
+                );
+              })
             )}
           </motion.div>
         )}

@@ -123,6 +123,12 @@ await window.__DEBUG_TOOLS__.readSnapshot('snap_001')
 
 // 回退到指定快照
 await window.__DEBUG_TOOLS__.rollbackSnapshot('snap_001')
+
+// 删除指定快照
+await window.__DEBUG_TOOLS__.deleteSnapshot('snap_001')
+
+// 查找当前记忆匹配的快照
+await window.__DEBUG_TOOLS__.findCurrentSnapshot()
 ```
 
 **或手动导入模块**：
@@ -281,6 +287,37 @@ await MemoryManager.exists('default')
 (await configManager.getConfig()).userContext
 ```
 
+### 问题 5：快照回退后显示错误
+
+**现象**: 回退到 snap_001，但显示当前为 snap_002
+
+**原因**: `findMatchingSnapshot` 从最新开始查找，多个快照内容相同时返回最新
+
+**修复**: 直接设置 `currentSnapshotId` 为回退目标
+
+---
+
+## 新增调试工具
+
+### 快速查看 AI 数据状态
+```javascript
+// 查看默认账本
+await window.__DEBUG_TOOLS__.checkAIData()
+
+// 查看指定账本
+await window.__DEBUG_TOOLS__.checkAIData('测试')
+```
+
+输出包含：记忆文件条目数、快照数量、实例库数量、自述文件状态
+
+### 清除当前账本 AI 记忆
+```javascript
+// 清除记忆文件和快照（保留实例库）
+await window.__DEBUG_TOOLS__.clearCurrentLedgerAI('default')
+```
+
+用途：想重新学习时，清除记忆但保留修正记录
+
 ---
 
 ## 测试 Checklist
@@ -297,6 +334,12 @@ await MemoryManager.exists('default')
 - [ ] 历史版本列表显示正确
 - [ ] 回退功能正常工作
 - [ ] Prompt 正确注入记忆内容
+- [ ] **Bug 修复验证**：
+  - [ ] 第一个快照创建后显示为 active
+  - [ ] 第一个快照可以删除（回到无快照状态）
+  - [ ] 删除当前快照后状态正确更新
+  - [ ] 回退后正确显示目标快照（非最新匹配）
+  - [ ] 金额为 0 的交易检索不报错
 
 ---
 

@@ -117,30 +117,72 @@ export class LedgerService {
         return;
       }
 
-      this.applyPatch(patch, prevMemory);
-    });
+      const newMemory = this.applyPatch(patch, prevMemory);
 
-    // 设置实例库写入回调 - 当用户修正分类或锁定时触发
-    globalArbiter.setExampleStoreCallback(async ({ txId, isCorrection }) => {
-      const ledgerName = this.getCurrentLedgerName();
-      const memory = this.state.ledgerMemory;
+      // 在 applyPatch 之后处理实例库写入，确保获取的是更新后的记录
+      // 检查 patch 是否包含 user_category 更新（用户修正分类）
+      const hasUserCategoryUpdate = patch.updates.user_category !== undefined && patch.updates.user_category !== '';
+      console.log(`[LedgerService] Checking example store write for ${patch.id}:`, {
+        hasUserCategoryUpdate,
+        user_category: patch.updates.user_category,
+        prev_user_category: prevMemory.records[patch.id]?.user_category
+      });
 
-      if (!ledgerName || !memory) {
-        console.warn('[LedgerService] Cannot write to example store: no ledger loaded');
-        return;
+      if (hasUserCategoryUpdate) {
+        const ledgerName = this.getCurrentLedgerName();
+        console.log(`[LedgerService] Ledger name: ${ledgerName}`);
+
+        if (ledgerName) {
+          const updatedRecord = newMemory.records[patch.id];
+          if (updatedRecord) {
+            // 判断是否为修正：如果有 AI 分类且 AI 分类与新分类不同，视为修正
+            const prevRecord = prevMemory.records[patch.id];
+            const newCategory = patch.updates.user_category;
+            const aiCategory = patch.updates.ai_category !== undefined
+              ? patch.updates.ai_category
+              : prevRecord?.ai_category;
+            const isCorrection = !!aiCategory && aiCategory !== newCategory;
+
+            console.log(`[LedgerService] Writing to example store:`, {
+              txId: patch.id,
+              category: updatedRecord.category,
+              aiCategory,
+              userCategory: patch.updates.user_category,
+              isCorrection
+            });
+
+            ExampleStore.addOrUpdate(ledgerName, updatedRecord, isCorrection)
+              .then(() => {
+                console.log(`[LedgerService] Example store updated for ${patch.id}, isCorrection=${isCorrection}`);
+              })
+              .catch(e => {
+                console.error('[LedgerService] Failed to write to example store:', e);
+              });
+          } else {
+            console.warn(`[LedgerService] Updated record not found in newMemory: ${patch.id}`);
+          }
+        } else {
+          console.warn('[LedgerService] Cannot write to example store: no ledger name');
+        }
       }
 
-      const record = memory.records[txId];
-      if (!record) {
-        console.warn('[LedgerService] Cannot write to example store: record not found', txId);
-        return;
-      }
-
-      try {
-        await ExampleStore.addOrUpdate(ledgerName, record, isCorrection);
-        console.log(`[LedgerService] Example store updated for ${txId}, isCorrection=${isCorrection}`);
-      } catch (e) {
-        console.error('[LedgerService] Failed to write to example store:', e);
+      // 处理锁定确认时的实例库写入
+      // 只要 is_verified 被设为 true，就写入实例库（无论是否同时更新 user_category）
+      if (patch.updates.is_verified === true && !hasUserCategoryUpdate) {
+        const ledgerName = this.getCurrentLedgerName();
+        if (ledgerName) {
+          const updatedRecord = newMemory.records[patch.id];
+          if (updatedRecord) {
+            // 锁定确认不是修正，AI 分对时保留 ai_reasoning
+            ExampleStore.addOrUpdate(ledgerName, updatedRecord, false)
+              .then(() => {
+                console.log(`[LedgerService] Example store updated for lock confirmation ${patch.id}`);
+              })
+              .catch(e => {
+                console.error('[LedgerService] Failed to write to example store:', e);
+              });
+          }
+        }
       }
     });
   }

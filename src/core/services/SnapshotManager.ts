@@ -131,8 +131,12 @@ export class SnapshotManager {
       // 2. 加载索引
       const index = await this.loadIndex(ledgerName);
 
-      // 3. 生成新快照 ID
-      const newId = this.generateSnapshotId(index.snapshots.length + 1);
+      // 3. 生成新快照 ID（使用最大序号 + 1，避免删除后重复）
+      const maxIndex = index.snapshots.reduce((max, s) => {
+        const num = parseInt(s.id.split('_')[1], 10);
+        return Math.max(max, isNaN(num) ? 0 : num);
+      }, 0);
+      const newId = this.generateSnapshotId(maxIndex + 1);
 
       // 4. 创建快照元数据
       const meta: SnapshotMeta = {
@@ -242,9 +246,8 @@ export class SnapshotManager {
 
   /**
    * 回退到指定快照
-   * 流程：
-   * 1. 先将当前记忆拍一个新快照（rollback 类型）
-   * 2. 用选中的历史快照内容覆盖当前记忆文件
+   * 流程：直接用目标快照内容覆盖当前记忆文件
+   * 注意：不回退前自动创建备份，因为目标快照本身已保存
    *
    * @param ledgerName 账本名称
    * @param snapshotId 要回退到的快照 ID
@@ -259,10 +262,7 @@ export class SnapshotManager {
         return false;
       }
 
-      // 2. 备份当前记忆（回退前的版本）
-      await this.create(ledgerName, 'rollback', `回退前的版本（将回退到 ${snapshotId}）`);
-
-      // 3. 用快照内容覆盖当前记忆
+      // 2. 用快照内容覆盖当前记忆（不再自动创建备份）
       await MemoryManager.save(ledgerName, targetSnapshot.content);
 
       console.log(`[SnapshotManager] Rolled back ${ledgerName} to ${snapshotId}`);
@@ -274,6 +274,69 @@ export class SnapshotManager {
   }
 
   /**
+   * 验证当前记忆是否与指定快照匹配
+   * 用于确认回退是否成功
+   *
+   * @param ledgerName 账本名称
+   * @param snapshotId 快照 ID
+   * @returns 是否匹配
+   */
+  public static async verifyMatch(ledgerName: string, snapshotId: string): Promise<boolean> {
+    try {
+      const currentMemories = await MemoryManager.load(ledgerName);
+      const snapshot = await this.read(ledgerName, snapshotId);
+      if (!snapshot) return false;
+
+      return this.arraysEqual(currentMemories, snapshot.content);
+    } catch (e) {
+      console.error(`[SnapshotManager] Failed to verify match with ${snapshotId}:`, e);
+      return false;
+    }
+  }
+
+  /**
+   * 查找当前记忆内容匹配的快照 ID
+   * 用于显示"当前在哪个快照上"
+   *
+   * @param ledgerName 账本名称
+   * @returns 匹配的快照 ID，无匹配返回 null
+   */
+  public static async findMatchingSnapshot(ledgerName: string): Promise<string | null> {
+    try {
+      const currentMemories = await MemoryManager.load(ledgerName);
+      const index = await this.loadIndex(ledgerName);
+
+      // 从最新到最旧查找匹配
+      for (let i = index.snapshots.length - 1; i >= 0; i--) {
+        const snap = index.snapshots[i];
+        const snapContent = await this.read(ledgerName, snap.id);
+        if (!snapContent) continue;
+
+        // 比较内容是否相同
+        if (this.arraysEqual(currentMemories, snapContent.content)) {
+          return snap.id;
+        }
+      }
+
+      return null;
+    } catch (e) {
+      console.error('[SnapshotManager] Failed to find matching snapshot:', e);
+      return null;
+    }
+  }
+
+  /**
+   * 比较两个字符串数组是否相等
+   */
+  private static arraysEqual(a: string[], b: string[]): boolean {
+    if (a.length !== b.length) return false;
+    for (let i = 0; i < a.length; i++) {
+      if (a[i] !== b[i]) return false;
+    }
+    return true;
+  }
+
+  /**
    * 获取最新快照 ID
    * @param ledgerName 账本名称
    * @returns 最新快照 ID，无则返回空字符串
@@ -282,6 +345,50 @@ export class SnapshotManager {
     const index = await this.loadIndex(ledgerName);
     if (index.snapshots.length === 0) return '';
     return index.snapshots[index.snapshots.length - 1].id;
+  }
+
+  /**
+   * 删除单个快照
+   * @param ledgerName 账本名称
+   * @param snapshotId 要删除的快照 ID
+   * @returns 是否成功
+   */
+  public static async delete(ledgerName: string, snapshotId: string): Promise<boolean> {
+    try {
+      // 1. 加载索引
+      const index = await this.loadIndex(ledgerName);
+
+      // 2. 查找要删除的快照
+      const snapIndex = index.snapshots.findIndex(s => s.id === snapshotId);
+      if (snapIndex === -1) {
+        console.warn(`[SnapshotManager] Snapshot ${snapshotId} not found`);
+        return false;
+      }
+
+      // 3. 删除快照文件
+      const snap = index.snapshots[snapIndex];
+      const snapshotPath = `${this.getLedgerDir(ledgerName)}/${snap.id}.md`;
+      try {
+        await Filesystem.deleteFile({
+          path: snapshotPath,
+          directory: Directory.Data
+        });
+      } catch (e) {
+        console.warn(`[SnapshotManager] Failed to delete snapshot file ${snap.id}:`, e);
+      }
+
+      // 4. 从索引中移除
+      index.snapshots.splice(snapIndex, 1);
+
+      // 5. 保存索引
+      await this.saveIndex(ledgerName, index);
+
+      console.log(`[SnapshotManager] Deleted snapshot ${snapshotId} for ${ledgerName}`);
+      return true;
+    } catch (e) {
+      console.error(`[SnapshotManager] Failed to delete snapshot ${snapshotId}:`, e);
+      return false;
+    }
   }
 
   /**
