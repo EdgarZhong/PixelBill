@@ -91,7 +91,7 @@ CSV 导入 → Parser → LedgerService → Arbiter → Plugins → 最终分类
 | AI 状态反馈 UI | ✅ 已完成 | 呼吸光效、进度指示、置信度可视化 |
 | **AI 自学习 P0** | ✅ **已完成** | **实例库自动采集 + 注入 Prompt** |
 | **AI 自学习 P1** | ✅ **已完成** | **记忆文件 + 学习会话 + 版本快照**（含 Bug 修复） |
-| AI 自学习 P2 | 🚧 规划中 | 标签管理升级 + 分类任务队列 |
+| **AI 自学习 P2** | 🚧 **进行中** | **标签管理升级 + 分类任务队列**（3/9 任务完成）|
 | 多账本管理 | ✅ 已完成 | 创建、切换、左滑删除 |
 | 账本切换器 | ✅ 已完成 | 二级面板、丝滑动画 |
 | 交易详情页 | ✅ 已完成 | 分类编辑、备注修改 |
@@ -120,6 +120,7 @@ pixel_bill/
 │   ├── config/                # 配置文件
 │   ├── core/                  # 核心业务逻辑
 │   │   ├── ai_engine/         # AI 分类引擎
+│   │   │   └── ClassifyQueue.ts      # 【P2 新增】分类任务队列
 │   │   ├── arbiter/           # 仲裁系统
 │   │   ├── config/            # 配置管理
 │   │   ├── llm_service/       # LLM 服务（含 PromptBuilder、SystemPrompt）
@@ -302,6 +303,35 @@ await window.__DEBUG_TOOLS__.checkAIData('default')
 // 清除 AI 记忆和快照（保留实例库，可重新学习）
 await window.__DEBUG_TOOLS__.clearCurrentLedgerAI('default')
 
+// ===== P2: 分类任务队列调试命令 =====
+// 查看当前队列
+await window.__DEBUG_TOOLS__.viewQueue()
+
+// 添加测试任务
+await window.__DEBUG_TOOLS__.addTestTask('default', '2026-03-18', 'normal')
+
+// 清空队列
+await window.__DEBUG_TOOLS__.clearQueue()
+
+// 测试优先级升级
+await window.__DEBUG_TOOLS__.testQueuePriority()
+
+// ===== P2: 标签管理调试命令 =====
+// 查看当前标签
+await window.__DEBUG_TOOLS__.listCategories()
+
+// 添加新标签
+await window.__DEBUG_TOOLS__.addCategory('coffee', '咖啡饮品支出')
+
+// 删除标签
+await window.__DEBUG_TOOLS__.deleteCategory('coffee')
+
+// 重命名标签
+await window.__DEBUG_TOOLS__.renameCategory('old_name', 'new_name')
+
+// 更新标签描述
+await window.__DEBUG_TOOLS__.updateCategoryDesc('meal', '日常正餐支出')
+
 // 查看更多调试功能
 window.__DEBUG_TOOLS__
 ```
@@ -351,6 +381,9 @@ npm run lint -- --fix
 
 | 任务 | 完成日期 | 提交 |
 |------|----------|------|
+| **P2: defined_categories 升级为映射** | 2026-03-18 | 进行中 |
+| **P2: ClassifyQueue 分类任务队列** | 2026-03-18 | 进行中 |
+| **P2: LedgerService 标签管理 API** | 2026-03-18 | 进行中 |
 | P1 Bug 修复：快照 active 显示 + 删除逻辑 | 2026-03-17 | 待提交 |
 | AI 自学习 P1：记忆文件 + 学习会话 | 2026-03-16 | 待提交 |
 | AI 自学习 P0：实例库自动采集 + 注入 | 2026-03-16 | 55ce6f7 |
@@ -365,7 +398,12 @@ npm run lint -- --fix
 
 | 任务 | 优先级 | 说明 |
 |------|--------|------|
-| AI 自学习 P2：标签管理升级 + 分类队列 | P2 | defined_categories 升级为映射，分类任务队列 |
+| AI 自学习 P2：PromptBuilder 适配新结构 | P2 | 适配 defined_categories 映射格式 |
+| AI 自学习 P2：分类触发层 (ClassifyTrigger) | P2 | 各场景的日期筛选和入队逻辑 |
+| AI 自学习 P2：账本生命周期扩展 | P2 | 删除/重命名时清理关联文件 |
+| AI 自学习 P2：AI Engine 队列消费改造 | P2 | 从 ClassifyQueue 消费任务 |
+| AI 自学习 P2：渐进式重分类交互 UI | P2 | 标签变更后的重分类对话框 |
+| AI 自学习 P2：测试与调试工具 | P2 | P2 自动化测试脚本 |
 | AI 自学习 P3：列表页快速修正 | P3 | 降低修正摩擦力的交互优化 |
 
 ---

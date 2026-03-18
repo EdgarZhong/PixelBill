@@ -64,7 +64,12 @@ export interface ArbitrationConfig {
 export interface LedgerMemory {
   version: string;            // e.g. "1.0"
   last_sync: string;          // Timestamp string
-  defined_categories: string[]; // 支持的分类列表，初始为 ['meal', 'others']
+  /**
+   * 支持的分类列表，格式为 { 标签名: 描述 }
+   * 每个标签必须附带一句自然语言描述
+   * 示例: { meal: "日常正餐支出", others: "所有非正餐支出" }
+   */
+  defined_categories: Record<string, string>;
   arbitration_config?: ArbitrationConfig; // 仲裁配置
   records: Record<string, FullTransactionRecord>; // ID -> Full Record
 }

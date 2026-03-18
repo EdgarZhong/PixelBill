@@ -998,7 +998,7 @@ export function MobileApp() {
         {selectedTransaction && (
           <DetailPage
             transaction={selectedTransaction}
-            categories={ledgerMemory?.defined_categories || []}
+            categories={ledgerMemory ? Object.keys(ledgerMemory.defined_categories || {}) : []}
             onClose={() => handleTransactionSelect(null)}
             onUpdate={(updatedTransaction) => {
               if (updatedTransaction.id) {

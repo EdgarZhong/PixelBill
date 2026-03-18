@@ -23,21 +23,27 @@ export type StorageDirHandle = FileSystemDirectoryHandle | NativeDirHandle;
 
 export const MEMORY_FILE_NAME = 'default.pixelbill.json';
 
+/**
+ * 默认分类定义
+ * 每个分类附带自然语言描述，作为 AI 冷启动锚点和学习基准
+ */
+const DEFAULT_CATEGORIES: Record<string, string> = {
+  meal: '日常正餐支出（早午晚），如快餐、正餐、工作餐',
+  snack: '零食、饮品、小吃等非正餐食品',
+  transport: '公共交通、打车、加油、停车等出行费用',
+  entertainment: '电影、游戏、演出、会员订阅等娱乐消费',
+  feast: '聚餐、大餐、宴请、高档餐厅等特殊餐饮',
+  health: '医疗、药品、保健品、健身器材等健康支出',
+  shopping: '日用品、服装、电子产品、网购等购物消费',
+  education: '书籍、课程、培训、考试等教育支出',
+  housing: '房租、水电煤、物业、维修等居住费用',
+  travel: '旅游、酒店、机票、景点门票等旅行支出'
+};
+
 export const DEFAULT_MEMORY: LedgerMemory = {
-  version: '1.0',
+  version: '1.1', // 版本升级，表示数据结构变化
   last_sync: format(new Date(), 'yyyy-MM-dd HH:mm:ss'),
-  defined_categories: [
-    'meal',
-    'snack',
-    'transport',
-    'entertainment',
-    'feast',
-    'health',
-    'shopping',
-    'education',
-    'housing',
-    'travel'
-  ],
+  defined_categories: DEFAULT_CATEGORIES,
   records: {}
 };
 

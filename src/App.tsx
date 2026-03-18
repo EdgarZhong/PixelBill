@@ -7,6 +7,7 @@ import { ExampleStore } from './core/services/ExampleStore';
 import { MemoryManager } from './core/services/MemoryManager';
 import { SnapshotManager } from './core/services/SnapshotManager';
 import { SelfDescriptionManager } from './core/services/SelfDescriptionManager';
+import { LedgerService } from './core/services/LedgerService';
 import { AnimatePresence } from 'framer-motion';
 import { SplashScreen } from './components/SplashScreen';
 import { SettingsProvider } from './contexts/SettingsContext';
@@ -495,6 +496,160 @@ function App() {
             exampleCount: examples.length,
             hasSelfDesc: !!selfDesc
           };
+        },
+
+        // ============================================
+        // P2: 分类任务队列 测试工具
+        // ============================================
+
+        /**
+         * 查看分类任务队列
+         * 用法: await window.__DEBUG_TOOLS__.viewQueue()
+         */
+        viewQueue: async () => {
+          const { classifyQueue } = await import('./core/ai_engine/ClassifyQueue');
+          const tasks = await classifyQueue.getPending();
+          console.log(`[ClassifyQueue] 当前队列 (${tasks.length} 个任务):`);
+          console.table(tasks.map(t => ({
+            ledger: t.ledger,
+            date: t.date,
+            type: t.type,
+            tag: t.tag || '-',
+            enqueuedAt: new Date(t.enqueuedAt).toLocaleTimeString()
+          })));
+          return tasks;
+        },
+
+        /**
+         * 添加测试任务到队列
+         * 用法: await window.__DEBUG_TOOLS__.addTestTask()
+         */
+        addTestTask: async (ledger = 'default', date = '2026-03-18', type = 'normal') => {
+          const { classifyQueue } = await import('./core/ai_engine/ClassifyQueue');
+          const success = await classifyQueue.enqueue({
+            ledger,
+            date,
+            type: type as 'normal' | 'reclassify_full' | 'reclassify_affected' | 'reclassify_scoped'
+          });
+          if (success) {
+            console.log(`[ClassifyQueue] 已添加任务: ${type} for ${ledger}/${date}`);
+          } else {
+            console.log('[ClassifyQueue] 任务未添加（可能已存在同优先级或更高优先级任务）');
+          }
+          return success;
+        },
+
+        /**
+         * 清空任务队列
+         * 用法: await window.__DEBUG_TOOLS__.clearQueue()
+         */
+        clearQueue: async () => {
+          const { classifyQueue } = await import('./core/ai_engine/ClassifyQueue');
+          if (confirm('确定要清空分类任务队列吗？')) {
+            await classifyQueue.clear();
+            console.log('[ClassifyQueue] 队列已清空');
+          }
+        },
+
+        /**
+         * 测试队列优先级升级
+         * 用法: await window.__DEBUG_TOOLS__.testQueuePriority()
+         */
+        testQueuePriority: async () => {
+          const { classifyQueue } = await import('./core/ai_engine/ClassifyQueue');
+          console.log('%c🧪 测试队列优先级升级...', 'color: #00ff00; font-size: 14px; font-weight: bold');
+
+          // 1. 添加 normal 任务
+          console.log('\n[Step 1] 添加 normal 任务');
+          await classifyQueue.enqueue({ ledger: 'test', date: '2026-03-18', type: 'normal' });
+          await window.__DEBUG_TOOLS__.viewQueue();
+
+          // 2. 尝试添加相同 normal 任务（应被忽略）
+          console.log('\n[Step 2] 再次添加 normal 任务（应被忽略）');
+          const ignored = await classifyQueue.enqueue({ ledger: 'test', date: '2026-03-18', type: 'normal' });
+          console.log(`  结果: ${ignored ? '已添加' : '已忽略'}`);
+
+          // 3. 升级为 reclassify_full（应成功）
+          console.log('\n[Step 3] 升级为 reclassify_full（应成功）');
+          const upgraded = await classifyQueue.enqueue({ ledger: 'test', date: '2026-03-18', type: 'reclassify_full' });
+          console.log(`  结果: ${upgraded ? '已升级' : '未升级'}`);
+          await window.__DEBUG_TOOLS__.viewQueue();
+
+          // 4. 清理
+          console.log('\n[Step 4] 清理测试数据');
+          await classifyQueue.remove('test', '2026-03-18');
+
+          console.log('%c✅ 优先级测试完成', 'color: #00ff00; font-weight: bold');
+        },
+
+        // ============================================
+        // P2: 标签管理 API 测试工具
+        // ============================================
+
+        /**
+         * 获取当前账本的所有标签
+         * 用法: await window.__DEBUG_TOOLS__.listCategories()
+         */
+        listCategories: () => {
+          const service = LedgerService.getInstance();
+          const categories = service.getCategories();
+          console.log('[LedgerService] 当前标签:');
+          Object.entries(categories).forEach(([name, desc]) => {
+            console.log(`  ${name}: ${desc}`);
+          });
+          return categories;
+        },
+
+        /**
+         * 添加新标签
+         * 用法: await window.__DEBUG_TOOLS__.addCategory('coffee', '咖啡饮品支出')
+         */
+        addCategory: async (name: string, description: string) => {
+          const service = LedgerService.getInstance();
+          const success = await service.addCategory(name, description);
+          if (success) {
+            console.log(`[LedgerService] 已添加标签: ${name}`);
+          }
+          return success;
+        },
+
+        /**
+         * 删除标签
+         * 用法: await window.__DEBUG_TOOLS__.deleteCategory('coffee')
+         */
+        deleteCategory: async (name: string) => {
+          const service = LedgerService.getInstance();
+          const result = await service.deleteCategory(name);
+          if (result.success) {
+            console.log(`[LedgerService] 已删除标签: ${name}, 影响 ${result.affectedTxIds.length} 条交易`);
+          }
+          return result;
+        },
+
+        /**
+         * 重命名标签
+         * 用法: await window.__DEBUG_TOOLS__.renameCategory('coffee', 'drink')
+         */
+        renameCategory: async (oldName: string, newName: string) => {
+          const service = LedgerService.getInstance();
+          const success = await service.renameCategory(oldName, newName);
+          if (success) {
+            console.log(`[LedgerService] 已重命名标签: ${oldName} -> ${newName}`);
+          }
+          return success;
+        },
+
+        /**
+         * 更新标签描述
+         * 用法: await window.__DEBUG_TOOLS__.updateCategoryDesc('meal', '日常正餐支出（含午餐和晚餐）')
+         */
+        updateCategoryDesc: async (name: string, description: string) => {
+          const service = LedgerService.getInstance();
+          const success = await service.updateCategoryDescription(name, description);
+          if (success) {
+            console.log(`[LedgerService] 已更新标签描述: ${name}`);
+          }
+          return success;
         }
       };
     }

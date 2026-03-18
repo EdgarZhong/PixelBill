@@ -311,7 +311,8 @@ export class LedgerService {
     if (!memory) return raw;
 
     const cache = this.transactionCache;
-    const validCategories = memory.defined_categories;
+    // 从映射中提取所有有效的分类名称（keys）
+    const validCategories = Object.keys(memory.defined_categories || {});
 
     // Clear cache if raw changed significantly? 
     // In hook, it cleared when raw.length === 0.
@@ -370,13 +371,19 @@ export class LedgerService {
     });
   }
 
+  /**
+   * 计算标签页列表
+   * 从 defined_categories 映射中提取所有标签名
+   */
   private computeTabs(memory: LedgerMemory | null): string[] {
     const defaultTabs = ['ALL', 'uncategorized'];
     if (!memory) return defaultTabs;
 
-    const defined = memory.defined_categories || [];
+    // 从映射中提取所有标签名（keys）
+    const defined = Object.keys(memory.defined_categories || {});
     const tabs = ['ALL', ...defined];
 
+    // 如果定义的标签中不包含 'others'，则自动添加作为兜底
     if (defined.length > 0 && !defined.includes('others')) {
       tabs.push('others');
     }
@@ -535,14 +542,31 @@ export class LedgerService {
   }
 
   private async syncWithLedger(
-    parsedData: Transaction[], 
-    memoryHandle: StorageHandle | null, 
+    parsedData: Transaction[],
+    memoryHandle: StorageHandle | null,
     currentMemory: LedgerMemory,
     forceUncategorized: boolean = false
   ) {
     if (!memoryHandle) return currentMemory;
 
-    let hasUpdates = false;
+    // 数据迁移：检查 defined_categories 是否为旧格式（数组）
+    const needsMigration = Array.isArray(currentMemory.defined_categories);
+    if (needsMigration) {
+      console.log('[LedgerService] Migrating defined_categories from array to map...');
+      // 将旧数组格式迁移为映射格式，使用默认描述
+      const oldCategories = currentMemory.defined_categories as unknown as string[];
+      const migratedCategories: Record<string, string> = {};
+      for (const cat of oldCategories) {
+        migratedCategories[cat] = this.getDefaultCategoryDescription(cat);
+      }
+      currentMemory = {
+        ...currentMemory,
+        defined_categories: migratedCategories,
+        version: '1.1' // 升级版本号
+      };
+    }
+
+    let hasUpdates = needsMigration; // 如果需要迁移，强制更新
     const updatedRecords = { ...currentMemory.records };
 
     parsedData.forEach(t => {
@@ -611,6 +635,321 @@ export class LedgerService {
     }
 
     return currentMemory;
+  }
+
+  // ============================================
+  // 数据迁移辅助方法
+  // ============================================
+
+  /**
+   * 获取分类的默认描述
+   * 用于数据迁移时从旧格式（数组）转换到新格式（映射）
+   */
+  private getDefaultCategoryDescription(category: string): string {
+    const descriptions: Record<string, string> = {
+      meal: '日常正餐支出（早午晚），如快餐、正餐、工作餐',
+      snack: '零食、饮品、小吃等非正餐食品',
+      transport: '公共交通、打车、加油、停车等出行费用',
+      entertainment: '电影、游戏、演出、会员订阅等娱乐消费',
+      feast: '聚餐、大餐、宴请、高档餐厅等特殊餐饮',
+      health: '医疗、药品、保健品、健身器材等健康支出',
+      shopping: '日用品、服装、电子产品、网购等购物消费',
+      education: '书籍、课程、培训、考试等教育支出',
+      housing: '房租、水电煤、物业、维修等居住费用',
+      travel: '旅游、酒店、机票、景点门票等旅行支出',
+      others: '其他未分类支出'
+    };
+    return descriptions[category] || `${category} 相关支出`;
+  }
+
+  // ============================================
+  // 标签管理 API - Category Management
+  // ============================================
+
+  /**
+   * 获取当前所有标签
+   * @returns 标签映射 { 标签名: 描述 }
+   */
+  public getCategories(): Record<string, string> {
+    return this.state.ledgerMemory?.defined_categories || {};
+  }
+
+  /**
+   * 添加新标签
+   * @param name 标签名称
+   * @param description 标签描述
+   * @returns 是否成功添加
+   */
+  public async addCategory(name: string, description: string): Promise<boolean> {
+    if (!this.memoryFileHandle || !this.state.ledgerMemory) {
+      console.error('[LedgerService] Cannot add category: no ledger loaded');
+      return false;
+    }
+
+    // 验证名称
+    const sanitizedName = this.sanitizeCategoryName(name);
+    if (!sanitizedName) {
+      console.error('[LedgerService] Invalid category name:', name);
+      return false;
+    }
+
+    // 检查是否已存在
+    const currentCategories = this.state.ledgerMemory.defined_categories;
+    if (currentCategories[sanitizedName]) {
+      console.error('[LedgerService] Category already exists:', sanitizedName);
+      return false;
+    }
+
+    // 更新 defined_categories
+    const newCategories = {
+      ...currentCategories,
+      [sanitizedName]: description || `${sanitizedName} 相关支出`
+    };
+
+    const newMemory: LedgerMemory = {
+      ...this.state.ledgerMemory,
+      defined_categories: newCategories,
+      last_sync: format(new Date(), 'yyyy-MM-dd HH:mm:ss')
+    };
+
+    // 保存到文件
+    await writeMemoryFile(this.memoryFileHandle, newMemory);
+
+    // 更新状态
+    this.setState({
+      ledgerMemory: newMemory,
+      TABS: this.computeTabs(newMemory)
+    });
+
+    console.log('[LedgerService] Added category:', sanitizedName);
+    return true;
+  }
+
+  /**
+   * 删除标签
+   * @param name 标签名称
+   * @returns 删除结果，包含受影响的交易 ID 列表
+   */
+  public async deleteCategory(name: string): Promise<{ success: boolean; affectedTxIds: string[] }> {
+    if (!this.memoryFileHandle || !this.state.ledgerMemory) {
+      console.error('[LedgerService] Cannot delete category: no ledger loaded');
+      return { success: false, affectedTxIds: [] };
+    }
+
+    // 不能删除 others（兜底标签）
+    if (name === 'others') {
+      console.error('[LedgerService] Cannot delete "others" category');
+      return { success: false, affectedTxIds: [] };
+    }
+
+    // 检查标签是否存在
+    const currentCategories = this.state.ledgerMemory.defined_categories;
+    if (!currentCategories[name]) {
+      console.error('[LedgerService] Category not found:', name);
+      return { success: false, affectedTxIds: [] };
+    }
+
+    // 收集受影响的交易
+    const affectedTxIds: string[] = [];
+    const updatedRecords = { ...this.state.ledgerMemory.records };
+
+    Object.entries(updatedRecords).forEach(([txId, record]) => {
+      if (record.category === name) {
+        affectedTxIds.push(txId);
+        // 重置为未分类，强制解锁
+        updatedRecords[txId] = {
+          ...record,
+          category: 'uncategorized',
+          ai_category: '',
+          ai_reasoning: '',
+          user_category: '',
+          user_note: '',
+          is_verified: false,
+          updated_at: format(new Date(), 'yyyy-MM-dd HH:mm:ss')
+        };
+      }
+    });
+
+    // 从 defined_categories 中删除
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { [name]: _removed, ...remainingCategories } = currentCategories;
+
+    // 构建新内存状态
+    const newMemory: LedgerMemory = {
+      ...this.state.ledgerMemory,
+      defined_categories: remainingCategories,
+      records: updatedRecords,
+      last_sync: format(new Date(), 'yyyy-MM-dd HH:mm:ss')
+    };
+
+    // 清理实例库中相关记录
+    const ledgerName = this.getCurrentLedgerName();
+    if (ledgerName) {
+      const { ExampleStore } = await import('./ExampleStore');
+      const examples = await ExampleStore.load(ledgerName);
+      const filteredExamples = examples.filter(ex => ex.category !== name);
+      if (filteredExamples.length !== examples.length) {
+        await ExampleStore.save(ledgerName, filteredExamples);
+        console.log(`[LedgerService] Removed ${examples.length - filteredExamples.length} examples for category ${name}`);
+      }
+    }
+
+    // 保存到文件
+    await writeMemoryFile(this.memoryFileHandle, newMemory);
+
+    // 清空缓存并更新状态
+    this.transactionCache.clear();
+    const computed = this.recomputeTransactions(this.state.rawTransactions, newMemory);
+
+    this.setState({
+      ledgerMemory: newMemory,
+      computedTransactions: computed,
+      TABS: this.computeTabs(newMemory)
+    });
+
+    console.log('[LedgerService] Deleted category:', name, 'Affected transactions:', affectedTxIds.length);
+    return { success: true, affectedTxIds };
+  }
+
+  /**
+   * 重命名标签
+   * @param oldName 旧标签名
+   * @param newName 新标签名
+   * @returns 是否成功
+   */
+  public async renameCategory(oldName: string, newName: string): Promise<boolean> {
+    if (!this.memoryFileHandle || !this.state.ledgerMemory) {
+      console.error('[LedgerService] Cannot rename category: no ledger loaded');
+      return false;
+    }
+
+    // 验证新名称
+    const sanitizedNewName = this.sanitizeCategoryName(newName);
+    if (!sanitizedNewName) {
+      console.error('[LedgerService] Invalid new category name:', newName);
+      return false;
+    }
+
+    // 检查旧标签是否存在
+    const currentCategories = this.state.ledgerMemory.defined_categories;
+    if (!currentCategories[oldName]) {
+      console.error('[LedgerService] Old category not found:', oldName);
+      return false;
+    }
+
+    // 检查新名称是否已存在
+    if (currentCategories[sanitizedNewName] && oldName !== sanitizedNewName) {
+      console.error('[LedgerService] New category name already exists:', sanitizedNewName);
+      return false;
+    }
+
+    // 更新 defined_categories
+    const { [oldName]: oldDesc, ...restCategories } = currentCategories;
+    const newCategories = {
+      ...restCategories,
+      [sanitizedNewName]: oldDesc
+    };
+
+    // 批量更新交易记录
+    const updatedRecords = { ...this.state.ledgerMemory.records };
+    Object.entries(updatedRecords).forEach(([txId, record]) => {
+      if (record.category === oldName) {
+        updatedRecords[txId] = { ...record, category: sanitizedNewName };
+      }
+      // 同时更新元数据中的分类字段
+      if (record.ai_category === oldName) {
+        updatedRecords[txId] = { ...updatedRecords[txId], ai_category: sanitizedNewName };
+      }
+      if (record.user_category === oldName) {
+        updatedRecords[txId] = { ...updatedRecords[txId], user_category: sanitizedNewName };
+      }
+    });
+
+    const newMemory: LedgerMemory = {
+      ...this.state.ledgerMemory,
+      defined_categories: newCategories,
+      records: updatedRecords,
+      last_sync: format(new Date(), 'yyyy-MM-dd HH:mm:ss')
+    };
+
+    // 保存到文件
+    await writeMemoryFile(this.memoryFileHandle, newMemory);
+
+    // 清空缓存并更新状态
+    this.transactionCache.clear();
+    const computed = this.recomputeTransactions(this.state.rawTransactions, newMemory);
+
+    this.setState({
+      ledgerMemory: newMemory,
+      computedTransactions: computed,
+      TABS: this.computeTabs(newMemory)
+    });
+
+    console.log('[LedgerService] Renamed category:', oldName, '->', sanitizedNewName);
+    return true;
+  }
+
+  /**
+   * 更新标签描述
+   * @param name 标签名称
+   * @param description 新描述
+   * @returns 是否成功
+   */
+  public async updateCategoryDescription(name: string, description: string): Promise<boolean> {
+    if (!this.memoryFileHandle || !this.state.ledgerMemory) {
+      console.error('[LedgerService] Cannot update category description: no ledger loaded');
+      return false;
+    }
+
+    // 检查标签是否存在
+    const currentCategories = this.state.ledgerMemory.defined_categories;
+    if (!currentCategories[name]) {
+      console.error('[LedgerService] Category not found:', name);
+      return false;
+    }
+
+    // 更新描述
+    const newCategories = {
+      ...currentCategories,
+      [name]: description
+    };
+
+    const newMemory: LedgerMemory = {
+      ...this.state.ledgerMemory,
+      defined_categories: newCategories,
+      last_sync: format(new Date(), 'yyyy-MM-dd HH:mm:ss')
+    };
+
+    // 保存到文件
+    await writeMemoryFile(this.memoryFileHandle, newMemory);
+
+    // 更新状态
+    this.setState({ ledgerMemory: newMemory });
+
+    console.log('[LedgerService] Updated category description:', name);
+    return true;
+  }
+
+  /**
+   * 验证并清理标签名称
+   */
+  private sanitizeCategoryName(name: string): string | null {
+    if (!name || name.trim().length === 0) {
+      return null;
+    }
+
+    const trimmed = name.trim().toLowerCase();
+    if (trimmed.length > 50) {
+      return null;
+    }
+
+    // 仅允许小写字母、数字、下划线
+    const validPattern = /^[a-z0-9_]+$/;
+    if (!validPattern.test(trimmed)) {
+      return null;
+    }
+
+    return trimmed;
   }
 
   // ============================================

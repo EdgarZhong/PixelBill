@@ -3,15 +3,22 @@ import { strict as assert } from 'assert';
 
 console.log('--- Testing Sanitization Logic (Design 3.5) ---');
 
-// Mock Data
-const defined_categories = ['meal', 'transport', 'others'];
+// Mock Data - 新格式：映射结构 { 标签名: 描述 }
+const defined_categories: Record<string, string> = {
+  meal: '日常正餐支出',
+  transport: '交通出行费用',
+  others: '其他支出'
+};
+
+// 从映射中提取有效标签名列表
+const validCategoryNames = Object.keys(defined_categories);
 
 // Logic extracted from useAppLogic.ts
 function sanitizeCategory(candidate: string, validCategories: string[]): string {
     // Allow 'uncategorized' to pass through.
     // If category is invalid (not in defined list and not 'uncategorized'), reset to 'uncategorized'
-    return (validCategories.includes(candidate) || candidate === 'uncategorized') 
-        ? candidate 
+    return (validCategories.includes(candidate) || candidate === 'uncategorized')
+        ? candidate
         : 'uncategorized';
 }
 
@@ -29,7 +36,7 @@ let passed = 0;
 let failed = 0;
 
 cases.forEach(c => {
-    const result = sanitizeCategory(c.input, defined_categories);
+    const result = sanitizeCategory(c.input, validCategoryNames);
     try {
         assert.equal(result, c.expected);
         console.log(`✅ [PASS] ${c.desc}: '${c.input}' -> '${result}'`);
