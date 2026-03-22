@@ -6,6 +6,12 @@
 
 **PixelBill** 是一个个人记账 SPA 应用，奉行"生成式极简主义"与"赛博禅意"（Cyber-Zen）的设计哲学。采用"当代生成式点阵"（Contemporary Generative Dot Matrix）风格，将抽象财务数据转化为冷静、理性、秩序感的视觉体验。
 
+> **🎯 当前阶段：软件比赛冲刺期**
+> - **目标赛事**：大学生软件比赛（已过海选）
+> - **截止日期**：2026年4月10日
+> - **核心任务**：全力打磨 **AI 自学习功能** —— 让 AI 越用越懂用户，无需反复调教
+> - **UI 策略**：保持现有极客风格，细节推后，能用即可
+
 **核心功能**：
 - 导入并整合微信、支付宝 CSV 账单
 - AI 智能分类（优先级：用户 > 规则引擎 > AI Agent）
@@ -153,7 +159,7 @@ pixel_bill/
 | 文档名称 | 内容描述 | 文件路径 |
 |----------|----------|----------|
 | 设计文档 | Cyber-Zen 视觉设计系统、色彩规范、动效规范 | `docs/DESIGN.md` |
-| **AI 自学习设计** | **P0/P1/P2/P3 完整设计文档（含实现状态）** | `AI_SELF_LEARNING_DESIGN_v4.md` |
+| **AI 自学习设计** | **P0/P1/P2/P3 完整设计文档（含实现状态）** | `AI_SELF_LEARNING_DESIGN_v5.md` |
 | **P0 测试指南** | **实例库自动采集 + 注入 测试文档** | `docs/P0_TEST_GUIDE.md` |
 | 账本切换功能规划 | 账本切换功能详细设计规范（已实施完成） | `docs/ledger-switch-feature.md` |
 | 开发日志 Day 2 | Android 文件系统适配详细记录 | `docs/DAY2_IMPLEMENTATION.md` |
@@ -221,6 +227,7 @@ const result = await Filesystem.readdir({
 | `classify_memory/{ledger}.md` | `Documents/PixelBill/classify_memory/` | `Directory.Documents` | **P1 新增** - AI 记忆文件 |
 | `self_description/user_profile.md` | `Documents/PixelBill/self_description/` | `Directory.Documents` | **P1 新增** - 用户自述文件 |
 | `memory_snapshots/{ledger}/` | 沙箱目录 | `Directory.Data` | **P1 新增** - 记忆文件版本快照 |
+| `classify_queue/{ledger}.json` | 沙箱目录 | `Directory.Data` | **P2 新增** - 分类任务队列（按账本隔离） |
 
 ### 代码注释规范
 
@@ -399,12 +406,32 @@ npm run lint -- --fix
 | 任务 | 优先级 | 说明 |
 |------|--------|------|
 | AI 自学习 P2：PromptBuilder 适配新结构 | P2 | 适配 defined_categories 映射格式 |
-| AI 自学习 P2：分类触发层 (ClassifyTrigger) | P2 | 各场景的日期筛选和入队逻辑 |
+| AI 自学习 P2：分类触发层 (ClassifyTrigger) | P2 | 各场景触发逻辑的接口预埋（暂不接管线上触发） |
 | AI 自学习 P2：账本生命周期扩展 | P2 | 删除/重命名时清理关联文件 |
-| AI 自学习 P2：AI Engine 队列消费改造 | P2 | 从 ClassifyQueue 消费任务 |
+| AI 自学习 P2：AI Engine 队列消费改造 | P2 | 仅消费当前选中账本队列，入口仍由 UI 按钮控制 |
 | AI 自学习 P2：渐进式重分类交互 UI | P2 | 标签变更后的重分类对话框 |
 | AI 自学习 P2：测试与调试工具 | P2 | P2 自动化测试脚本 |
 | AI 自学习 P3：列表页快速修正 | P3 | 降低修正摩擦力的交互优化 |
+
+### P2 当前阶段边界（2026-03 冲刺期）
+
+- **队列定位**：`ClassifyQueue` 作为分类请求接口层，按账本隔离存储，封装自动分类/重分类在数据筛选与预处理上的差异，对 AI Engine 隐藏复杂度。
+- **本阶段目标**：先完成队列、触发层接口、PromptBuilder 新结构、AI Engine 队列消费能力等基础设施。
+- **触发控制不变**：AI 分类入口暂不改动，仍由现有 UI 按钮触发；按钮后的执行链路可切换为“入队 + 消费”。
+- **消费约束**：AI Engine 仅消费当前选中账本队列，其他账本队列停放，切换账本后同步切换消费目标。
+- **自动触发延期**：CSV 导入、标签变更等自动触发时机，待交互规则与产品策略评审定稿后再接管线上逻辑。
+- **验收口径**：先做“按钮触发下的队列链路”端到端验收，确认稳定后再推进自动触发策略。
+
+### P2 并行任务分配（队列基础设施优先）
+
+| 并行任务 | 负责人建议 | 目标产出 | 边界约束 |
+|----------|------------|----------|----------|
+| Workstream A：Per-Ledger Queue Core | Agent A | 实现 `classify_queue/{ledger}.json` 读写、同日去重、优先级升级 | 不改触发策略，不改 UI 交互 |
+| Workstream B：Engine Consumption Scope | Agent B | AI Engine 仅消费当前账本队列；切账本后切换消费目标 | 不接管自动触发，入口仍为 UI 按钮 |
+| Workstream C：Prompt/Data Pipeline | Agent C | 按队列任务加载该天交易并拼接 v5 结构，结果回写链路稳定 | 不实现场景筛选，仅消费既有任务 |
+| Workstream D：Lifecycle & Debug | Agent D | 删除/重命名账本时同步处理 `classify_queue/{ledger}.json`；完善队列调试命令 | 不新增前端交互流程 |
+
+**集成顺序**：A → B/C 并行 → D 收尾 → E2E 验收（按钮触发链路）。
 
 ---
 

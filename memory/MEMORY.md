@@ -49,7 +49,7 @@
 
 | 文档 | 说明 |
 |------|------|
-| `AI_SELF_LEARNING_DESIGN_v4 (1).md` | AI 自学习系统完整设计 (v4.2) |
+| `AI_SELF_LEARNING_DESIGN_v5.md` | AI 自学习系统完整设计 (v5) |
 | `docs/P0_IMPLEMENTATION_SUMMARY.md` | P0 实施总结 |
 | `docs/P0_TEST_GUIDE.md` | P0 测试指南 |
 | `docs/P1_IMPLEMENTATION_SUMMARY.md` | P1 实施总结 |

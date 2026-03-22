@@ -343,7 +343,7 @@ await window.__DEBUG_TOOLS__.clearP1Data()
 3. **学习报告** - 可视化展示 AI 学习成果
 4. **规则引擎联动** - 高置信度记忆自动生成正则规则
 
-详见设计文档：`AI_SELF_LEARNING_DESIGN_v4.md`
+详见设计文档：`AI_SELF_LEARNING_DESIGN_v5.md`
 
 ---
 

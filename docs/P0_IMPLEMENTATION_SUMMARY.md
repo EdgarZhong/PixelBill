@@ -156,4 +156,4 @@ P1 已实现**记忆文件 + 学习会话**机制：
 详见文档：
 - `docs/P1_IMPLEMENTATION_SUMMARY.md` - P1 实现总结
 - `docs/P1_TEST_GUIDE.md` - P1 测试指南
-- `AI_SELF_LEARNING_DESIGN_v4.md` - 设计文档
+- `AI_SELF_LEARNING_DESIGN_v5.md` - 设计文档

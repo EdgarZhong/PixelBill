@@ -48,19 +48,31 @@
 ```json
 [
   {
-    "tx_id": "abc123",
+    "id": "abc123",
+    "originalId": "4200002945202601057339056941",
     "created_at": "2026-01-15T19:40:00",
+    "time": "2026-01-15 19:40:00",
+    "sourceType": "wechat",
+    "category": "others",
+    "rawClass": "商户消费",
     "counterparty": "面包码头",
-    "description": "芝士面包",
+    "product": "芝士面包",
     "amount": 16.80,
     "direction": "out",
-    "time": "19:40",
-    "source": "wechat",
-    "category": "others",
-    "user_reason": "同时段已吃过杨国福，这是零食"
+    "paymentMethod": "零钱",
+    "transactionStatus": "SUCCESS",
+    "remark": "/",
+    "ai_category": "meal",
+    "ai_reasoning": "",
+    "user_category": "others",
+    "user_note": "同时段已吃过杨国福，这是零食",
+    "is_verified": false,
+    "updated_at": "2026-01-15 19:45:12"
   }
 ]
 ```
+
+**字段覆盖原则**：实例库条目与账本 `records` 的单条交易保持同构，额外新增 `created_at` 记录入库时间。目标是尽可能保留完整上下文，不做信息简化。
 
 **数据来源**（两种）：
 
@@ -69,23 +81,23 @@
 | 用户修正 | `user_category` 存在且 `user_category ≠ ai_category` | AI 分错了，用户纠正 |
 | 用户锁定 | `is_verified === true` | 用户确认分类正确，高置信参考 |
 
-**注入时的字段重组规则**：
+**分类元数据合并逻辑（保留）**：
 
-账本文件（`*.pixelbill.json`）中每条交易存储原始四字段：`ai_category` / `ai_reasoning` / `user_category` / `user_note`。**写入实例库时即完成重组**，实例库中直接存储最多三个字段，确保实例库本身只包含"正确答案 + 正确理由"：
+账本文件（`*.pixelbill.json`）中的分类元数据字段为：`ai_category` / `ai_reasoning` / `user_category` / `user_note`。写入实例库时保留完整属性，同时对这些字段按下列规则合并：
 
-| 情况 | `category` | `ai_reason` | `user_reason` |
-|------|-----------|-------------|---------------|
-| AI 分对 + 用户锁定 | 最终落盘类别 | 保留 `ai_reasoning` | 有则保留 `user_note` |
-| AI 分错 + 用户修正 | 最终落盘类别 | ❌ 丢弃（AI 判断错误，理由无参考价值） | 有则保留 `user_note` |
-| 字段为空时 | — | 省略 | 省略 |
+| 情况 | `category`（最终类别） | `ai_reasoning` | `user_note` |
+|------|------------------------|----------------|-------------|
+| AI 分对 + 用户锁定 | 保持最终落盘类别 | 保留 | 有则保留 |
+| AI 分错 + 用户修正 | 保持最终落盘类别 | 可置空（避免错误理由污染） | 有则保留 |
+| 字段为空时 | — | 空字符串或省略 | 空字符串或省略 |
 
-因此实例库中的每条记录，注入 Prompt 时无需再做转换，直接使用即可：
+实例库注入 Prompt 时，不再转换为极简结构，直接注入完整条目：
 ```json
-{ "counterparty": "杨国福", "amount": 45, "time": "18:10",
-  "category": "meal", "ai_reason": "餐饮商户，正餐时段，金额合理" }
+{ "id": "abc123", "time": "2026-01-15 18:10:00", "counterparty": "杨国福",
+  "amount": 45, "category": "meal", "ai_reasoning": "餐饮商户，正餐时段，金额合理" }
 
-{ "counterparty": "面包码头", "amount": 16.8, "time": "19:40",
-  "category": "others", "user_reason": "同时段已吃过杨国福，这是零食" }
+{ "id": "abc124", "time": "2026-01-15 19:40:00", "counterparty": "面包码头",
+  "amount": 16.8, "category": "others", "user_note": "同时段已吃过杨国福，这是零食" }
 ```
 
 **检索逻辑**（批量级检索 + 去重合并）：
@@ -97,14 +109,15 @@
    - **品类相似**：description / counterparty 的关键词交集
    - **金额区间**：实例金额在当前交易 ±50% 范围内优先
    - **时段相近**：同一餐点时段（早/午/晚/非餐点）优先
-2. **去重合并**：将所有交易检索到的案例按 `tx_id` 去重，合并为一个统一的案例列表
-3. **统一注入**：合并后的案例列表作为 `reference_corrections` 字段注入 User Message 的 `context` 对象中，而非跟随每条交易
+2. **去重合并**：将所有交易检索到的案例按 `id` 去重，合并为一个统一的案例列表
+3. **统一注入**：合并后的案例列表作为顶层 `reference_corrections` 字段注入 User Message（与 `days` 同级），而非跟随每条交易
+4. **排序约束**：注入前按 `time` 升序（等价于 `date + time` 升序）排序，确保同一天多条案例保持时间上下文
 
 > **设计考量**：实例库通常不会太大，且不同交易的检索结果重叠率较高（同一商户多次出现），去重后的总量可控。
 
 **与交易记录的同步规则**：
 
-一条交易被重新分类时（无论 AI 重分还是用户再次手改），先按 `tx_id` 查实例库，有则删除旧记录。如果用户对新结果又做了修正，自然产生新的实例记录。实例库永远与交易当前状态一致。
+一条交易被重新分类时（无论 AI 重分还是用户再次手改），先按 `id` 查实例库，有则删除旧记录。如果用户对新结果又做了修正，自然产生新的实例记录。实例库永远与交易当前状态一致。
 
 ### 2.2 非结构化存储
 
@@ -342,11 +355,12 @@ AI 拥有 MODIFY 和 DELETE 权限，用户也能任意编辑，任何一次改�
 分类不再由单一入口直接触发，而是通过任务队列统一调度（队列架构详见 5.6 节）。AI Engine 从队列中逐天取出任务，执行以下流程：
 
 ```
-从队列取出一天的任务 { ledger, date, type }
+读取当前选中账本 currentLedger
+  → 从 classify_queue/{currentLedger}.json 取出一天的任务 { date, type }
   → 加载该天全部交易
   → 并行加载：
-      ① classify_memory/{ledger}.md（模式记忆）
-      ② classify_examples/{ledger}.json
+      ① classify_memory/{currentLedger}.md（模式记忆）
+      ② classify_examples/{currentLedger}.json
          → 对该天每条交易检索最多3条相关案例
          → 按 tx_id 去重合并为统一案例列表
       ③ defined_categories（标签定义）
@@ -439,8 +453,9 @@ AI 拥有 MODIFY 和 DELETE 权限，用户也能任意编辑，任何一次改�
 
 ```
 ┌──────────────────────────────────────────────────┐
-│               分类任务队列（持久化到沙箱）          │
-│  每个元素 = { ledger, date, type }                 │
+│             分类任务队列（按账本隔离）              │
+│  存储：沙箱 classify_queue/{ledger}.json           │
+│  每个元素 = { date, type }                         │
 │                                                   │
 │  type 取值：                                      │
 │  - "normal"           正常分类（绿色光效）         │
@@ -463,9 +478,11 @@ AI 拥有 MODIFY 和 DELETE 权限，用户也能任意编辑，任何一次改�
 └──────────────────────────────────────────────────┘
 ```
 
-**队列持久化**：存于沙箱 `classify_queue.json`，App 重启后继续消费，避免用户确认的重分类任务因关闭 App 而丢失。
+**队列持久化**：每个账本独立存于沙箱 `classify_queue/{ledger}.json`。App 重启后继续消费，避免用户确认的重分类任务因关闭 App 而丢失。
 
-**队列去重规则**：同一账本同一天已在队列中时——如果新任务优先级更高则升级，否则跳过。优先级：`reclassify_full` > `reclassify_affected` / `reclassify_scoped` > `normal`。
+**队列去重规则**：在**当前账本队列**中，同一天已存在任务时——如果新任务优先级更高则升级，否则跳过。优先级：`reclassify_full` > `reclassify_affected` / `reclassify_scoped` > `normal`。
+
+**跨账本消费约束**：AI Engine 只消费当前选中账本对应的队列文件；其他账本队列保持停放，不会被后台自动处理。用户切换账本后，消费目标同步切换为新账本队列。
 
 #### 5.6.2 触发层设计
 
@@ -553,7 +570,16 @@ AI 拥有 MODIFY 和 DELETE 权限，用户也能任意编辑，任何一次改�
 | 锁定保护 | Arbiter 保护 | Arbiter 保护（相同） |
 | UI 光效 | 🟢 绿色 | 🟡 黄色 |
 
-**代码分离点**：触发层（日期筛选 + 预清理）独立于 AI Engine。AI Engine 只看队列中的 `{ date, type }`，不关心"为什么要分类"。
+**代码分离点**：触发层（日期筛选 + 预清理）独立于 AI Engine。AI Engine 只看当前账本队列中的 `{ date, type }`，不关心"为什么要分类"。
+
+#### 5.6.4 当前阶段实施边界（补充说明）
+
+为避免在触发策略尚未定稿时反复改动引擎控制逻辑，当前阶段采用以下边界：
+
+1. **队列作为接口层先落地**：先完成 `ClassifyQueue`、`ClassifyTrigger` 接口、Prompt 组装适配与 AI Engine 队列消费能力。
+2. **触发入口保持不变**：分类触发入口暂不切换为自动触发，仍由现有 UI 按钮控制。
+3. **场景枚举先作为契约**：5.6.2 中各场景触发逻辑作为接口契约与后续实现依据，本阶段不直接接管线上自动触发。
+4. **后续再接管触发控制**：待产品侧完成触发时机评审并冻结交互规则后，再将自动触发接入生产链路。
 
 ### 5.7 所有场景 vs is_verified 交互矩阵
 
@@ -603,11 +629,16 @@ export const generateSystemPrompt = (config: SystemPromptConfig = { language: '�
 ### Input Format
 The user will provide a JSON object with the following structure:
 - **category_list**: An object mapping category keys to their natural-language descriptions (e.g., {"meal": "Daily meals for two...", "others": "Everything else..."}). You MUST only use keys from this object.
-- **context**: An object containing background information:
+- **reference_corrections**: A top-level array of past classification corrections. Each entry keeps full transaction attributes (same shape as ledger record + \`created_at\`) and is sorted by \`time\` ascending (equivalent to \`date + time\` ascending). When you encounter a similar transaction, you MUST follow the correction.
+  - \`id\`, \`originalId\`, \`created_at\`
+  - \`time\`, \`sourceType\`, \`rawClass\`
+  - \`counterparty\`, \`product\`, \`amount\`, \`direction\`
+  - \`paymentMethod\`, \`transactionStatus\`, \`remark\`
+  - \`category\`, \`ai_category\`, \`ai_reasoning\`, \`user_category\`, \`user_note\`, \`is_verified\`, \`updated_at\`
+- **days**: An array of day-grouped transaction batches. Each day object contains:
   - \`date\`: The date of the transactions (YYYY-MM-DD).
   - \`weekday\`: The day of the week (e.g., "Monday").
-  - \`reference_corrections\`: An array of past classification corrections. Each entry contains a transaction's key fields plus the confirmed correct \`category\`, and optionally \`ai_reason\` (AI's reasoning when it got it right) or \`user_reason\` (user's explanation when correcting the AI). When you encounter a transaction similar to a reference correction, you MUST follow the correction.
-- **transactions**: An array of transaction objects to be categorized. Each object contains:
+  - \`transactions\`: An array of transaction objects to be categorized. Each transaction object contains:
   - \`id\`: Unique transaction identifier.
   - \`time\`: Time of transaction.
   - \`amount\`: Transaction amount.
@@ -666,32 +697,66 @@ ${selfDescriptionSection}${memorySection}`;
     "others": "所有非正餐支出，包括零食、饮品、交通、大餐、生活服务等"
   },
 
-  "context": {
-    "date": "2026-01-15",
-    "weekday": "Thursday",
-    "reference_corrections": [
-      {
-        "counterparty": "面包码头",
-        "amount": 16.80,
-        "time": "19:40",
-        "category": "others",
-        "user_reason": "同时段已吃过杨国福"
-      },
-      {
-        "counterparty": "杨国福",
-        "amount": 45.00,
-        "time": "18:10",
-        "category": "meal",
-        "ai_reason": "餐饮商户，正餐时段，金额合理"
-      }
-    ]
-  },
+  "reference_corrections": [
+    {
+      "id": "5110f45d20aab6c3",
+      "originalId": "4200002945202601057339056941",
+      "created_at": "2026-02-16T23:55:18",
+      "time": "2026-01-05 19:08:17",
+      "sourceType": "wechat",
+      "category": "meal",
+      "rawClass": "商户消费",
+      "counterparty": "袁记肉夹馍西工大店",
+      "product": "袁记肉夹馍西工大店",
+      "amount": 40,
+      "direction": "out",
+      "paymentMethod": "广发银行信用卡(6885)",
+      "transactionStatus": "SUCCESS",
+      "remark": "/",
+      "ai_category": "meal",
+      "ai_reasoning": "正餐时间段的肉夹馍餐饮消费，金额合理",
+      "user_category": "meal",
+      "user_note": "Manual Test Update，111",
+      "is_verified": true,
+      "updated_at": "2026-02-16 23:55:18"
+    },
+    {
+      "id": "d4db723dbb333a5a",
+      "originalId": "2026010522001485081435081052",
+      "created_at": "2026-02-16T23:55:19",
+      "time": "2026-01-05 14:03:25",
+      "sourceType": "alipay",
+      "category": "meal",
+      "rawClass": "餐饮美食",
+      "counterparty": "水之源川菜",
+      "product": "水之源川菜",
+      "amount": 50,
+      "direction": "out",
+      "paymentMethod": "花呗",
+      "transactionStatus": "SUCCESS",
+      "remark": "",
+      "ai_category": "meal",
+      "ai_reasoning": "午餐时间段的川菜正餐消费",
+      "user_category": "meal",
+      "user_note": "Manual Test Update222",
+      "is_verified": false,
+      "updated_at": "2026-02-16 23:55:18"
+    }
+  ],
 
-  "transactions": [
-    { "待分类交易列表，同现有格式" }
+  "days": [
+    {
+      "date": "2026-01-15",
+      "weekday": "Thursday",
+      "transactions": [
+        { "待分类交易列表，同现有格式" }
+      ]
+    }
   ]
 }
 ```
+
+`reference_corrections` 的排序约束：按 `time` 字段升序排列（等价于 `date + time` 升序），确保同一天多条参考案例天然保持时间上下文。
 
 ### 6.3 关键变更总结
 
@@ -701,7 +766,7 @@ ${selfDescriptionSection}${memorySection}`;
 | `user_rules` 字段 | Markdown 规则文件 | **移除**，被记忆文件替代 |
 | `userContext` | System Prompt 中的静态文本段 | **重命名为 Self-Description**，迁移至独立文件 |
 | 记忆文件 | 不存在 | **新增**，注入为 Learned Preferences 段 |
-| 实例库 | 不存在 | **新增**，注入为 `context.reference_corrections` |
+| 实例库 | 不存在 | **新增**，注入为顶层 `reference_corrections`（完整属性，按 date+time 升序） |
 | 优先级层次 | 未明确 | **新增**，四级优先级明确写入 Prompt |
 
 ### 6.4 学习 System Prompt（完整）
@@ -1035,7 +1100,7 @@ await window.__DEBUG_TOOLS__.clearP1Data()
 | `classify_memory/{ledger}.md` | `Documents/PixelBill/classify_memory/` | `Directory.Documents` | 按账本 | **新增**：AI 记忆文件 |
 | `classify_examples/{ledger}.json` | 沙箱 `classify_examples/` | `Directory.Data` | 按账本 | **新增**：实例库 |
 | `memory_snapshots/{ledger}/` | 沙箱 `memory_snapshots/` | `Directory.Data` | 按账本 | **新增**：记忆文件快照 |
-| `classify_queue.json` | 沙箱 | `Directory.Data` | 全局 | **新增**：分类任务队列，App 重启后继续消费 |
+| `classify_queue/{ledger}.json` | 沙箱 `classify_queue/` | `Directory.Data` | 按账本 | **新增**：分类任务队列（按账本隔离），App 重启后继续消费 |
 
 **分布原则**：用户需要直接访问/编辑的 → Documents；纯系统内部维护的 → 沙箱。
 
@@ -1053,7 +1118,7 @@ await window.__DEBUG_TOOLS__.clearP1Data()
   → [新增] 删除 Documents/PixelBill/classify_memory/{ledger}.md（如存在）
   → [新增] 删除 沙箱/classify_examples/{ledger}.json（如存在）
   → [新增] 删除 沙箱/memory_snapshots/{ledger}/ 整个目录（如存在）
-  → [新增] 从 classify_queue.json 中移除该账本的所有待处理任务
+  → [新增] 删除 沙箱/classify_queue/{ledger}.json（如存在）
   → [已有] 更新 ledgers.json 索引
 ```
 
@@ -1065,6 +1130,7 @@ await window.__DEBUG_TOOLS__.clearP1Data()
   → [新增] 重命名 classify_memory/{old}.md → classify_memory/{new}.md（如存在）
   → [新增] 重命名 classify_examples/{old}.json → classify_examples/{new}.json（如存在）
   → [新增] 重命名 memory_snapshots/{old}/ → memory_snapshots/{new}/（如存在）
+  → [新增] 重命名 classify_queue/{old}.json → classify_queue/{new}.json（如存在）
   → [已有] 更新 ledgers.json 索引
 ```
 
@@ -1086,7 +1152,7 @@ await window.__DEBUG_TOOLS__.clearP1Data()
 | `ConfigManager` | 新增用户上下文接口，支持自述文件迁移 | ✅ P1 已完成 |
 | `SettingsPage` | 新增 AI 记忆面板、历史版本、阈值配置 | ✅ P1 已完成 |
 | `LedgerService` | 新增标签管理 API（增删改 + 连锁处理）；账本创建/删除/重命名扩展 | 🚧 P2 规划中 |
-| `ClassifyQueue` | 分类任务队列（持久化、去重、优先级升级） | 🚧 P2 规划中 |
+| `ClassifyQueue` | 分类任务队列（按账本隔离持久化、去重、优先级升级） | 🚧 P2 规划中 |
 | `ClassifyTrigger` | 触发层——各场景的日期筛选、实例库预清理、入队逻辑 | 🚧 P2 规划中 |
 
 ### 10.2 新增模块状态
@@ -1098,7 +1164,7 @@ await window.__DEBUG_TOOLS__.clearP1Data()
 | `SnapshotManager` | 快照的创建、索引维护、回退执行、上限清理 | `src/core/services/SnapshotManager.ts` | ✅ P1 已完成 |
 | `SelfDescriptionManager` | 自述文件的读取、写入、迁移 | `src/core/services/SelfDescriptionManager.ts` | ✅ P1 已完成 |
 | `LearningSession` | 学习会话的编排（Prompt 构建、结果执行） | `src/core/ai_engine/LearningSession.ts` | ✅ P1 已完成 |
-| `ClassifyQueue` | 分类任务队列（持久化、去重、优先级升级） | - | 🚧 P2 规划中 |
+| `ClassifyQueue` | 分类任务队列（按账本隔离持久化、去重、优先级升级） | - | 🚧 P2 规划中 |
 | `ClassifyTrigger` | 触发层——各场景的日期筛选、实例库预清理、入队逻辑 | - | 🚧 P2 规划中 |
 
 ### 10.3 不需要修改的模块
