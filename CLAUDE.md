@@ -380,6 +380,27 @@ npm run lint -- --fix
 - **除非用户要求，否则不要自行 `git add` 和 `git commit`**
 - **绝对禁止自行 `git push`**
 
+### Git 非交互输出规范（防分页卡住）
+
+为避免 `git show/diff/log` 进入分页交互（需手动 `Enter/Q`）导致执行卡住，统一采用以下规则：
+
+```bash
+# 1) 查询类 Git 命令默认禁用分页器
+git --no-pager show <commit>
+git --no-pager diff
+git --no-pager log -n 20
+
+# 2) 先看摘要，再按需看正文，避免一次输出过长
+git --no-pager show --name-only <commit>
+git --no-pager show --stat <commit>
+git --no-pager show <commit> -- path/to/file
+```
+
+执行原则：
+- 先文件清单/统计，再展开具体文件补丁
+- 长输出按文件拆分查看，避免单次全量输出
+- 禁止依赖手动交互退出分页器作为常规流程
+
 ---
 
 ## 项目当前进展和任务列表
@@ -432,6 +453,24 @@ npm run lint -- --fix
 | Workstream D：Lifecycle & Debug | Agent D | 删除/重命名账本时同步处理 `classify_queue/{ledger}.json`；完善队列调试命令 | 不新增前端交互流程 |
 
 **集成顺序**：A → B/C 并行 → D 收尾 → E2E 验收（按钮触发链路）。
+
+### P2 集成执行口径（B + C → D）
+
+- D 集成顺序固定：先合 B，再合 C（`B_FINAL_HASH` → `577ca2a`）。
+- 冲突最高风险文件：`src/core/ai_engine/BatchProcessor.ts`。
+- `BatchProcessor.ts` 冲突处理必须同时保留：
+  - B 的“仅当前账本消费范围”约束；
+  - C 的“按任务日期装载 dayTxs + Prompt v5 组装 + is_verified 跳过 proposal”。
+- 禁止回退到默认账本读取与旧 Prompt 结构（`context + transactions`）。
+- 任务出队策略必须统一（不可混用）：
+  - 策略 A：处理成功后 remove，失败保留任务；
+  - 策略 B：先 dequeue，但失败必须补偿回队。
+- D 验收最小闭环必须覆盖：
+  - A/B 账本切换后的消费隔离；
+  - Prompt v5 三字段（`category_list/reference_corrections/days`）；
+  - `reference_corrections` 排序稳定；
+  - `is_verified=true` 不被 AI proposal 覆盖；
+  - 失败场景下任务不丢失。
 
 ---
 

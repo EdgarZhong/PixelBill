@@ -25,7 +25,8 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
-
+.worktrees
+.worktrees/**
 # private data
 2025-11-5to2026-1-5/
 
