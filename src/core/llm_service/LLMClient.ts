@@ -2,6 +2,14 @@ import type { ChatMessage, LLMConfig } from './types';
 import { RawLogger } from '../logging/RawLogger';
 import { FetchClient as NetworkClient } from '../network/FetchClient';
 
+interface LLMResponse {
+  choices?: Array<{
+    message?: {
+      content?: string;
+    };
+  }>;
+}
+
 export class LLMClient {
   private config: LLMConfig;
   private logger: RawLogger;
@@ -28,7 +36,7 @@ export class LLMClient {
     
     try {
       // Log Request
-      const response = await NetworkClient.post<Record<string, unknown>>(
+      const response = await NetworkClient.post<LLMResponse>(
         url,
         payload,
         {

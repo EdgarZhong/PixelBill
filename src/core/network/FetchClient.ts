@@ -92,16 +92,17 @@ export class FetchClient {
 
       } catch (err: unknown) {
         lastError = err instanceof Error ? err : new Error(String(err));
+        const errObj = err instanceof Error ? err : new Error(String(err));
         
         // 如果是 AbortError (超时)，则视为可重试
         // 如果是 5xx 错误，也可重试
         // 4xx 错误通常不重试
-        const isTimeout = err.name === 'AbortError';
+        const isTimeout = errObj.name === 'AbortError';
         const isNetworkError = err instanceof TypeError; // fetch network error
-        const isRetryableHttp = err.message && err.message.startsWith('HTTP_RETRYABLE');
+        const isRetryableHttp = errObj.message.startsWith('HTTP_RETRYABLE');
         
         if (isTimeout || isNetworkError || isRetryableHttp) {
-          console.warn(`[FetchClient] Attempt ${attempt + 1} failed: ${err.message}. Retrying...`);
+          console.warn(`[FetchClient] Attempt ${attempt + 1} failed: ${errObj.message}. Retrying...`);
           attempt++;
           // Exponential backoff
           if (attempt <= retries) {

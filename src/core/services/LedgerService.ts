@@ -270,7 +270,12 @@ export class LedgerService {
     if (!this.memoryFileHandle) return;
     try {
       console.log('[LedgerService] Reloading memory from disk...');
-      const newMemory = await readMemoryFile(this.memoryFileHandle);
+      const loadedMemory = await readMemoryFile(this.memoryFileHandle);
+      const { memory: newMemory, migrated } = this.normalizeLedgerMemoryForRuntime(loadedMemory);
+      if (migrated) {
+        console.log('[LedgerService] Detected legacy categories during reload, writing migrated memory once...');
+        await writeMemoryFile(this.memoryFileHandle, newMemory);
+      }
       
       // Update state
       this.setState({ ledgerMemory: newMemory });
@@ -311,8 +316,8 @@ export class LedgerService {
     if (!memory) return raw;
 
     const cache = this.transactionCache;
-    // 从映射中提取所有有效的分类名称（keys）
-    const validCategories = Object.keys(memory.defined_categories || {});
+    // 防御式读取：任何路径都先标准化分类映射，避免旧数组结构污染合法性校验
+    const validCategories = Object.keys(this.getDefinedCategoriesMap(memory));
 
     // Clear cache if raw changed significantly? 
     // In hook, it cleared when raw.length === 0.
@@ -379,8 +384,8 @@ export class LedgerService {
     const defaultTabs = ['ALL', 'uncategorized'];
     if (!memory) return defaultTabs;
 
-    // 从映射中提取所有标签名（keys）
-    const defined = Object.keys(memory.defined_categories || {});
+    // 防御式读取：确保标签列表永远来自语义分类名而不是数组索引
+    const defined = Object.keys(this.getDefinedCategoriesMap(memory));
     const tabs = ['ALL', ...defined];
 
     // 如果定义的标签中不包含 'others'，则自动添加作为兜底
@@ -549,22 +554,10 @@ export class LedgerService {
   ) {
     if (!memoryHandle) return currentMemory;
 
-    // 数据迁移：检查 defined_categories 是否为旧格式（数组）
-    const needsMigration = Array.isArray(currentMemory.defined_categories);
-    if (needsMigration) {
-      console.log('[LedgerService] Migrating defined_categories from array to map...');
-      // 将旧数组格式迁移为映射格式，使用默认描述
-      const oldCategories = currentMemory.defined_categories as unknown as string[];
-      const migratedCategories: Record<string, string> = {};
-      for (const cat of oldCategories) {
-        migratedCategories[cat] = this.getDefaultCategoryDescription(cat);
-      }
-      currentMemory = {
-        ...currentMemory,
-        defined_categories: migratedCategories,
-        version: '1.1' // 升级版本号
-      };
-    }
+    // 数据迁移：统一复用归一化逻辑，避免多个入口实现不一致
+    const normalized = this.normalizeLedgerMemoryForRuntime(currentMemory);
+    currentMemory = normalized.memory;
+    const needsMigration = normalized.migrated;
 
     let hasUpdates = needsMigration; // 如果需要迁移，强制更新
     const updatedRecords = { ...currentMemory.records };
@@ -671,7 +664,8 @@ export class LedgerService {
    * @returns 标签映射 { 标签名: 描述 }
    */
   public getCategories(): Record<string, string> {
-    return this.state.ledgerMemory?.defined_categories || {};
+    if (!this.state.ledgerMemory) return {};
+    return this.getDefinedCategoriesMap(this.state.ledgerMemory);
   }
 
   /**
@@ -964,16 +958,21 @@ export class LedgerService {
    */
   public loadFromHandle(handle: StorageHandle, memory: LedgerMemory): void {
     console.log('[LedgerService] Loading from handle...');
+    const normalized = this.normalizeLedgerMemoryForRuntime(memory);
+    const runtimeMemory = normalized.memory;
+    if (normalized.migrated) {
+      console.log('[LedgerService] Legacy categories detected in loadFromHandle, runtime normalized');
+    }
 
     this.memoryFileHandle = handle;
     this.transactionCache.clear();
     globalArbiter.clearAllProposals();
 
     // 水合 Arbiter
-    this.hydrateArbiter(memory);
+    this.hydrateArbiter(runtimeMemory);
 
     // 恢复交易
-    const restoredTransactions: Transaction[] = Object.values(memory.records).map(record => ({
+    const restoredTransactions: Transaction[] = Object.values(runtimeMemory.records).map(record => ({
       ...record,
       originalDate: parse(record.time, 'yyyy-MM-dd HH:mm:ss', new Date())
     }));
@@ -982,12 +981,12 @@ export class LedgerService {
       restoredTransactions.sort((a, b) => b.originalDate.getTime() - a.originalDate.getTime());
     }
 
-    const computed = this.recomputeTransactions(restoredTransactions, memory);
-    const tabs = this.computeTabs(memory);
+    const computed = this.recomputeTransactions(restoredTransactions, runtimeMemory);
+    const tabs = this.computeTabs(runtimeMemory);
     const range = this.computeDateRange(computed);
 
     this.setState({
-      ledgerMemory: memory,
+      ledgerMemory: runtimeMemory,
       rawTransactions: restoredTransactions,
       computedTransactions: computed,
       TABS: tabs,
@@ -997,5 +996,75 @@ export class LedgerService {
 
     this.flushPendingPatches();
     console.log('[LedgerService] Loaded', restoredTransactions.length, 'transactions from handle');
+  }
+
+  /**
+   * 对外暴露的加载前归一化入口
+   * 由 LedgerManager 在读取后、加载前调用，用于决定是否执行一次性迁移回写
+   */
+  public normalizeLoadedMemory(memory: LedgerMemory): { memory: LedgerMemory; migrated: boolean } {
+    return this.normalizeLedgerMemoryForRuntime(memory);
+  }
+
+  /**
+   * 提取并标准化分类映射
+   * - 输入是映射：直接返回
+   * - 输入是旧数组：转换为映射，值使用默认描述
+   * - 输入异常：回落到默认分类映射，避免业务链路出现数字索引标签
+   */
+  private normalizeDefinedCategories(
+    definedCategories: LedgerMemory['defined_categories'] | string[] | null | undefined
+  ): { categories: Record<string, string>; migrated: boolean } {
+    if (Array.isArray(definedCategories)) {
+      const migratedCategories: Record<string, string> = {};
+      for (const rawCategory of definedCategories) {
+        const category = (rawCategory || '').trim();
+        if (!category) continue;
+        migratedCategories[category] = this.getDefaultCategoryDescription(category);
+      }
+      if (Object.keys(migratedCategories).length === 0) {
+        return { categories: { ...DEFAULT_MEMORY.defined_categories }, migrated: true };
+      }
+      return { categories: migratedCategories, migrated: true };
+    }
+
+    if (definedCategories && typeof definedCategories === 'object') {
+      const normalizedEntries = Object.entries(definedCategories)
+        .filter(([key]) => key.trim().length > 0)
+        .map(([key, value]) => [key, value || this.getDefaultCategoryDescription(key)] as const);
+      if (normalizedEntries.length === 0) {
+        return { categories: { ...DEFAULT_MEMORY.defined_categories }, migrated: false };
+      }
+      return { categories: Object.fromEntries(normalizedEntries), migrated: false };
+    }
+
+    return { categories: { ...DEFAULT_MEMORY.defined_categories }, migrated: true };
+  }
+
+  /**
+   * 将账本内存归一化为运行态可安全消费结构
+   * 当检测到旧结构时，version 升级为 1.1，供调用方决定是否回写
+   */
+  private normalizeLedgerMemoryForRuntime(memory: LedgerMemory): { memory: LedgerMemory; migrated: boolean } {
+    const normalized = this.normalizeDefinedCategories(memory.defined_categories as LedgerMemory['defined_categories'] | string[]);
+    if (!normalized.migrated) {
+      return { memory, migrated: false };
+    }
+    return {
+      memory: {
+        ...memory,
+        defined_categories: normalized.categories,
+        version: '1.1'
+      },
+      migrated: true
+    };
+  }
+
+  /**
+   * 获取可用于业务逻辑的分类映射
+   * 该方法只做读取级防御，不改变传入对象，确保计算链路稳定
+   */
+  private getDefinedCategoriesMap(memory: LedgerMemory): Record<string, string> {
+    return this.normalizeDefinedCategories(memory.defined_categories as LedgerMemory['defined_categories'] | string[]).categories;
   }
 }

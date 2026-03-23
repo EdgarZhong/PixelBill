@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, type Transition } from 'framer-motion';
 import { createPortal } from 'react-dom';
 import { triggerHaptic, HapticFeedbackLevel } from '../../utils/haptics';
 import { ConfigManager, type MultiProviderConfig, type ProviderConfig } from '../../core/config/ConfigManager';
@@ -202,9 +202,9 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
   // 子面板动画配置
   const panelTransition = {
     type: "tween" as const,
-    ease: [0.32, 0.72, 0, 1],
+    ease: [0.32, 0.72, 0, 1] as const,
     duration: 0.35
-  };
+  } satisfies Transition;
 
   return createPortal(
     <AnimatePresence>
@@ -320,7 +320,7 @@ interface MainSettingsPanelProps {
   ledgerSettings: SettingCategory;
   ledgers: Array<{ name: string; transactionCount: number }>;
   activeLedger: string;
-  transition: { type: string; ease: number[]; duration: number };
+  transition: Transition;
 }
 
 const MainSettingsPanel: React.FC<MainSettingsPanelProps> = ({
@@ -393,7 +393,7 @@ const MainSettingsPanel: React.FC<MainSettingsPanelProps> = ({
  */
 interface AIConfigPanelProps {
   onBack: () => void;
-  transition: { type: string; ease: number[]; duration: number };
+  transition: Transition;
 }
 
 const AIConfigPanel: React.FC<AIConfigPanelProps> = ({ onBack, transition }) => {
@@ -783,7 +783,7 @@ interface ThemePanelProps {
   currentTheme: 'dark' | 'light';
   onBack: () => void;
   onChange: (theme: 'dark' | 'light') => Promise<void>;
-  transition: { type: string; ease: number[]; duration: number };
+  transition: Transition;
 }
 
 const ThemePanel: React.FC<ThemePanelProps> = ({
@@ -872,7 +872,7 @@ const ThemePanel: React.FC<ThemePanelProps> = ({
  */
 interface UserContextPanelProps {
   onBack: () => void;
-  transition: { type: string; ease: number[]; duration: number };
+  transition: Transition;
 }
 
 const UserContextPanel: React.FC<UserContextPanelProps> = ({ onBack, transition }) => {
@@ -1067,7 +1067,7 @@ const UserContextPanel: React.FC<UserContextPanelProps> = ({ onBack, transition 
 interface AIMemoryPanelProps {
   ledgerName: string;
   onBack: () => void;
-  transition: { type: string; ease: number[]; duration: number };
+  transition: Transition;
 }
 
 const AIMemoryPanel: React.FC<AIMemoryPanelProps> = ({

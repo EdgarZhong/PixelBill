@@ -190,7 +190,7 @@ export class BatchProcessor {
                     const proposal: Proposal = {
                         source: 'AI_AGENT',
                         category: item.category,
-                        reasoning: item.reasoning,
+                        reasoning: item.reasoning || '',
                         timestamp: timestamp,
                         txId: item.id
                     };
@@ -219,7 +219,7 @@ export class BatchProcessor {
               date: dateStr,
               processedTxsCount: txsByDate[dateStr]?.length || 0,
               success: false,
-              error: e.message
+              error: errorMessage
             });
           }
         }

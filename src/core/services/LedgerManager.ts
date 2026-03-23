@@ -245,11 +245,16 @@ export class LedgerManager {
       throw new Error('Active ledger file not found');
     }
 
-    // 读取账本数据
-    const memory = await readMemoryFile(handle);
+    // 读取账本数据，并在加载前执行结构归一化
+    const loadedMemory = await readMemoryFile(handle);
+    const normalized = this.ledgerService.normalizeLoadedMemory(loadedMemory);
+    if (normalized.migrated) {
+      console.log('[LedgerManager] Legacy category structure detected, writing migrated memory once...');
+      await writeMemoryFile(handle, normalized.memory);
+    }
 
     // 调用 LedgerService 加载数据
-    this.ledgerService.loadFromHandle(handle, memory);
+    this.ledgerService.loadFromHandle(handle, normalized.memory);
 
     console.log('[LedgerManager] Loaded ledger:', this.activeLedgerName);
   }
@@ -331,8 +336,13 @@ export class LedgerManager {
         return false;
       }
 
-      const newMemory = await readMemoryFile(newHandle);
-      this.ledgerService.loadFromHandle(newHandle, newMemory);
+      const loadedMemory = await readMemoryFile(newHandle);
+      const normalized = this.ledgerService.normalizeLoadedMemory(loadedMemory);
+      if (normalized.migrated) {
+        console.log('[LedgerManager] Legacy category structure detected on switch, writing migrated memory once...');
+        await writeMemoryFile(newHandle, normalized.memory);
+      }
+      this.ledgerService.loadFromHandle(newHandle, normalized.memory);
 
       console.log('[LedgerManager] Switched to ledger:', ledgerName);
       return true;

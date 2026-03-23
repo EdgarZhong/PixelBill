@@ -48,8 +48,7 @@ function App() {
   useEffect(() => {
     // Expose internal tools to window for console testing
     if (import.meta.env.DEV) {
-      // @ts-expect-error - Exposing for debug
-      window.__DEBUG_TOOLS__ = {
+      const debugTools = {
         configManager,
         FetchClient,
         ExampleStore,
@@ -161,7 +160,7 @@ function App() {
 
           // 2. 添加测试数据
           console.log('\n[Step 2] 添加测试实例');
-          const testId = await window.__DEBUG_TOOLS__.addTestExample(ledgerName);
+          const testId = await debugTools.addTestExample(ledgerName);
 
           // 3. 验证写入
           console.log('\n[Step 3] 验证写入');
@@ -170,11 +169,11 @@ function App() {
 
           // 4. 测试检索
           console.log('\n[Step 4] 测试检索功能');
-          const retrieved = await window.__DEBUG_TOOLS__.testRetrieval(ledgerName);
+          const retrieved = await debugTools.testRetrieval(ledgerName);
 
           // 5. 列出所有实例
           console.log('\n[Step 5] 列出所有实例');
-          await window.__DEBUG_TOOLS__.listExamples(ledgerName);
+          await debugTools.listExamples(ledgerName);
 
           // 6. 清理
           console.log('\n[Step 6] 清理测试数据');
@@ -383,7 +382,7 @@ function App() {
           console.log(`  ✓ ADD 操作成功，现在有 ${memories2.length} 条记忆`);
 
           await MemoryManager.modify(ledgerName, 2, '单笔餐饮 > 80元视为大餐（已调整）');
-          const memories3 = await MemoryManager.load(ledgerName);
+          await MemoryManager.load(ledgerName);
           console.log(`  ✓ MODIFY 操作成功，第2条已更新`);
 
           await MemoryManager.delete(ledgerName, 3);
@@ -562,7 +561,7 @@ function App() {
           // 1. 添加 normal 任务
           console.log('\n[Step 1] 添加 normal 任务');
           await classifyQueue.enqueue({ ledger: 'test', date: '2026-03-18', type: 'normal' });
-          await window.__DEBUG_TOOLS__.viewQueue();
+          await debugTools.viewQueue();
 
           // 2. 尝试添加相同 normal 任务（应被忽略）
           console.log('\n[Step 2] 再次添加 normal 任务（应被忽略）');
@@ -573,7 +572,7 @@ function App() {
           console.log('\n[Step 3] 升级为 reclassify_full（应成功）');
           const upgraded = await classifyQueue.enqueue({ ledger: 'test', date: '2026-03-18', type: 'reclassify_full' });
           console.log(`  结果: ${upgraded ? '已升级' : '未升级'}`);
-          await window.__DEBUG_TOOLS__.viewQueue();
+          await debugTools.viewQueue();
 
           // 4. 清理
           console.log('\n[Step 4] 清理测试数据');
@@ -652,6 +651,7 @@ function App() {
           return success;
         }
       };
+      window.__DEBUG_TOOLS__ = debugTools;
     }
   }, []);
 

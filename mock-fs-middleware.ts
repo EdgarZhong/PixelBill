@@ -50,7 +50,15 @@ export function mockFsMiddleware(): Plugin {
         try {
           if (req.method === 'POST') {
             const body = await getBody();
-            const { action, path: relPath, content, directory, toPath, toDirectory, append } = body;
+            const action = typeof body.action === 'string' ? body.action : '';
+            const relPath = typeof body.path === 'string' ? body.path : '';
+            const directory = typeof body.directory === 'string' ? body.directory : '';
+            const toPath = typeof body.toPath === 'string' ? body.toPath : '';
+            const toDirectory = typeof body.toDirectory === 'string' ? body.toDirectory : '';
+            const append = body.append === true;
+            const content = typeof body.content === 'string'
+              ? body.content
+              : (body.content === undefined ? '' : String(body.content));
             
             // Map 'directory' param to our roots
             // Capacitor uses 'DOCUMENTS', 'DATA', 'LIBRARY', etc.

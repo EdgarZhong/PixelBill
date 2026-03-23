@@ -3,11 +3,9 @@
  *
  * 职责：
  * 1. 管理分类任务的入队/出队
- * 2. 持久化到沙箱 classify_queue.json
+ * 2. 持久化到沙箱 classify_queue/{ledger}.json（按账本隔离）
  * 3. 任务去重和优先级升级
  * 4. App 重启后恢复队列状态
- *
- * 存储位置：沙箱 classify_queue.json
  */
 
 import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
@@ -41,15 +39,22 @@ export interface ClassifyTask {
   enqueuedAt: number;
 }
 
+interface LedgerQueueTask {
+  date: string;
+  type: ClassifyTaskType;
+  tag?: string;
+  enqueuedAt: number;
+}
+
 /**
  * 队列数据结构
  */
 interface QueueData {
   version: string;
-  tasks: ClassifyTask[];
+  tasks: LedgerQueueTask[];
 }
 
-const QUEUE_FILE_PATH = 'classify_queue.json';
+const QUEUE_DIR = 'classify_queue';
 const QUEUE_VERSION = '1.0';
 
 /**
@@ -67,8 +72,8 @@ const TASK_PRIORITY: Record<ClassifyTaskType, number> = {
  */
 export class ClassifyQueue {
   private static instance: ClassifyQueue;
-  private tasks: ClassifyTask[] = [];
-  private isLoaded = false;
+  private ledgerTasks = new Map<string, LedgerQueueTask[]>();
+  private loadedLedgers = new Set<string>();
 
   private constructor() {}
 
@@ -83,63 +88,140 @@ export class ClassifyQueue {
   }
 
   // ============================================
-  // 队列持久化
+  // 队列持久化（按账本）
   // ============================================
 
   /**
-   * 加载队列（从沙箱）
+   * 获取账本队列文件路径
    */
-  public async load(): Promise<void> {
-    if (this.isLoaded) return;
+  private getLedgerQueuePath(ledger: string): string {
+    return `${QUEUE_DIR}/${ledger}.json`;
+  }
 
+  /**
+   * 读取目录项名称（兼容不同平台返回值）
+   */
+  private getEntryName(entry: { name: string } | string): string {
+    return typeof entry === 'string' ? entry : entry.name;
+  }
+
+  /**
+   * 获取当前存在队列文件的账本名列表
+   */
+  private async listLedgersWithQueueFile(): Promise<string[]> {
+    try {
+      const result = await Filesystem.readdir({
+        path: QUEUE_DIR,
+        directory: Directory.Data
+      });
+
+      return result.files
+        .map(file => this.getEntryName(file))
+        .filter(fileName => fileName.endsWith('.json'))
+        .map(fileName => fileName.slice(0, -5));
+    } catch {
+      return [];
+    }
+  }
+
+  /**
+   * 加载指定账本队列
+   */
+  private async loadLedger(ledger: string): Promise<void> {
+    if (this.loadedLedgers.has(ledger)) return;
+
+    const queuePath = this.getLedgerQueuePath(ledger);
     try {
       const result = await Filesystem.readFile({
-        path: QUEUE_FILE_PATH,
+        path: queuePath,
         directory: Directory.Data,
         encoding: Encoding.UTF8
       });
 
       const data = JSON.parse(result.data as string) as QueueData;
-      this.tasks = data.tasks || [];
-      console.log(`[ClassifyQueue] Loaded ${this.tasks.length} tasks`);
+      this.ledgerTasks.set(ledger, data.tasks || []);
+      console.log(`[ClassifyQueue] Loaded ${ledger}: ${(data.tasks || []).length} tasks`);
     } catch {
-      // 文件不存在，初始化为空队列
-      this.tasks = [];
-      console.log('[ClassifyQueue] No existing queue, starting fresh');
+      this.ledgerTasks.set(ledger, []);
+      console.log(`[ClassifyQueue] No existing queue for ${ledger}, starting fresh`);
     }
 
-    this.isLoaded = true;
+    this.loadedLedgers.add(ledger);
   }
 
   /**
-   * 保存队列（到沙箱）
+   * 保存指定账本队列
    */
-  private async save(): Promise<void> {
+  private async saveLedger(ledger: string): Promise<void> {
+    const tasks = this.ledgerTasks.get(ledger) || [];
     const data: QueueData = {
       version: QUEUE_VERSION,
-      tasks: this.tasks
+      tasks
     };
 
     try {
       await Filesystem.writeFile({
-        path: QUEUE_FILE_PATH,
+        path: this.getLedgerQueuePath(ledger),
         data: JSON.stringify(data, null, 2),
         directory: Directory.Data,
         encoding: Encoding.UTF8,
         recursive: true
       });
     } catch (e) {
-      console.error('[ClassifyQueue] Failed to save queue:', e);
+      console.error(`[ClassifyQueue] Failed to save queue for ${ledger}:`, e);
       throw e;
     }
   }
 
   /**
-   * 确保已加载
+   * 删除指定账本队列文件
    */
-  private async ensureLoaded(): Promise<void> {
-    if (!this.isLoaded) {
-      await this.load();
+  private async deleteLedgerFile(ledger: string): Promise<void> {
+    try {
+      await Filesystem.deleteFile({
+        path: this.getLedgerQueuePath(ledger),
+        directory: Directory.Data
+      });
+    } catch {
+      // 队列文件不存在时静默忽略
+    }
+  }
+
+  /**
+   * 确保指定账本队列已加载
+   */
+  private async ensureLedgerLoaded(ledger: string): Promise<void> {
+    if (!this.loadedLedgers.has(ledger)) {
+      await this.loadLedger(ledger);
+    }
+  }
+
+  /**
+   * 将账本内任务映射为对外结构
+   */
+  private toPublicTasks(ledger: string, tasks: LedgerQueueTask[]): ClassifyTask[] {
+    return tasks.map(task => ({
+      ledger,
+      date: task.date,
+      type: task.type,
+      tag: task.tag,
+      enqueuedAt: task.enqueuedAt
+    }));
+  }
+
+  /**
+   * 公共加载接口
+   * - 传 ledger：仅加载指定账本
+   * - 不传 ledger：加载当前存在队列文件的所有账本
+   */
+  public async load(ledger?: string): Promise<void> {
+    if (ledger) {
+      await this.ensureLedgerLoaded(ledger);
+      return;
+    }
+    const ledgers = await this.listLedgersWithQueueFile();
+    for (const ledgerName of ledgers) {
+      await this.ensureLedgerLoaded(ledgerName);
     }
   }
 
@@ -159,35 +241,32 @@ export class ClassifyQueue {
    * @returns 是否成功添加（或升级）
    */
   public async enqueue(task: Omit<ClassifyTask, 'enqueuedAt'>): Promise<boolean> {
-    await this.ensureLoaded();
+    await this.ensureLedgerLoaded(task.ledger);
 
-    const newTask: ClassifyTask = {
-      ...task,
+    const ledgerQueue = this.ledgerTasks.get(task.ledger)!;
+    const newTask: LedgerQueueTask = {
+      date: task.date,
+      type: task.type,
+      tag: task.tag,
       enqueuedAt: Date.now()
     };
 
-    // 查找是否已有相同账本+日期的任务
-    const existingIndex = this.tasks.findIndex(
-      t => t.ledger === task.ledger && t.date === task.date
-    );
+    const existingIndex = ledgerQueue.findIndex(t => t.date === task.date);
 
     if (existingIndex === -1) {
-      // 无重复，直接添加
-      this.tasks.push(newTask);
-      await this.save();
+      ledgerQueue.push(newTask);
+      await this.saveLedger(task.ledger);
       console.log(`[ClassifyQueue] Enqueued ${task.type} for ${task.ledger}/${task.date}`);
       return true;
     }
 
-    // 有重复，检查优先级
-    const existingTask = this.tasks[existingIndex];
+    const existingTask = ledgerQueue[existingIndex];
     const existingPriority = TASK_PRIORITY[existingTask.type];
     const newPriority = TASK_PRIORITY[task.type];
 
     if (newPriority > existingPriority) {
-      // 升级任务
-      this.tasks[existingIndex] = newTask;
-      await this.save();
+      ledgerQueue[existingIndex] = newTask;
+      await this.saveLedger(task.ledger);
       console.log(
         `[ClassifyQueue] Upgraded ${existingTask.type} -> ${task.type} for ${task.ledger}/${task.date}`
       );
@@ -202,37 +281,68 @@ export class ClassifyQueue {
   }
 
   /**
-   * 取出并移除队首任务
+   * 取出并移除指定账本的队首任务
+   * @param ledger 账本名称
    * @returns 队首任务，队列为空时返回 null
    */
-  public async dequeue(): Promise<ClassifyTask | null> {
-    await this.ensureLoaded();
+  public async dequeue(ledger: string): Promise<ClassifyTask | null> {
+    await this.ensureLedgerLoaded(ledger);
+    const ledgerQueue = this.ledgerTasks.get(ledger)!;
 
-    if (this.tasks.length === 0) {
+    if (ledgerQueue.length === 0) {
       return null;
     }
 
-    const task = this.tasks.shift()!;
-    await this.save();
-    console.log(`[ClassifyQueue] Dequeued ${task.type} for ${task.ledger}/${task.date}`);
-    return task;
+    const task = ledgerQueue.shift()!;
+    await this.saveLedger(ledger);
+    console.log(`[ClassifyQueue] Dequeued ${task.type} for ${ledger}/${task.date}`);
+    return {
+      ledger,
+      date: task.date,
+      type: task.type,
+      tag: task.tag,
+      enqueuedAt: task.enqueuedAt
+    };
   }
 
   /**
-   * 查看队首任务（不移除）
+   * 查看指定账本队首任务（不移除）
+   * @param ledger 账本名称
    * @returns 队首任务，队列为空时返回 null
    */
-  public async peek(): Promise<ClassifyTask | null> {
-    await this.ensureLoaded();
-    return this.tasks.length > 0 ? this.tasks[0] : null;
+  public async peek(ledger: string): Promise<ClassifyTask | null> {
+    await this.ensureLedgerLoaded(ledger);
+    const ledgerQueue = this.ledgerTasks.get(ledger)!;
+    if (ledgerQueue.length === 0) return null;
+    const task = ledgerQueue[0];
+    return {
+      ledger,
+      date: task.date,
+      type: task.type,
+      tag: task.tag,
+      enqueuedAt: task.enqueuedAt
+    };
   }
 
   /**
-   * 获取所有待处理任务（按优先级和时间排序）
+   * 获取待处理任务
+   * - 传 ledger：获取指定账本任务
+   * - 不传 ledger：聚合所有账本任务
    */
-  public async getPending(): Promise<ClassifyTask[]> {
-    await this.ensureLoaded();
-    return [...this.tasks];
+  public async getPending(ledger?: string): Promise<ClassifyTask[]> {
+    if (ledger) {
+      await this.ensureLedgerLoaded(ledger);
+      return this.toPublicTasks(ledger, [...(this.ledgerTasks.get(ledger) || [])]);
+    }
+
+    const fileLedgers = await this.listLedgersWithQueueFile();
+    const allLedgers = Array.from(new Set([...fileLedgers, ...this.loadedLedgers]));
+    const allTasks: ClassifyTask[] = [];
+    for (const ledgerName of allLedgers) {
+      await this.ensureLedgerLoaded(ledgerName);
+      allTasks.push(...this.toPublicTasks(ledgerName, this.ledgerTasks.get(ledgerName) || []));
+    }
+    return allTasks;
   }
 
   /**
@@ -242,13 +352,16 @@ export class ClassifyQueue {
    * @returns 是否成功移除
    */
   public async remove(ledger: string, date: string): Promise<boolean> {
-    await this.ensureLoaded();
+    await this.ensureLedgerLoaded(ledger);
+    const ledgerQueue = this.ledgerTasks.get(ledger)!;
+    const initialLength = ledgerQueue.length;
+    this.ledgerTasks.set(
+      ledger,
+      ledgerQueue.filter(t => t.date !== date)
+    );
 
-    const initialLength = this.tasks.length;
-    this.tasks = this.tasks.filter(t => !(t.ledger === ledger && t.date === date));
-
-    if (this.tasks.length !== initialLength) {
-      await this.save();
+    if ((this.ledgerTasks.get(ledger) || []).length !== initialLength) {
+      await this.saveLedger(ledger);
       console.log(`[ClassifyQueue] Removed task for ${ledger}/${date}`);
       return true;
     }
@@ -258,28 +371,46 @@ export class ClassifyQueue {
 
   /**
    * 清空队列
+   * - 传 ledger：清空指定账本队列
+   * - 不传 ledger：清空所有账本队列
    */
-  public async clear(): Promise<void> {
-    await this.ensureLoaded();
-    this.tasks = [];
-    await this.save();
-    console.log('[ClassifyQueue] Cleared all tasks');
+  public async clear(ledger?: string): Promise<void> {
+    if (ledger) {
+      await this.ensureLedgerLoaded(ledger);
+      this.ledgerTasks.set(ledger, []);
+      await this.saveLedger(ledger);
+      console.log(`[ClassifyQueue] Cleared queue for ${ledger}`);
+      return;
+    }
+
+    const fileLedgers = await this.listLedgersWithQueueFile();
+    const allLedgers = Array.from(new Set([...fileLedgers, ...this.loadedLedgers]));
+    for (const ledgerName of allLedgers) {
+      this.ledgerTasks.set(ledgerName, []);
+      await this.deleteLedgerFile(ledgerName);
+    }
+    this.ledgerTasks.clear();
+    this.loadedLedgers.clear();
+    console.log('[ClassifyQueue] Cleared all ledger queues');
   }
 
   /**
    * 获取队列长度
    */
-  public async size(): Promise<number> {
-    await this.ensureLoaded();
-    return this.tasks.length;
+  public async size(ledger?: string): Promise<number> {
+    if (ledger) {
+      await this.ensureLedgerLoaded(ledger);
+      return (this.ledgerTasks.get(ledger) || []).length;
+    }
+    const pending = await this.getPending();
+    return pending.length;
   }
 
   /**
    * 检查队列是否为空
    */
-  public async isEmpty(): Promise<boolean> {
-    await this.ensureLoaded();
-    return this.tasks.length === 0;
+  public async isEmpty(ledger?: string): Promise<boolean> {
+    return (await this.size(ledger)) === 0;
   }
 
   // ============================================
@@ -306,14 +437,13 @@ export class ClassifyQueue {
    * @returns 移除的任务数量
    */
   public async removeByLedger(ledger: string): Promise<number> {
-    await this.ensureLoaded();
-
-    const initialLength = this.tasks.length;
-    this.tasks = this.tasks.filter(t => t.ledger !== ledger);
-    const removedCount = initialLength - this.tasks.length;
+    await this.ensureLedgerLoaded(ledger);
+    const removedCount = (this.ledgerTasks.get(ledger) || []).length;
 
     if (removedCount > 0) {
-      await this.save();
+      await this.deleteLedgerFile(ledger);
+      this.ledgerTasks.delete(ledger);
+      this.loadedLedgers.delete(ledger);
       console.log(`[ClassifyQueue] Removed ${removedCount} tasks for ledger ${ledger}`);
     }
 
@@ -327,21 +457,44 @@ export class ClassifyQueue {
    * @returns 更新的任务数量
    */
   public async renameLedger(oldName: string, newName: string): Promise<number> {
-    await this.ensureLoaded();
+    if (oldName === newName) return 0;
 
-    let updatedCount = 0;
-    for (const task of this.tasks) {
-      if (task.ledger === oldName) {
-        task.ledger = newName;
-        updatedCount++;
+    await this.ensureLedgerLoaded(oldName);
+    await this.ensureLedgerLoaded(newName);
+
+    const oldTasks = this.ledgerTasks.get(oldName) || [];
+    const newTasks = this.ledgerTasks.get(newName) || [];
+    if (oldTasks.length === 0) return 0;
+
+    const mergedByDate = new Map<string, LedgerQueueTask>();
+    for (const task of newTasks) {
+      mergedByDate.set(task.date, task);
+    }
+    for (const oldTask of oldTasks) {
+      const existing = mergedByDate.get(oldTask.date);
+      if (!existing) {
+        mergedByDate.set(oldTask.date, oldTask);
+        continue;
+      }
+      const existingPriority = TASK_PRIORITY[existing.type];
+      const oldPriority = TASK_PRIORITY[oldTask.type];
+      if (oldPriority > existingPriority) {
+        mergedByDate.set(oldTask.date, oldTask);
       }
     }
 
+    const mergedTasks = Array.from(mergedByDate.values()).sort((a, b) => a.enqueuedAt - b.enqueuedAt);
+    this.ledgerTasks.set(newName, mergedTasks);
+    await this.saveLedger(newName);
+
+    await this.deleteLedgerFile(oldName);
+    this.ledgerTasks.delete(oldName);
+    this.loadedLedgers.delete(oldName);
+
+    const updatedCount = oldTasks.length;
     if (updatedCount > 0) {
-      await this.save();
       console.log(`[ClassifyQueue] Renamed ${updatedCount} tasks from ${oldName} to ${newName}`);
     }
-
     return updatedCount;
   }
 
@@ -352,11 +505,11 @@ export class ClassifyQueue {
   /**
    * 打印队列状态（调试用）
    */
-  public async dump(): Promise<void> {
-    await this.ensureLoaded();
+  public async dump(ledger?: string): Promise<void> {
+    const tasks = await this.getPending(ledger);
     console.log('=== ClassifyQueue Status ===');
-    console.log(`Total tasks: ${this.tasks.length}`);
-    this.tasks.forEach((task, i) => {
+    console.log(`Total tasks: ${tasks.length}${ledger ? ` (ledger: ${ledger})` : ''}`);
+    tasks.forEach((task, i) => {
       console.log(`  ${i + 1}. [${task.type}] ${task.ledger}/${task.date}`);
     });
     console.log('============================');
