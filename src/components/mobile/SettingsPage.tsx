@@ -6,7 +6,7 @@ import { ConfigManager, type MultiProviderConfig, type ProviderConfig } from '..
 import { useSettings } from '../../hooks/useSettings';
 import { ExampleStore } from '../../core/services/ExampleStore';
 import { MemoryManager } from '../../core/services/MemoryManager';
-import { SnapshotManager, type SnapshotMeta } from '../../core/services/SnapshotManager';
+import { SnapshotManager, type SnapshotMeta, type SnapshotContent } from '../../core/services/SnapshotManager';
 import { LearningSession } from '../../core/ai_engine/LearningSession';
 
 interface SettingsPageProps {
@@ -122,6 +122,13 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
         onClick: () => setCurrentView('theme')
       },
       {
+        id: 'user-context',
+        icon: <PixelIcon color="pixel-green" />,
+        label: 'SELF_DESCRIPTION',
+        value: 'CONFIGURE',
+        onClick: () => setCurrentView('user-context')
+      },
+      {
         id: 'export',
         icon: <PixelIcon color="income-yellow" />,
         label: 'EXPORT_DATA',
@@ -153,13 +160,6 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
         label: 'AI_MEMORY',
         value: 'CONFIGURE',
         onClick: () => setCurrentView('ai-memory')
-      },
-      {
-        id: 'user-context',
-        icon: <PixelIcon color="pixel-green" />,
-        label: 'AI_USER_CONTEXT',
-        value: 'CONFIGURE',
-        onClick: () => setCurrentView('user-context')
       },
       {
         id: 'categories',
@@ -238,7 +238,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                 {currentView === 'main' ? '[SETTINGS]' :
                  currentView === 'ai-config' ? '[AI_API_CONFIG]' :
                  currentView === 'theme' ? '[THEME]' :
-                 currentView === 'user-context' ? '[AI_USER_CONTEXT]' :
+                 currentView === 'user-context' ? '[SELF_DESCRIPTION]' :
                  currentView === 'ai-memory' ? '[AI_MEMORY]' : '[SETTINGS]'}
               </div>
               <button
@@ -876,6 +876,7 @@ interface UserContextPanelProps {
 }
 
 const UserContextPanel: React.FC<UserContextPanelProps> = ({ onBack, transition }) => {
+  const MAX_SELF_DESCRIPTION_LENGTH = 500;
   const [userContext, setUserContext] = useState<string>('');
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -908,6 +909,11 @@ const UserContextPanel: React.FC<UserContextPanelProps> = ({ onBack, transition 
 
   // 保存用户上下文（保存到独立文件）
   const handleSave = useCallback(async () => {
+    if (userContext.length > MAX_SELF_DESCRIPTION_LENGTH) {
+      setSaveStatus('error');
+      return;
+    }
+
     setIsSaving(true);
     setSaveStatus('idle');
 
@@ -972,7 +978,7 @@ const UserContextPanel: React.FC<UserContextPanelProps> = ({ onBack, transition 
 
       {/* 标题和说明 */}
       <div className="mb-6">
-        <h3 className="text-sm font-mono text-gray-200 mb-2">[AI_USER_CONTEXT]</h3>
+        <h3 className="text-sm font-mono text-gray-200 mb-2">[SELF_DESCRIPTION]</h3>
         <p className="text-[10px] text-dim font-mono leading-relaxed">
           Add personal context to help AI better understand your classification preferences.
           This context will be prepended to the system prompt.
@@ -986,6 +992,7 @@ const UserContextPanel: React.FC<UserContextPanelProps> = ({ onBack, transition 
             ref={textareaRef}
             value={userContext}
             onChange={(e) => setUserContext(e.target.value)}
+            maxLength={MAX_SELF_DESCRIPTION_LENGTH}
             placeholder={`Example:\nI usually categorize Starbucks as work meals because I drink coffee during meetings.\n\nAll transportation expenses under 50 yuan should be categorized as 'daily transport', while those over 50 yuan should be 'travel'.`}
             className="w-full min-h-[200px] p-4 bg-zinc-950 border border-gray-700 rounded
               text-xs font-mono text-gray-200 placeholder:text-gray-600
@@ -995,7 +1002,7 @@ const UserContextPanel: React.FC<UserContextPanelProps> = ({ onBack, transition 
           />
           {/* 字符计数 */}
           <div className="absolute bottom-2 right-2 text-[10px] text-dim font-mono">
-            {userContext.length} / 2000
+            {userContext.length} / {MAX_SELF_DESCRIPTION_LENGTH}
           </div>
         </div>
 
@@ -1084,21 +1091,45 @@ const AIMemoryPanel: React.FC<AIMemoryPanelProps> = ({
   const [isLearning, setIsLearning] = useState(false);
   const [learnResult, setLearnResult] = useState<string>('');
   const [showHistory, setShowHistory] = useState(false);
+  const [editingMemories, setEditingMemories] = useState<string[]>([]);
+  const [isSavingMemories, setIsSavingMemories] = useState(false);
+  const [selectedSnapshot, setSelectedSnapshot] = useState<SnapshotContent | null>(null);
+
+  const loadPanelData = useCallback(async () => {
+    const [mems, stats, snaps, currentSnapId] = await Promise.all([
+      MemoryManager.load(ledgerName),
+      ExampleStore.getStats(ledgerName),
+      SnapshotManager.list(ledgerName),
+      SnapshotManager.findMatchingSnapshot(ledgerName)
+    ]);
+
+    let finalSnapshots = snaps;
+    let finalCurrentSnapshotId = currentSnapId;
+
+    if (!finalCurrentSnapshotId) {
+      const baselineId = await SnapshotManager.create(
+        ledgerName,
+        'manual',
+        mems.length > 0 ? `基线快照：${mems.length} 条记忆` : '基线快照：空记忆'
+      );
+      if (baselineId) {
+        finalCurrentSnapshotId = baselineId;
+        finalSnapshots = await SnapshotManager.list(ledgerName);
+      }
+    }
+
+    setMemories(mems);
+    setEditingMemories(mems);
+    setExampleCount(stats.count);
+    setSnapshots(finalSnapshots);
+    setCurrentSnapshotId(finalCurrentSnapshotId);
+  }, [ledgerName]);
 
   // 加载数据
   useEffect(() => {
     const loadData = async () => {
       try {
-        const [mems, stats, snaps, currentSnapId] = await Promise.all([
-          MemoryManager.load(ledgerName),
-          ExampleStore.getStats(ledgerName),
-          SnapshotManager.list(ledgerName),
-          SnapshotManager.findMatchingSnapshot(ledgerName)
-        ]);
-        setMemories(mems);
-        setExampleCount(stats.count);
-        setSnapshots(snaps);
-        setCurrentSnapshotId(currentSnapId);
+        await loadPanelData();
       } catch (e) {
         console.error('[AIMemoryPanel] Failed to load data:', e);
       } finally {
@@ -1106,7 +1137,7 @@ const AIMemoryPanel: React.FC<AIMemoryPanelProps> = ({
       }
     };
     void loadData();
-  }, [ledgerName]);
+  }, [ledgerName, loadPanelData]);
 
   // 立即学习
   const handleLearn = useCallback(async () => {
@@ -1125,13 +1156,7 @@ const AIMemoryPanel: React.FC<AIMemoryPanelProps> = ({
 
       if (result.success) {
         setLearnResult(result.summary || '学习完成');
-        // 重新加载记忆、快照列表
-        const [mems, snaps] = await Promise.all([
-          MemoryManager.load(ledgerName),
-          SnapshotManager.list(ledgerName)
-        ]);
-        setMemories(mems);
-        setSnapshots(snaps);
+        await loadPanelData();
         // 使用返回的快照 ID 作为当前快照（如果没有则尝试查找匹配）
         if (result.snapshotId) {
           setCurrentSnapshotId(result.snapshotId);
@@ -1149,12 +1174,12 @@ const AIMemoryPanel: React.FC<AIMemoryPanelProps> = ({
     } finally {
       setIsLearning(false);
     }
-  }, [ledgerName]);
+  }, [ledgerName, loadPanelData]);
 
   // 回退到指定版本
   const handleRollback = useCallback(async (snapshotId: string) => {
-    console.log(`[SettingsPage] 点击回退按钮: ${snapshotId}`);
-    if (!confirm(`确定要回退到 ${snapshotId} 吗？`)) {
+    console.log(`[SettingsPage] 点击激活按钮: ${snapshotId}`);
+    if (!confirm(`确定要切换到 ${snapshotId} 吗？`)) {
       console.log('[SettingsPage] 用户取消回退');
       return;
     }
@@ -1165,26 +1190,25 @@ const AIMemoryPanel: React.FC<AIMemoryPanelProps> = ({
     console.log(`[SettingsPage] 回退结果: ${success ? '成功' : '失败'}`);
 
     if (success) {
-      // 重新加载记忆和快照列表
-      const [mems, snaps] = await Promise.all([
-        MemoryManager.load(ledgerName),
-        SnapshotManager.list(ledgerName)
-      ]);
-      setMemories(mems);
-      setSnapshots(snaps);
-      // 直接设置当前快照为回退目标，而不是靠查找匹配
+      await loadPanelData();
       setCurrentSnapshotId(snapshotId);
+      setSelectedSnapshot(null);
       console.log(`[SettingsPage] 已更新记忆和快照列表，当前快照: ${snapshotId}`);
       await triggerHaptic(HapticFeedbackLevel.MEDIUM);
-      alert(`已回退到 ${snapshotId}`);
+      alert(`已切换到 ${snapshotId}`);
     } else {
       alert('回退失败，请查看控制台日志');
     }
-  }, [ledgerName]);
+  }, [ledgerName, loadPanelData]);
 
   // 删除快照
   const handleDeleteSnapshot = useCallback(async (snapshotId: string) => {
     const isCurrent = snapshotId === currentSnapshotId;
+    if (isCurrent) {
+      alert('当前激活快照不可删除');
+      return;
+    }
+
     const confirmMsg = isCurrent
       ? `确定要删除 ${snapshotId} 吗？\n这是当前活跃的快照，删除后当前记忆将不再与任何快照关联。`
       : `确定要删除 ${snapshotId} 吗？\n删除后无法恢复。`;
@@ -1195,19 +1219,58 @@ const AIMemoryPanel: React.FC<AIMemoryPanelProps> = ({
     const success = await SnapshotManager.delete(ledgerName, snapshotId);
 
     if (success) {
-      // 重新加载快照列表
-      const snaps = await SnapshotManager.list(ledgerName);
-      setSnapshots(snaps);
-
-      // 如果删除的是当前快照，重新查找匹配或设为 null
-      if (isCurrent) {
-        const newCurrentSnapId = await SnapshotManager.findMatchingSnapshot(ledgerName);
-        setCurrentSnapshotId(newCurrentSnapId);
+      await loadPanelData();
+      if (selectedSnapshot?.id === snapshotId) {
+        setSelectedSnapshot(null);
       }
-
       await triggerHaptic(HapticFeedbackLevel.MEDIUM);
     }
-  }, [ledgerName, currentSnapshotId]);
+  }, [ledgerName, currentSnapshotId, loadPanelData, selectedSnapshot?.id]);
+
+  const handlePreviewSnapshot = useCallback(async (snapshotId: string) => {
+    const snap = await SnapshotManager.read(ledgerName, snapshotId);
+    if (!snap) {
+      alert('读取快照详情失败');
+      return;
+    }
+    setSelectedSnapshot(snap);
+  }, [ledgerName]);
+
+  const updateMemoryLine = useCallback((index: number, value: string) => {
+    setEditingMemories(prev => prev.map((item, i) => (i === index ? value : item)));
+  }, []);
+
+  const addMemoryLine = useCallback(() => {
+    setEditingMemories(prev => [...prev, '']);
+  }, []);
+
+  const removeMemoryLine = useCallback((index: number) => {
+    setEditingMemories(prev => prev.filter((_, i) => i !== index));
+  }, []);
+
+  const handleSaveMemories = useCallback(async () => {
+    setIsSavingMemories(true);
+    try {
+      const normalized = editingMemories.map(item => item.trim()).filter(item => item.length > 0);
+      await MemoryManager.save(ledgerName, normalized);
+      const newSnapshotId = await SnapshotManager.create(
+        ledgerName,
+        'user_edit',
+        normalized.length > 0 ? `手动编辑记忆：${normalized.length} 条` : '手动编辑记忆：空记忆'
+      );
+      await loadPanelData();
+      if (newSnapshotId) {
+        setCurrentSnapshotId(newSnapshotId);
+      }
+      setSelectedSnapshot(null);
+      await triggerHaptic(HapticFeedbackLevel.MEDIUM);
+    } catch (e) {
+      console.error('[AIMemoryPanel] Failed to save memories:', e);
+      alert('保存记忆失败，请重试');
+    } finally {
+      setIsSavingMemories(false);
+    }
+  }, [editingMemories, ledgerName, loadPanelData]);
 
   if (isLoading) {
     return (
@@ -1316,21 +1379,62 @@ const AIMemoryPanel: React.FC<AIMemoryPanelProps> = ({
         <div className="text-[10px] text-dim font-mono mb-3 tracking-wider">
           [CURRENT_MEMORY]
         </div>
-        {memories.length === 0 ? (
-          <div className="p-4 bg-zinc-950 border border-gray-800 rounded text-center">
-            <div className="text-xs font-mono text-gray-500">暂无记忆</div>
+        {editingMemories.length === 0 ? (
+          <div className="space-y-3">
+            <div className="p-4 bg-zinc-950 border border-gray-800 rounded text-center">
+              <div className="text-xs font-mono text-gray-500">暂无记忆</div>
+            </div>
+            <button
+              onClick={addMemoryLine}
+              className="w-full py-2 text-xs font-mono border border-gray-700 rounded text-gray-300
+                hover:border-gray-500 transition-colors"
+            >
+              [ADD_MEMORY]
+            </button>
           </div>
         ) : (
           <div className="space-y-2">
-            {memories.map((mem, index) => (
-              <div
-                key={index}
-                className="p-3 bg-zinc-950 border border-gray-800 rounded text-xs font-mono text-gray-300"
-              >
-                <span className="text-pixel-green mr-2">{index + 1}.</span>
-                {mem}
+            {editingMemories.map((mem, index) => (
+              <div key={index} className="p-3 bg-zinc-950 border border-gray-800 rounded">
+                <div className="flex items-start gap-2">
+                  <span className="text-pixel-green text-xs font-mono mt-2 shrink-0">{index + 1}.</span>
+                  <textarea
+                    value={mem}
+                    onChange={(e) => updateMemoryLine(index, e.target.value)}
+                    className="flex-1 min-h-[64px] p-2 bg-black/30 border border-gray-700 rounded
+                      text-xs font-mono text-gray-200 focus:border-pixel-green focus:outline-none
+                      resize-y leading-relaxed"
+                  />
+                  <button
+                    onClick={() => removeMemoryLine(index)}
+                    className="px-2 py-1.5 text-[10px] font-mono text-gray-500 border border-gray-700 rounded
+                      hover:text-expense-red hover:border-expense-red/30 transition-colors"
+                  >
+                    [DEL]
+                  </button>
+                </div>
               </div>
             ))}
+            <div className="flex gap-2">
+              <button
+                onClick={addMemoryLine}
+                className="flex-1 py-2 text-xs font-mono border border-gray-700 rounded text-gray-300
+                  hover:border-gray-500 transition-colors"
+              >
+                [ADD_MEMORY]
+              </button>
+              <button
+                onClick={handleSaveMemories}
+                disabled={isSavingMemories}
+                className={`flex-1 py-2 text-xs font-mono rounded border transition-colors ${
+                  isSavingMemories
+                    ? 'text-gray-500 border-gray-700 cursor-not-allowed'
+                    : 'text-pixel-green border-pixel-green/50 hover:bg-pixel-green/10'
+                }`}
+              >
+                {isSavingMemories ? '[SAVING...]' : '[SAVE_MEMORY]'}
+              </button>
+            </div>
           </div>
         )}
       </div>
@@ -1381,6 +1485,13 @@ const AIMemoryPanel: React.FC<AIMemoryPanelProps> = ({
                     </div>
                     <div className="flex items-center gap-2 ml-3 shrink-0">
                       <button
+                        onClick={() => handlePreviewSnapshot(snap.id)}
+                        className="px-3 py-1.5 text-[10px] font-mono border border-gray-700 rounded
+                          text-gray-300 hover:border-gray-500 transition-colors"
+                      >
+                        [VIEW]
+                      </button>
+                      <button
                         onClick={() => handleRollback(snap.id)}
                         disabled={isCurrent}
                         className={`px-3 py-1.5 text-[10px] font-mono border rounded transition-colors ${
@@ -1390,13 +1501,17 @@ const AIMemoryPanel: React.FC<AIMemoryPanelProps> = ({
                         }`}
                         title={isCurrent ? '当前已在此版本' : undefined}
                       >
-                        {isCurrent ? '[ACTIVE]' : '[ROLLBACK]'}
+                        {isCurrent ? '[ACTIVE]' : '[SELECT]'}
                       </button>
                       <button
                         onClick={() => handleDeleteSnapshot(snap.id)}
-                        className="px-2 py-1.5 text-[10px] font-mono text-gray-500 border border-gray-700
-                          rounded hover:text-expense-red hover:border-expense-red/30 transition-colors"
-                        title="删除此快照"
+                        disabled={isCurrent}
+                        className={`px-2 py-1.5 text-[10px] font-mono border rounded transition-colors ${
+                          isCurrent
+                            ? 'text-gray-600 border-gray-700 cursor-not-allowed'
+                            : 'text-gray-500 border-gray-700 hover:text-expense-red hover:border-expense-red/30'
+                        }`}
+                        title={isCurrent ? '当前激活快照不可删除' : '删除此快照'}
                       >
                         [X]
                       </button>
@@ -1408,6 +1523,37 @@ const AIMemoryPanel: React.FC<AIMemoryPanelProps> = ({
           </motion.div>
         )}
       </div>
+
+      {selectedSnapshot && (
+        <div className="mb-6 p-4 bg-zinc-950 border border-gray-800 rounded">
+          <div className="flex items-center justify-between mb-2">
+            <div className="text-[10px] text-dim font-mono tracking-wider">
+              [SNAPSHOT_DETAIL: {selectedSnapshot.id}]
+            </div>
+            <button
+              onClick={() => setSelectedSnapshot(null)}
+              className="text-[10px] font-mono text-gray-500 hover:text-white transition-colors"
+            >
+              [CLOSE]
+            </button>
+          </div>
+          <div className="text-[10px] text-gray-500 font-mono mb-3">
+            {new Date(selectedSnapshot.timestamp).toLocaleString()}
+          </div>
+          {selectedSnapshot.content.length === 0 ? (
+            <div className="text-xs font-mono text-gray-500">该快照为空记忆</div>
+          ) : (
+            <div className="space-y-2">
+              {selectedSnapshot.content.map((line, index) => (
+                <div key={`${selectedSnapshot.id}-${index}`} className="text-xs font-mono text-gray-300 leading-relaxed">
+                  <span className="text-pixel-green mr-2">{index + 1}.</span>
+                  {line}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* 底部垫片 */}
       <div className="h-4" />

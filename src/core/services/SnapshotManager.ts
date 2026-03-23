@@ -127,12 +127,6 @@ export class SnapshotManager {
       // 1. 加载当前记忆内容
       const currentMemories = await MemoryManager.load(ledgerName);
 
-      // 如果记忆为空，不创建快照
-      if (currentMemories.length === 0) {
-        console.log('[SnapshotManager] No content to snapshot, skipping');
-        return '';
-      }
-
       // 2. 加载索引
       const index = await this.loadIndex(ledgerName);
 
@@ -360,6 +354,12 @@ export class SnapshotManager {
    */
   public static async delete(ledgerName: string, snapshotId: string): Promise<boolean> {
     try {
+      const currentSnapshotId = await this.findMatchingSnapshot(ledgerName);
+      if (currentSnapshotId === snapshotId) {
+        console.warn(`[SnapshotManager] Cannot delete current active snapshot ${snapshotId}`);
+        return false;
+      }
+
       // 1. 加载索引
       const index = await this.loadIndex(ledgerName);
 

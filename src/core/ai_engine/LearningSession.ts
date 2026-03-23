@@ -39,7 +39,7 @@ export interface LearningResult {
   operations: MemoryOperation[];
   summary: string;
   error?: string;
-  /** 创建的快照 ID（学习前备份） */
+  /** 创建的快照 ID（学习结果对应的当前快照） */
   snapshotId?: string;
 }
 
@@ -164,18 +164,11 @@ ${JSON.stringify(simplified, null, 2)}
       // 2. 加载当前记忆
       const currentMemory = await MemoryManager.load(ledgerName);
 
-      // 3. 创建快照（学习前的备份）
-      const snapshotId = await SnapshotManager.create(
-        ledgerName,
-        'ai_learn',
-        `学习会话：基于 ${examples.length} 条修正记录`
-      );
-
-      // 4. 构建 Prompt
+      // 3. 构建 Prompt
       const systemPrompt = this.generateLearningSystemPrompt(categories, currentMemory);
       const userMessage = this.buildLearningUserMessage(examples);
 
-      // 5. 调用 LLM
+      // 4. 调用 LLM
       const configManager = ConfigManager.getInstance();
       const llmConfig = await configManager.getActiveModelConfig();
 
@@ -193,7 +186,7 @@ ${JSON.stringify(simplified, null, 2)}
       console.log('[LearningSession] Calling LLM...');
       const response = await client.chat(messages);
 
-      // 6. 解析操作指令
+      // 5. 解析操作指令
       let operations: MemoryOperation[] = [];
       try {
         // 尝试提取 JSON（处理可能的 markdown 代码块）
@@ -214,7 +207,7 @@ ${JSON.stringify(simplified, null, 2)}
         };
       }
 
-      // 7. 执行操作
+      // 6. 执行操作
       if (operations.length > 0) {
         console.log(`[LearningSession] Executing ${operations.length} operations...`);
         const result = await MemoryManager.applyOperations(ledgerName, operations);
@@ -228,6 +221,16 @@ ${JSON.stringify(simplified, null, 2)}
           };
         }
       }
+
+      // 7. 学习完成后创建当前快照（与当前记忆一一对应）
+      const latestMemories = await MemoryManager.load(ledgerName);
+      const snapshotId = await SnapshotManager.create(
+        ledgerName,
+        'ai_learn',
+        latestMemories.length > 0
+          ? `学习后快照：基于 ${examples.length} 条修正记录`
+          : '学习后快照：空记忆'
+      );
 
       // 8. 生成摘要
       const summary = this.generateSummary(operations);
