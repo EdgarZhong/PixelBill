@@ -53,6 +53,11 @@ export class MemoryManager {
     const filePath = this.getFilePath(ledgerName);
 
     try {
+      const exists = await this.exists(ledgerName);
+      if (!exists) {
+        return [];
+      }
+
       const result = await Filesystem.readFile({
         path: filePath,
         directory: Directory.Documents,

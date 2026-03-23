@@ -584,6 +584,135 @@ function App() {
           console.log('%c✅ 优先级测试完成', 'color: #00ff00; font-weight: bold');
         },
 
+        queueSnapshot: async (ledger: string = '*') => {
+          const tasks = await debugTools.viewQueue(ledger);
+          const byLedger: Record<string, number> = {};
+          const byType: Record<string, number> = {};
+          for (const task of tasks) {
+            byLedger[task.ledger] = (byLedger[task.ledger] || 0) + 1;
+            byType[task.type] = (byType[task.type] || 0) + 1;
+          }
+          const ledgerStats = Object.entries(byLedger).map(([ledgerName, count]) => ({ ledger: ledgerName, count }));
+          const typeStats = Object.entries(byType).map(([type, count]) => ({ type, count }));
+          console.log('[ClassifyQueue] 快照统计');
+          console.table(ledgerStats);
+          console.table(typeStats);
+          return { total: tasks.length, byLedger, byType };
+        },
+
+        addTestTasksBatch: async (
+          tasks: Array<{
+            ledger: string;
+            date: string;
+            type: 'normal' | 'reclassify_full' | 'reclassify_affected' | 'reclassify_scoped';
+            tag?: string;
+          }>
+        ) => {
+          const { classifyQueue } = await import('./core/ai_engine/ClassifyQueue');
+          const results: Array<{ ledger: string; date: string; type: string; added: boolean }> = [];
+          for (const task of tasks) {
+            const added = await classifyQueue.enqueue(task);
+            results.push({ ledger: task.ledger, date: task.date, type: task.type, added });
+          }
+          console.table(results);
+          return results;
+        },
+
+        peekTask: async (ledger?: string) => {
+          const { classifyQueue } = await import('./core/ai_engine/ClassifyQueue');
+          const { LedgerManager } = await import('./core/services/LedgerManager');
+          const targetLedger = ledger || LedgerManager.getInstance().getActiveLedgerName();
+          const task = await classifyQueue.peek(targetLedger);
+          console.log(`[ClassifyQueue] peek(${targetLedger}):`, task);
+          return task;
+        },
+
+        dequeueTask: async (ledger?: string) => {
+          const { classifyQueue } = await import('./core/ai_engine/ClassifyQueue');
+          const { LedgerManager } = await import('./core/services/LedgerManager');
+          const targetLedger = ledger || LedgerManager.getInstance().getActiveLedgerName();
+          const task = await classifyQueue.dequeue(targetLedger);
+          console.log(`[ClassifyQueue] dequeue(${targetLedger}):`, task);
+          return task;
+        },
+
+        removeTask: async (ledger: string, date: string) => {
+          const { classifyQueue } = await import('./core/ai_engine/ClassifyQueue');
+          const removed = await classifyQueue.remove(ledger, date);
+          console.log(`[ClassifyQueue] remove(${ledger}, ${date}): ${removed}`);
+          return removed;
+        },
+
+        runP2Test: async (options?: {
+          ledgerA?: string;
+          ledgerB?: string;
+          dateA?: string;
+          dateB?: string;
+        }) => {
+          const ledgerA = options?.ledgerA || `p2_a_${Date.now()}`;
+          const ledgerB = options?.ledgerB || `p2_b_${Date.now()}`;
+          const dateA = options?.dateA || '2026-03-18';
+          const dateB = options?.dateB || '2026-03-19';
+          console.log('%c🧪 开始 P2 回归测试...', 'color: #00ff00; font-size: 14px; font-weight: bold');
+          await debugTools.clearQueue();
+          await debugTools.addTestTask(ledgerA, dateA, 'normal');
+          await debugTools.addTestTask(ledgerA, dateA, 'reclassify_full');
+          await debugTools.addTestTask(ledgerB, dateB, 'normal');
+          const queueA = await debugTools.viewQueue(ledgerA);
+          const queueB = await debugTools.viewQueue(ledgerB);
+          const all = await debugTools.viewQueue('*');
+          const snap = await debugTools.queueSnapshot('*');
+          const peekA = await debugTools.peekTask(ledgerA);
+          await debugTools.removeTask(ledgerA, dateA);
+          await debugTools.removeTask(ledgerB, dateB);
+          console.log('%c✅ P2 回归测试完成', 'color: #00ff00; font-weight: bold');
+          return {
+            ledgerA,
+            ledgerB,
+            dateA,
+            dateB,
+            queueA: queueA.length,
+            queueB: queueB.length,
+            total: all.length,
+            peekA,
+            snapshot: snap
+          };
+        },
+
+        testLedgerLifecycleQueue: async () => {
+          const { classifyQueue } = await import('./core/ai_engine/ClassifyQueue');
+          const { LedgerManager } = await import('./core/services/LedgerManager');
+          const manager = LedgerManager.getInstance();
+          await manager.init();
+          const original = manager.getActiveLedgerName();
+          const seed = Date.now();
+          const oldName = `p2_lifecycle_${seed}`;
+          const newName = `p2_lifecycle_renamed_${seed}`;
+          const date = '2026-03-20';
+          const created = await manager.createLedger(oldName);
+          await classifyQueue.enqueue({ ledger: oldName, date, type: 'normal' });
+          const beforeRename = await classifyQueue.getPending(oldName);
+          const renamed = created ? await manager.renameLedger(oldName, newName) : false;
+          const afterRenameOld = await classifyQueue.getPending(oldName);
+          const afterRenameNew = await classifyQueue.getPending(newName);
+          const deleted = renamed ? await manager.deleteLedger(newName) : false;
+          const afterDelete = await classifyQueue.getPending(newName);
+          if (manager.getActiveLedgerName() !== original) {
+            await manager.switchLedger(original);
+          }
+          const result = {
+            created,
+            renamed,
+            deleted,
+            beforeRename: beforeRename.length,
+            afterRenameOld: afterRenameOld.length,
+            afterRenameNew: afterRenameNew.length,
+            afterDelete: afterDelete.length
+          };
+          console.table(result);
+          return result;
+        },
+
         // ============================================
         // P2: 标签管理 API 测试工具
         // ============================================

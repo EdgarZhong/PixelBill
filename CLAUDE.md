@@ -323,6 +323,27 @@ await window.__DEBUG_TOOLS__.clearQueue()
 // 测试优先级升级
 await window.__DEBUG_TOOLS__.testQueuePriority()
 
+// 队列快照统计（按账本/类型聚合）
+await window.__DEBUG_TOOLS__.queueSnapshot('*')
+
+// 批量注入测试任务（高自由度）
+await window.__DEBUG_TOOLS__.addTestTasksBatch([
+  { ledger: 'default', date: '2026-03-18', type: 'normal' },
+  { ledger: 'default', date: '2026-03-19', type: 'reclassify_full' },
+  { ledger: 'travel', date: '2026-03-18', type: 'reclassify_affected' }
+])
+
+// 逐步调试原语：peek / dequeue / remove
+await window.__DEBUG_TOOLS__.peekTask('default')
+await window.__DEBUG_TOOLS__.dequeueTask('default')
+await window.__DEBUG_TOOLS__.removeTask('default', '2026-03-18')
+
+// 一键执行 P2 回归测试
+await window.__DEBUG_TOOLS__.runP2Test()
+
+// 生命周期联动测试（创建→重命名→删除，并校验队列迁移/清理）
+await window.__DEBUG_TOOLS__.testLedgerLifecycleQueue()
+
 // ===== P2: 标签管理调试命令 =====
 // 查看当前标签
 await window.__DEBUG_TOOLS__.listCategories()
@@ -412,6 +433,10 @@ git --no-pager show <commit> -- path/to/file
 | **P2: defined_categories 升级为映射** | 2026-03-18 | 进行中 |
 | **P2: ClassifyQueue 分类任务队列** | 2026-03-18 | 进行中 |
 | **P2: LedgerService 标签管理 API** | 2026-03-18 | 进行中 |
+| **P2: PromptBuilder 适配新结构（v5）** | 2026-03-23 | e0b2d86 |
+| **P2: AI Engine 队列消费改造（当前账本范围 + 失败不丢任务）** | 2026-03-23 | 56cbfc6 / e0b2d86 |
+| **P2: 账本生命周期扩展（队列文件删除/重命名联动）** | 2026-03-23 | 24e18b8 |
+| **P2: 队列调试工具增强（按当前/指定账本查看）** | 2026-03-23 | 24e18b8 |
 | P1 Bug 修复：快照 active 显示 + 删除逻辑 | 2026-03-17 | 待提交 |
 | AI 自学习 P1：记忆文件 + 学习会话 | 2026-03-16 | 待提交 |
 | AI 自学习 P0：实例库自动采集 + 注入 | 2026-03-16 | 55ce6f7 |
@@ -426,13 +451,12 @@ git --no-pager show <commit> -- path/to/file
 
 | 任务 | 优先级 | 说明 |
 |------|--------|------|
-| AI 自学习 P2：PromptBuilder 适配新结构 | P2 | 适配 defined_categories 映射格式 |
 | AI 自学习 P2：分类触发层 (ClassifyTrigger) | P2 | 各场景触发逻辑的接口预埋（暂不接管线上触发） |
-| AI 自学习 P2：账本生命周期扩展 | P2 | 删除/重命名时清理关联文件 |
-| AI 自学习 P2：AI Engine 队列消费改造 | P2 | 仅消费当前选中账本队列，入口仍由 UI 按钮控制 |
 | AI 自学习 P2：渐进式重分类交互 UI | P2 | 标签变更后的重分类对话框 |
-| AI 自学习 P2：测试与调试工具 | P2 | P2 自动化测试脚本 |
+| AI 自学习 P2：记忆文件/快照生命周期联动 | P2 | 账本删除/重命名时同步处理 classify_memory 与 memory_snapshots |
+| AI 自学习 P2：测试与调试工具（自动化） | P2 | 增补 P2 场景脚本：账本隔离、失败重试、标签变更链路 |
 | AI 自学习 P3：列表页快速修正 | P3 | 降低修正摩擦力的交互优化 |
+| 文档同步：规格与任务看板对齐 | P2 | 同步 AI_SELF_LEARNING_DESIGN_v5.md 的阶段状态与完成项 |
 
 ### P2 当前阶段边界（2026-03 冲刺期）
 

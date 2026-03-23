@@ -23,6 +23,11 @@ export class SelfDescriptionManager {
    */
   public static async load(): Promise<string> {
     try {
+      const exists = await this.exists();
+      if (!exists) {
+        return '';
+      }
+
       const result = await Filesystem.readFile({
         path: FILE_PATH,
         directory: Directory.Documents,

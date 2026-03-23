@@ -84,6 +84,19 @@ export class ExampleStore {
     return `${this.BASE_PATH}/${ledgerName}.json`;
   }
 
+  public static async exists(ledgerName: string): Promise<boolean> {
+    const filePath = this.getFilePath(ledgerName);
+    try {
+      await Filesystem.stat({
+        path: filePath,
+        directory: Directory.Data
+      });
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
   /**
    * 读取实例库
    * @param ledgerName 账本名称
@@ -93,6 +106,11 @@ export class ExampleStore {
     const filePath = this.getFilePath(ledgerName);
 
     try {
+      const exists = await this.exists(ledgerName);
+      if (!exists) {
+        return [];
+      }
+
       const result = await Filesystem.readFile({
         path: filePath,
         directory: Directory.Data,

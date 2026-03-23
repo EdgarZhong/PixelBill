@@ -77,6 +77,11 @@ export class SnapshotManager {
     const indexPath = this.getIndexPath(ledgerName);
 
     try {
+      await Filesystem.stat({
+        path: indexPath,
+        directory: Directory.Data
+      });
+
       const result = await Filesystem.readFile({
         path: indexPath,
         directory: Directory.Data,
