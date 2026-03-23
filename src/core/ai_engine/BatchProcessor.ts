@@ -4,13 +4,14 @@ import { ConfigManager } from '../config/ConfigManager';
 import { PromptBuilder } from '../llm_service/prompt/PromptBuilder';
 import { 
   getAutoDirectoryHandle, 
-  getMemoryFileHandle, 
+  getLedgerFileHandle,
   readMemoryFile 
 } from '../../utils/fs-storage';
 import type { FullTransactionRecord } from '../../types/metadata';
 import type { Proposal } from '../plugin/types';
 import type { AIStatus, AIProgress, ProcessingResult } from './types';
 import { format, parseISO, compareDesc } from 'date-fns';
+import { classifyQueue } from './ClassifyQueue';
 
 export interface DayCompletedEvent {
   date: string;
@@ -128,11 +129,13 @@ export class BatchProcessor {
 
         const client = new LLMClient({ apiKey, baseUrl, model });
 
-        // 2. Load Ledger
-        // Note: We re-read the file for each day in a real implementation to support optimistic locking,
-        // but for now we read once to get the list of days, then read-lock-write for each day.
+        // 2. Load current ledger
+        const { LedgerManager } = await import('../services/LedgerManager');
+        const ledgerManager = LedgerManager.getInstance();
+        await ledgerManager.init();
+        const currentLedger = ledgerManager.getActiveLedgerName();
         const dirHandle = await getAutoDirectoryHandle();
-        const fileHandle = await getMemoryFileHandle(dirHandle, true);
+        const fileHandle = await getLedgerFileHandle(dirHandle, currentLedger, false);
         if (!fileHandle) throw new Error('Could not access ledger file');
         
         const memory = await readMemoryFile(fileHandle);
@@ -147,14 +150,19 @@ export class BatchProcessor {
           txsByDate[dateStr].push(tx);
         });
 
-        // 4. Identify target days (Reverse Order)
-        const targetDates = Object.keys(txsByDate)
+        // 4. Identify target days
+        await classifyQueue.load(currentLedger);
+        const pendingTasks = await classifyQueue.getPending(currentLedger);
+        const targetDatesFromQueue = pendingTasks
+          .map(task => task.date)
+          .filter((date, index, all) => all.indexOf(date) === index);
+        const targetDatesFromFallback = Object.keys(txsByDate)
           .filter(date => {
             const dayTxs = txsByDate[date];
-            // Process if any transaction is not verified AND (has no AI category OR has empty category)
             return dayTxs.some(tx => !tx.is_verified && (!tx.ai_category || !tx.category));
           })
-          .sort((a, b) => compareDesc(parseISO(a), parseISO(b))); // Newest first
+          .sort((a, b) => compareDesc(parseISO(a), parseISO(b)));
+        const targetDates = targetDatesFromQueue.length > 0 ? targetDatesFromQueue : targetDatesFromFallback;
 
         this.updateState('ANALYZING', { total: targetDates.length, current: 0 });
         const result: ProcessingResult = { success: true, processedCount: 0, errors: [] };
@@ -162,11 +170,18 @@ export class BatchProcessor {
         // 5. Process each day
         for (const dateStr of targetDates) {
           if (this.shouldStop) break;
+          if (ledgerManager.getActiveLedgerName() !== currentLedger) {
+            break;
+          }
 
           this.updateState('ANALYZING', { current: result.processedCount + 1, currentDate: dateStr });
           
           try {
             const dayTxs = txsByDate[dateStr];
+            if (!dayTxs || dayTxs.length === 0) {
+              await classifyQueue.remove(currentLedger, dateStr);
+              continue;
+            }
             
             // Build Prompt
             const messages = await PromptBuilder.build(dayTxs, parseISO(dateStr));
@@ -203,6 +218,7 @@ export class BatchProcessor {
             }
             
             result.processedCount++;
+            await classifyQueue.remove(currentLedger, dateStr);
 
             this.emit('dayCompleted', {
               date: dateStr,
