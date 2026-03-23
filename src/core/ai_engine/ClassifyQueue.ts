@@ -196,6 +196,18 @@ export class ClassifyQueue {
     }
   }
 
+  private async hasLedgerQueueFile(ledger: string): Promise<boolean> {
+    try {
+      await Filesystem.stat({
+        path: this.getLedgerQueuePath(ledger),
+        directory: Directory.Data
+      });
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
   /**
    * 将账本内任务映射为对外结构
    */
@@ -439,8 +451,9 @@ export class ClassifyQueue {
   public async removeByLedger(ledger: string): Promise<number> {
     await this.ensureLedgerLoaded(ledger);
     const removedCount = (this.ledgerTasks.get(ledger) || []).length;
+    const fileExists = await this.hasLedgerQueueFile(ledger);
 
-    if (removedCount > 0) {
+    if (removedCount > 0 || fileExists) {
       await this.deleteLedgerFile(ledger);
       this.ledgerTasks.delete(ledger);
       this.loadedLedgers.delete(ledger);
@@ -461,10 +474,11 @@ export class ClassifyQueue {
 
     await this.ensureLedgerLoaded(oldName);
     await this.ensureLedgerLoaded(newName);
+    const oldFileExists = await this.hasLedgerQueueFile(oldName);
 
     const oldTasks = this.ledgerTasks.get(oldName) || [];
     const newTasks = this.ledgerTasks.get(newName) || [];
-    if (oldTasks.length === 0) return 0;
+    if (oldTasks.length === 0 && !oldFileExists) return 0;
 
     const mergedByDate = new Map<string, LedgerQueueTask>();
     for (const task of newTasks) {

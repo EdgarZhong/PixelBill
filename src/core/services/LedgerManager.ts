@@ -18,6 +18,7 @@ import {
 } from '../../utils/fs-storage';
 import type { LedgerMemory } from '../../types/metadata';
 import { format } from 'date-fns';
+import { classifyQueue } from '../ai_engine/ClassifyQueue';
 
 /**
  * LedgerManager - 账本管理器（决策层）
@@ -462,6 +463,7 @@ export class LedgerManager {
 
       // 3. 删除物理文件
       await deleteLedgerFile(this.ledgerDirHandle, ledgerName);
+      await classifyQueue.removeByLedger(ledgerName);
 
       // 4. 更新索引
       const updatedLedgers = index.ledgers.filter(l => l.name !== ledgerName);
@@ -483,6 +485,93 @@ export class LedgerManager {
       return true;
     } catch (error) {
       console.error('[LedgerManager] Failed to delete ledger:', error);
+      return false;
+    }
+  }
+
+  public async renameLedger(oldName: string, newName: string): Promise<boolean> {
+    console.log('[LedgerManager] Renaming ledger:', oldName, '->', newName);
+    await this.ensureInitialized();
+
+    if (!this.ledgerDirHandle) {
+      console.error('[LedgerManager] Ledger directory not initialized');
+      return false;
+    }
+
+    if (oldName === 'default') {
+      console.error('[LedgerManager] Cannot rename default ledger');
+      return false;
+    }
+
+    const sanitizedNewName = this.sanitizeLedgerName(newName);
+    if (!sanitizedNewName) {
+      console.error('[LedgerManager] Invalid new ledger name:', newName);
+      return false;
+    }
+
+    if (oldName === sanitizedNewName) {
+      return true;
+    }
+
+    try {
+      const index = await this.readIndex();
+      const oldLedger = index.ledgers.find(l => l.name === oldName);
+      if (!oldLedger) {
+        console.error('[LedgerManager] Ledger not found:', oldName);
+        return false;
+      }
+
+      if (index.ledgers.some(l => l.name === sanitizedNewName)) {
+        console.error('[LedgerManager] Ledger name already exists:', sanitizedNewName);
+        return false;
+      }
+
+      const oldHandle = await getLedgerFileHandle(this.ledgerDirHandle, oldName, false);
+      if (!oldHandle) {
+        console.error('[LedgerManager] Old ledger file not found:', oldName);
+        return false;
+      }
+
+      const memory = await readMemoryFile(oldHandle);
+      const newHandle = await getLedgerFileHandle(this.ledgerDirHandle, sanitizedNewName, true);
+      if (!newHandle) {
+        console.error('[LedgerManager] Failed to create new ledger file:', sanitizedNewName);
+        return false;
+      }
+      await writeMemoryFile(newHandle, memory);
+
+      const verifyHandle = await getLedgerFileHandle(this.ledgerDirHandle, sanitizedNewName, false);
+      if (!verifyHandle) {
+        throw new Error(`Failed to verify new ledger file: ${sanitizedNewName}`);
+      }
+      await readMemoryFile(verifyHandle);
+
+      await deleteLedgerFile(this.ledgerDirHandle, oldName);
+      await classifyQueue.renameLedger(oldName, sanitizedNewName);
+
+      const now = new Date().toISOString();
+      const updatedLedgers = index.ledgers.map(l =>
+        l.name === oldName
+          ? { ...l, name: sanitizedNewName, fileName: `${sanitizedNewName}.pixelbill.json`, lastOpenedAt: now }
+          : l
+      );
+      const newActiveLedger = index.activeLedger === oldName ? sanitizedNewName : index.activeLedger;
+
+      await this.writeIndex({
+        ...index,
+        ledgers: updatedLedgers,
+        activeLedger: newActiveLedger
+      });
+
+      if (this.activeLedgerName === oldName) {
+        this.activeLedgerName = sanitizedNewName;
+        await this.loadActiveLedger();
+      }
+
+      console.log('[LedgerManager] Renamed ledger:', oldName, '->', sanitizedNewName);
+      return true;
+    } catch (error) {
+      console.error('[LedgerManager] Failed to rename ledger:', error);
       return false;
     }
   }

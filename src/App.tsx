@@ -505,10 +505,13 @@ function App() {
          * 查看分类任务队列
          * 用法: await window.__DEBUG_TOOLS__.viewQueue()
          */
-        viewQueue: async () => {
+        viewQueue: async (ledger?: string) => {
           const { classifyQueue } = await import('./core/ai_engine/ClassifyQueue');
-          const tasks = await classifyQueue.getPending();
-          console.log(`[ClassifyQueue] 当前队列 (${tasks.length} 个任务):`);
+          const { LedgerManager } = await import('./core/services/LedgerManager');
+          const activeLedger = LedgerManager.getInstance().getActiveLedgerName();
+          const targetLedger = ledger === '*' ? undefined : (ledger || activeLedger);
+          const tasks = await classifyQueue.getPending(targetLedger);
+          console.log(`[ClassifyQueue] 队列视图(${targetLedger || 'ALL'})，共 ${tasks.length} 个任务:`);
           console.table(tasks.map(t => ({
             ledger: t.ledger,
             date: t.date,
@@ -561,7 +564,7 @@ function App() {
           // 1. 添加 normal 任务
           console.log('\n[Step 1] 添加 normal 任务');
           await classifyQueue.enqueue({ ledger: 'test', date: '2026-03-18', type: 'normal' });
-          await debugTools.viewQueue();
+          await debugTools.viewQueue('test');
 
           // 2. 尝试添加相同 normal 任务（应被忽略）
           console.log('\n[Step 2] 再次添加 normal 任务（应被忽略）');
@@ -572,7 +575,7 @@ function App() {
           console.log('\n[Step 3] 升级为 reclassify_full（应成功）');
           const upgraded = await classifyQueue.enqueue({ ledger: 'test', date: '2026-03-18', type: 'reclassify_full' });
           console.log(`  结果: ${upgraded ? '已升级' : '未升级'}`);
-          await debugTools.viewQueue();
+          await debugTools.viewQueue('test');
 
           // 4. 清理
           console.log('\n[Step 4] 清理测试数据');
