@@ -45,9 +45,14 @@ export interface ExampleEntry {
  * 用于注入 Prompt 的简化案例格式
  */
 export interface ReferenceCorrection {
+  tx_id: string;
+  created_at: string;
   counterparty: string;
+  description: string;
   amount: number;
+  direction: 'in' | 'out';
   time: string;
+  source: string;
   category: string;
   ai_reason?: string;
   user_reason?: string;
@@ -260,6 +265,18 @@ export class ExampleStore {
       }
     }
 
+    merged.sort((a, b) => {
+      const timeDiff = a.time.localeCompare(b.time);
+      if (timeDiff !== 0) {
+        return timeDiff;
+      }
+      const createdDiff = a.created_at.localeCompare(b.created_at);
+      if (createdDiff !== 0) {
+        return createdDiff;
+      }
+      return a.tx_id.localeCompare(b.tx_id);
+    });
+
     console.log(`[ExampleStore] Retrieved ${merged.length} unique examples for ${transactions.length} transactions`);
     return merged;
   }
@@ -383,9 +400,14 @@ export class ExampleStore {
    */
   private static toReferenceCorrection(ex: ExampleEntry): ReferenceCorrection {
     const result: ReferenceCorrection = {
+      tx_id: ex.tx_id,
+      created_at: ex.created_at,
       counterparty: ex.counterparty,
+      description: ex.description,
       amount: ex.amount,
+      direction: ex.direction,
       time: ex.time,
+      source: ex.source,
       category: ex.category
     };
 

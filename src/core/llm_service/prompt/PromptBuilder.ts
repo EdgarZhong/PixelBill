@@ -1,5 +1,4 @@
 import { generateSystemPrompt } from './SystemPrompt';
-import { RuleLoader } from './RuleLoader';
 import { LedgerLoader } from './LedgerLoader';
 import { ConfigManager } from '../../config/ConfigManager';
 import { ExampleStore } from '../../services/ExampleStore';
@@ -9,72 +8,53 @@ import type { TransactionBase } from '../../../types/metadata';
 import { format } from 'date-fns';
 
 export class PromptBuilder {
-  /**
-   * 构建完整的 Prompt 消息数组
-   * @param transactions 当天的交易列表
-   * @param date 当前处理的日期
-   * @param ledgerName 账本名称
-   * @param language 输出语言 (默认为 'Chinese')
-   */
   public static async build(
     transactions: TransactionBase[],
     date: Date,
     ledgerName: string = 'default',
     language: string = 'Chinese'
   ): Promise<ChatMessage[]> {
-    // 1. 加载用户规则
-    const userRules = await RuleLoader.load(ledgerName);
+    const categoryList = await LedgerLoader.loadCategories(ledgerName);
 
-    // 2. 加载类别列表
-    const categoryList = await LedgerLoader.loadCategories();
-
-    // 3. 加载用户自述（从独立文件）
     const configManager = ConfigManager.getInstance();
     const selfDescription = await configManager.getUserContext();
 
-    // 4. 加载 AI 记忆（P1 新增）
     const memory = await MemoryManager.load(ledgerName);
     const memoryText = memory.length > 0 ? memory.join('\n') : undefined;
 
-    // 5. 从实例库检索相关案例（AI 自学习 P0 功能）
-    // 为批次中每条交易检索最多 3 条相关案例，去重合并
     const pendingTxs = transactions.map(tx => ({
       id: tx.id,
       counterparty: tx.counterparty,
       description: tx.product || tx.remark || '',
       amount: tx.amount,
-      time: tx.time.split(' ')[1] || tx.time // 提取 HH:mm 部分
+      time: tx.time.split(' ')[1] || tx.time
     }));
     const referenceCorrections = await ExampleStore.retrieveRelevant(ledgerName, pendingTxs);
 
-    // 6. 序列化交易数据
-    // 仅保留 AI 需要的字段：时间、金额、描述、对方、方向、原有分类
     const txData = transactions.map(tx => ({
       id: tx.id,
       time: tx.time,
       amount: tx.amount,
-      currency: 'CNY', // 假设
+      currency: 'CNY',
       direction: tx.direction,
       counterparty: tx.counterparty,
-      description: tx.product || tx.remark, // 优先使用商品名，无则备注
+      description: tx.product || tx.remark,
       source: tx.sourceType,
       raw_category: tx.rawClass
     }));
 
-    // 7. 构建 Prompt Payload
-    // 注入 reference_corrections 作为 few-shot examples
     const payload = {
-      user_rules: userRules,
       category_list: categoryList,
-      context: {
-        date: format(date, 'yyyy-MM-dd'),
-        weekday: format(date, 'EEEE'), // e.g., "Monday"
-        reference_corrections: referenceCorrections.length > 0 ? referenceCorrections : undefined
-      },
-      transactions: txData
+      reference_corrections: referenceCorrections.length > 0 ? referenceCorrections : undefined,
+      days: [
+        {
+          date: format(date, 'yyyy-MM-dd'),
+          weekday: format(date, 'EEEE'),
+          transactions: txData
+        }
+      ]
     };
 
-    // 8. 组装 User Message
     const userContent = JSON.stringify(payload, null, 2);
 
     return [
