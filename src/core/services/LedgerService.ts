@@ -604,8 +604,16 @@ export class LedgerService {
   }
 
   /**
+   * 收集所有未锁定交易的脏日期（全量路径）
+   * 供 UI 渐进式确认对话框”全量（未锁定的交易）”按钮使用。
+   */
+  public collectDirtyDatesForAll(): string[] {
+    return this.collectDirtyDatesByPredicate((record) => !record.is_verified);
+  }
+
+  /**
    * 按条件从当前账本记录中提取脏日期集合
-   * 用于“标签变更即入队”场景，保证触发层与消费层解耦。
+   * 用于”标签变更即入队”场景，保证触发层与消费层解耦。
    */
   public collectDirtyDatesByPredicate(predicate: (record: FullTransactionRecord) => boolean): string[] {
     const memory = this.state.ledgerMemory;
@@ -792,24 +800,12 @@ export class LedgerService {
     });
 
     /**
-     * v5.1 解耦约束：
-     * 标签变更完成后立即生产队列（dirtyDates 入队），
-     * 后续“重分类按钮”仅负责启动消费。
-     *
-     * 新增标签默认采用“仅未分类且未锁定”范围，避免无差别全量重跑。
+     * v5.1 冻结口径：标签新增只负责写入标签定义，不自动入队重分类。
+     * 入队时机由 UI 层渐进式范围确认对话框负责：用户选择范围后当场入队并自动启动消费。
+     * 返回 dirtyDates 供 UI 层参考受影响规模，但不执行实际入队。
      */
-    const dirtyDates = this.collectDirtyDatesByPredicate(
-      (record) => !record.is_verified && (!record.category || record.category === 'uncategorized')
-    );
-    const enqueueSuccess = dirtyDates.length > 0
-      ? await this.enqueueReclassifyForConfirmedDates(dirtyDates, 'category_add_confirmed_uncategorized')
-      : true;
-
-    console.log('[LedgerService] Added category:', sanitizedName, {
-      dirtyDates,
-      enqueueSuccess
-    });
-    return { success: true, dirtyDates, enqueueSuccess };
+    console.log('[LedgerService] Added category:', sanitizedName);
+    return { success: true, dirtyDates: [], enqueueSuccess: true };
   }
 
   /**
@@ -894,17 +890,17 @@ export class LedgerService {
       TABS: this.computeTabs(newMemory)
     });
 
-    const dirtyDates = this.collectDirtyDatesForTxIds(affectedTxIds);
-    const enqueueSuccess = dirtyDates.length > 0
-      ? await this.enqueueReclassifyForConfirmedDates(dirtyDates, 'category_delete_confirmed_affected')
-      : true;
-
+    /**
+     * v5.1 冻结口径：删除标签后，前置改写（重置分类+解锁+清理实例库）已同步完成。
+     * 不自动入队重分类，由 UI 层渐进式范围确认对话框负责：用户选择范围后当场入队并启动消费。
+     * affectedTxIds 供 UI 层展示受影响规模并用于"仅受影响"路径的 dirtyDates 计算。
+     */
+    const affectedDirtyDates = this.collectDirtyDatesForTxIds(affectedTxIds);
     console.log('[LedgerService] Deleted category:', name, {
       affectedCount: affectedTxIds.length,
-      dirtyDates,
-      enqueueSuccess
+      affectedDirtyDates
     });
-    return { success: true, affectedTxIds, dirtyDates, enqueueSuccess };
+    return { success: true, affectedTxIds, dirtyDates: affectedDirtyDates, enqueueSuccess: true };
   }
 
   /**
@@ -983,17 +979,28 @@ export class LedgerService {
       TABS: this.computeTabs(newMemory)
     });
 
-    const dirtyDates = this.collectDirtyDatesForTxIds(affectedTxIds);
-    const enqueueSuccess = dirtyDates.length > 0
-      ? await this.enqueueReclassifyForConfirmedDates(dirtyDates, 'category_rename_confirmed_affected')
-      : true;
+    /**
+     * v5.1 冻结口径：重命名标签只做字符串改名，不触发重分类，不改动锁定状态。
+     * 同步更新实例库中对应的 category 字段，保持实例库与当前标签体系一致。
+     */
+    const ledgerName = this.getCurrentLedgerName();
+    if (ledgerName) {
+      const { ExampleStore } = await import('./ExampleStore');
+      const examples = await ExampleStore.load(ledgerName);
+      const renamedExamples = examples.map(ex =>
+        ex.category === oldName ? { ...ex, category: sanitizedNewName } : ex
+      );
+      if (renamedExamples.some((ex, i) => ex.category !== examples[i].category)) {
+        await ExampleStore.save(ledgerName, renamedExamples);
+        console.log(`[LedgerService] Updated ExampleStore: renamed category ${oldName} -> ${sanitizedNewName}`);
+      }
+    }
 
     console.log('[LedgerService] Renamed category:', oldName, '->', sanitizedNewName, {
-      affectedCount: affectedTxIds.length,
-      dirtyDates,
-      enqueueSuccess
+      affectedCount: affectedTxIds.length
     });
-    return { success: true, affectedTxIds, dirtyDates, enqueueSuccess };
+    // 不入队重分类，dirtyDates 恒为空（冻结口径）
+    return { success: true, affectedTxIds, dirtyDates: [], enqueueSuccess: true };
   }
 
   /**
@@ -1034,22 +1041,11 @@ export class LedgerService {
     this.setState({ ledgerMemory: newMemory });
 
     /**
-     * v5.1 解耦约束：
-     * 描述变更后立即生产该标签相关的脏日期队列，
-     * 重分类按钮只作为消费启动快捷入口。
+     * v5.1 冻结口径：修改标签描述只负责写入描述变更，不自动入队重分类。
+     * 入队时机由 UI 层渐进式范围确认对话框负责：用户选择范围后当场入队并启动消费。
      */
-    const dirtyDates = this.collectDirtyDatesByPredicate(
-      (record) => !record.is_verified && record.category === name
-    );
-    const enqueueSuccess = dirtyDates.length > 0
-      ? await this.enqueueReclassifyForConfirmedDates(dirtyDates, 'category_desc_confirmed_scoped')
-      : true;
-
-    console.log('[LedgerService] Updated category description:', name, {
-      dirtyDates,
-      enqueueSuccess
-    });
-    return { success: true, dirtyDates, enqueueSuccess };
+    console.log('[LedgerService] Updated category description:', name);
+    return { success: true, dirtyDates: [], enqueueSuccess: true };
   }
 
   /**

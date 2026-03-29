@@ -125,118 +125,159 @@ export class BatchProcessor {
          * 2) 队列任务业务语义仅 { date }，账本由消费上下文决定。
          */
         const ledgerName = LedgerManager.getInstance().getActiveLedgerName();
-        const peekSnapshot = await classifyQueue.peekWithRevision(ledgerName);
-        if (!peekSnapshot) {
+
+        // 在循环开始前读取队列总量，用于进度显示
+        const initialTotal = await classifyQueue.size(ledgerName);
+        if (initialTotal === 0) {
           this.updateState('IDLE', { total: 0, current: 0, currentDate: '' });
-          return { success: true, processedCount: 0, errors: [] };
-        }
-        const { task, revision } = peekSnapshot;
-
-        if (task.ledger !== ledgerName) {
-          throw new Error(`Peeked task ledger mismatch: ${task.ledger} !== ${ledgerName}`);
-        }
-
-        if (this.shouldStop) {
-          this.updateState('IDLE');
           return { success: true, processedCount: 0, errors: [] };
         }
 
         const client = new LLMClient({ apiKey, baseUrl, model });
-
         const dirHandle = await getAutoDirectoryHandle();
         const fileHandle = await getLedgerFileHandle(dirHandle, ledgerName, false);
         if (!fileHandle) {
           throw new Error(`Could not access ledger file: ${ledgerName}`);
         }
 
-        const memory = await readMemoryFile(fileHandle);
-        const txs = Object.values(memory.records) as FullTransactionRecord[];
-        const dayTxs = txs.filter(tx => normalizeToDateKey(tx.time) === task.date);
+        /**
+         * 循环消费：逐日处理队列中所有任务，直到队列清空或用户主动停止。
+         * 单日失败时记录错误并跳过（任务保留在队列中等待重试），不中断整个循环。
+         */
+        let processedCount = 0;
+        let currentIndex = 0;
+        const allErrors: string[] = [];
 
-        this.updateState('ANALYZING', { total: 1, current: 1, currentDate: task.date });
-
-        if (dayTxs.length === 0) {
-          /**
-           * 空任务处理：
-           * - 通过 revision CAS 删除，避免并发重入时误删新任务；
-           * - 仅在成功删除后累计 emptyTask 指标。
-           */
-          const removedByCas = await classifyQueue.removeIfRevisionMatch(ledgerName, task.date, revision);
-          if (removedByCas) {
-            const emptyCount = await classifyQueue.incrementEmptyTaskConsumed(ledgerName, task.date);
-            console.log(`[BatchProcessor] Empty task consumed for ${ledgerName}/${task.date}, count=${emptyCount}`);
+        while (!this.shouldStop) {
+          const peekSnapshot = await classifyQueue.peekWithRevision(ledgerName);
+          if (!peekSnapshot) {
+            // 队列已消费完毕
+            break;
           }
-          this.emit('dayCompleted', {
-            date: task.date,
-            processedTxsCount: 0,
-            success: true
+
+          const { task, revision } = peekSnapshot;
+
+          if (task.ledger !== ledgerName) {
+            throw new Error(`Peeked task ledger mismatch: ${task.ledger} !== ${ledgerName}`);
+          }
+
+          currentIndex++;
+          // 动态更新进度（total 使用初始量，不随消费缩减，便于 UI 展示完整进度条）
+          this.updateState('ANALYZING', {
+            total: initialTotal,
+            current: currentIndex,
+            currentDate: task.date
           });
-          this.updateState('IDLE');
-          return { success: true, processedCount: 1, errors: [] };
-        }
 
-        try {
-          const dayDate = parse(task.date, 'yyyy-MM-dd', new Date());
-          const messages = await PromptBuilder.build(dayTxs, dayDate, ledgerName);
-          const responseText = await client.chat(messages);
+          // 读取该日交易
+          const memory = await readMemoryFile(fileHandle);
+          const txs = Object.values(memory.records) as FullTransactionRecord[];
+          const dayTxs = txs.filter(tx => normalizeToDateKey(tx.time) === task.date);
 
-          const aiResult = JSON.parse(responseText);
-          if (!aiResult.results || !Array.isArray(aiResult.results)) {
-            throw new Error('Invalid AI response structure');
-          }
-
-          if (this.proposalHandler) {
-            const timestamp = Date.now();
-            const latestMemory = await readMemoryFile(fileHandle);
-            for (const item of aiResult.results as Array<{ id: string; category: string; reasoning?: string }>) {
-              if (!item.id || !item.category) {
-                continue;
-              }
-
-              const existing = latestMemory.records[item.id] as FullTransactionRecord | undefined;
-              if (existing?.is_verified) {
-                continue;
-              }
-
-              const proposal: Proposal = {
-                source: 'AI_AGENT',
-                category: item.category,
-                reasoning: item.reasoning || '',
-                timestamp,
-                txId: item.id
-              };
-              this.proposalHandler(item.id, proposal);
+          if (dayTxs.length === 0) {
+            /**
+             * 空任务处理：
+             * - 通过 revision CAS 删除，避免并发重入时误删新任务；
+             * - 仅在成功删除后累计 emptyTask 指标。
+             */
+            const removedByCas = await classifyQueue.removeIfRevisionMatch(ledgerName, task.date, revision);
+            if (removedByCas) {
+              const emptyCount = await classifyQueue.incrementEmptyTaskConsumed(ledgerName, task.date);
+              console.log(`[BatchProcessor] Empty task consumed for ${ledgerName}/${task.date}, count=${emptyCount}`);
             }
-          } else {
-            console.warn('[BatchProcessor] No proposal handler registered! Results are lost.');
+            this.emit('dayCompleted', {
+              date: task.date,
+              processedTxsCount: 0,
+              success: true
+            });
+            processedCount++;
+            continue;
           }
 
-          this.emit('dayCompleted', {
-            date: task.date,
-            processedTxsCount: dayTxs.length,
-            success: true
-          });
-          /**
-           * 成功后按 CAS 出队，若 revision 已变化，说明队列被并发更新，不应误删。
-           */
-          await classifyQueue.removeIfRevisionMatch(ledgerName, task.date, revision);
+          try {
+            const dayDate = parse(task.date, 'yyyy-MM-dd', new Date());
+            const messages = await PromptBuilder.build(dayTxs, dayDate, ledgerName);
+            const responseText = await client.chat(messages);
 
-          this.updateState('IDLE');
-          return { success: true, processedCount: 1, errors: [] };
-        } catch (e: unknown) {
-          /**
-           * 失败不出队：保留同日任务等待后续重试，满足“失败不丢任务”约束。
-           */
-          const errorMessage = e instanceof Error ? e.message : String(e);
-          this.emit('dayCompleted', {
-            date: task.date,
-            processedTxsCount: dayTxs.length,
-            success: false,
-            error: errorMessage
-          });
-          this.updateState('IDLE');
-          return { success: false, processedCount: 0, errors: [`${task.date}: ${errorMessage}`] };
+            const aiResult = JSON.parse(responseText);
+            if (!aiResult.results || !Array.isArray(aiResult.results)) {
+              throw new Error('Invalid AI response structure');
+            }
+
+            if (this.proposalHandler) {
+              const timestamp = Date.now();
+              // 写回前重新读取最新内存，确保 is_verified 二次校验基于最新状态
+              const latestMemory = await readMemoryFile(fileHandle);
+              for (const item of aiResult.results as Array<{ id: string; category: string; reasoning?: string }>) {
+                if (!item.id || !item.category) {
+                  continue;
+                }
+
+                const existing = latestMemory.records[item.id] as FullTransactionRecord | undefined;
+                // 锁定竞态保护：写回前二次校验 is_verified，已锁定则丢弃该条 proposal
+                if (existing?.is_verified) {
+                  continue;
+                }
+
+                const proposal: Proposal = {
+                  source: 'AI_AGENT',
+                  category: item.category,
+                  reasoning: item.reasoning || '',
+                  timestamp,
+                  txId: item.id
+                };
+                this.proposalHandler(item.id, proposal);
+              }
+            } else {
+              console.warn('[BatchProcessor] No proposal handler registered! Results are lost.');
+            }
+
+            this.emit('dayCompleted', {
+              date: task.date,
+              processedTxsCount: dayTxs.length,
+              success: true
+            });
+            /**
+             * 成功后按 CAS 出队，若 revision 已变化说明队列被并发更新，不应误删。
+             */
+            await classifyQueue.removeIfRevisionMatch(ledgerName, task.date, revision);
+            processedCount++;
+          } catch (e: unknown) {
+            /**
+             * 单日失败不出队：任务保留等后续重试，满足”失败不丢任务”约束。
+             * 跳过该日继续处理下一任务，避免单日错误卡死整个消费循环。
+             */
+            const errorMessage = e instanceof Error ? e.message : String(e);
+            allErrors.push(`${task.date}: ${errorMessage}`);
+            this.emit('dayCompleted', {
+              date: task.date,
+              processedTxsCount: dayTxs.length,
+              success: false,
+              error: errorMessage
+            });
+            console.error(`[BatchProcessor] Day ${task.date} failed, kept in queue for retry:`, errorMessage);
+
+            /**
+             * 失败后将该任务移到队尾，避免同一失败任务反复阻塞队列头部。
+             * 实现方式：先移除，再重新入队（入队会追加到队尾）。
+             * 若移除或重新入队失败，任务仍保留在队头，下次 run 时再次尝试。
+             */
+            const movedToTail = await classifyQueue.removeIfRevisionMatch(ledgerName, task.date, revision);
+            if (movedToTail) {
+              await classifyQueue.enqueue({ ledger: ledgerName, date: task.date });
+              console.log(`[BatchProcessor] Moved failed task to tail: ${ledgerName}/${task.date}`);
+            }
+            // 单日失败后退出循环，避免反复失败消耗资源；下次用户手动重试
+            break;
+          }
         }
+
+        this.updateState('IDLE', { total: initialTotal, current: currentIndex, currentDate: '' });
+        return {
+          success: allErrors.length === 0,
+          processedCount,
+          errors: allErrors
+        };
       } catch (e: unknown) {
         const errorMessage = e instanceof Error ? e.message : String(e);
         this.updateState('ERROR');

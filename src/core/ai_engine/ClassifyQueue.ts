@@ -280,6 +280,12 @@ export class ClassifyQueue {
    * @returns 是否成功添加
    */
   public async enqueue(task: Omit<ClassifyTask, 'enqueuedAt'>): Promise<boolean> {
+    // 防御性校验：日期不能为空，避免创建无意义任务
+    if (!task.date || task.date.trim() === '') {
+      console.warn(`[ClassifyQueue] Rejected enqueue for ${task.ledger}: empty date`);
+      return false;
+    }
+
     await this.ensureLedgerLoaded(task.ledger);
 
     const ledgerQueue = this.ledgerTasks.get(task.ledger)!;

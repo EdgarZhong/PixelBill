@@ -9,6 +9,7 @@ import { MemoryManager } from '../../core/services/MemoryManager';
 import { SnapshotManager, type SnapshotMeta, type SnapshotContent } from '../../core/services/SnapshotManager';
 import { LearningSession } from '../../core/ai_engine/LearningSession';
 import { LedgerService } from '../../core/services/LedgerService';
+import { ReclassifyConfirmDialog, type ReclassifyMode } from './ReclassifyConfirmDialog';
 
 interface SettingsPageProps {
   /** 是否打开 */
@@ -1086,6 +1087,17 @@ const CategoryManagementPanel: React.FC<CategoryManagementPanelProps> = ({ onBac
     text: ''
   });
 
+  /**
+   * 渐进式重分类对话框状态
+   * - dialogMode: 操作类型（add / delete / update_desc）
+   * - dialogCategory: 操作涉及的标签名
+   * - dialogAffectedDates: delete 模式下前置改写已计算的受影响日期
+   */
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [dialogMode, setDialogMode] = useState<ReclassifyMode>('add');
+  const [dialogCategory, setDialogCategory] = useState<string | undefined>(undefined);
+  const [dialogAffectedDates, setDialogAffectedDates] = useState<string[]>([]);
+
   const loadCategories = useCallback(async () => {
     const service = LedgerService.getInstance();
     const categoryMap = service.getCategories();
@@ -1115,6 +1127,9 @@ const CategoryManagementPanel: React.FC<CategoryManagementPanelProps> = ({ onBac
     }, 2500);
   }, []);
 
+  /**
+   * 新增标签：先完成标签写入，再弹出范围确认对话框
+   */
   const handleAdd = useCallback(async () => {
     const service = LedgerService.getInstance();
     const result = await service.addCategory(newName, newDescription);
@@ -1126,13 +1141,17 @@ const CategoryManagementPanel: React.FC<CategoryManagementPanelProps> = ({ onBac
     setNewName('');
     setNewDescription('');
     await loadCategories();
-    if (!result.enqueueSuccess) {
-      showStatus('error', '标签已新增，但重分类日期入队失败，稍后可点重分类按钮启动消费');
-      return;
-    }
-    showStatus('success', `标签已新增，已入队 ${result.dirtyDates.length} 个日期；可点重分类按钮启动消费`);
+    showStatus('success', '标签已新增');
+    // 弹出范围确认对话框（模式 A：新增标签）
+    setDialogMode('add');
+    setDialogCategory(undefined);
+    setDialogAffectedDates([]);
+    setDialogOpen(true);
   }, [newDescription, newName, loadCategories, showStatus]);
 
+  /**
+   * 重命名标签：v5.1 冻结口径 —— 只改名，不触发重分类，不弹范围确认
+   */
   const handleRename = useCallback(async (oldName: string) => {
     const newCategoryName = window.prompt('请输入新的标签名称（仅支持小写字母、数字、下划线）', oldName);
     if (!newCategoryName || newCategoryName === oldName) {
@@ -1146,13 +1165,13 @@ const CategoryManagementPanel: React.FC<CategoryManagementPanelProps> = ({ onBac
     }
     await triggerHaptic(HapticFeedbackLevel.MEDIUM);
     await loadCategories();
-    if (!result.enqueueSuccess) {
-      showStatus('error', `已重命名并标记 ${result.dirtyDates.length} 天待重分类，但入队补偿失败，请稍后点重分类按钮启动消费`);
-      return;
-    }
-    showStatus('success', `已将 ${oldName} 重命名为 ${newCategoryName.toLowerCase().trim()}，并完成 ${result.dirtyDates.length} 天入队，点重分类按钮即可启动消费`);
+    // 重命名不触发重分类（冻结口径），直接给结果反馈
+    showStatus('success', `已将 [${oldName}] 重命名为 [${newCategoryName.toLowerCase().trim()}]`);
   }, [loadCategories, showStatus]);
 
+  /**
+   * 修改标签描述：先完成描述写入，再弹出范围确认对话框
+   */
   const handleUpdateDescription = useCallback(async (name: string, currentDescription: string) => {
     const nextDescription = window.prompt('请输入新的标签说明', currentDescription);
     if (nextDescription === null || nextDescription === currentDescription) {
@@ -1166,13 +1185,18 @@ const CategoryManagementPanel: React.FC<CategoryManagementPanelProps> = ({ onBac
     }
     await triggerHaptic(HapticFeedbackLevel.LIGHT);
     await loadCategories();
-    if (!result.enqueueSuccess) {
-      showStatus('error', `标签 ${name} 说明已更新，但入队失败，稍后可点重分类按钮启动消费`);
-      return;
-    }
-    showStatus('success', `标签 ${name} 说明已更新，已入队 ${result.dirtyDates.length} 个日期`);
+    showStatus('success', `标签 [${name}] 说明已更新`);
+    // 弹出范围确认对话框（模式：修改描述）
+    setDialogMode('update_desc');
+    setDialogCategory(name);
+    setDialogAffectedDates([]);
+    setDialogOpen(true);
   }, [loadCategories, showStatus]);
 
+  /**
+   * 删除标签：先完成删除与前置改写，再弹出范围确认对话框
+   * 前置改写（重置分类+解锁+清理实例库）在 deleteCategory 内部同步完成。
+   */
   const handleDelete = useCallback(async (name: string) => {
     const confirmed = window.confirm(`确定删除标签 "${name}" 吗？该标签下交易会被重置为未分类。`);
     if (!confirmed) {
@@ -1186,11 +1210,12 @@ const CategoryManagementPanel: React.FC<CategoryManagementPanelProps> = ({ onBac
     }
     await triggerHaptic(HapticFeedbackLevel.HEAVY);
     await loadCategories();
-    if (!result.enqueueSuccess) {
-      showStatus('error', `标签已删除，受影响交易 ${result.affectedTxIds.length} 条；${result.dirtyDates.length} 天入队失败，请稍后点重分类按钮启动消费`);
-      return;
-    }
-    showStatus('success', `标签已删除，受影响交易 ${result.affectedTxIds.length} 条；${result.dirtyDates.length} 天已入队，点重分类按钮即可启动消费`);
+    showStatus('success', `标签已删除，受影响交易 ${result.affectedTxIds.length} 条`);
+    // 弹出范围确认对话框（模式 B：删除标签，直接选范围）
+    setDialogMode('delete');
+    setDialogCategory(name);
+    setDialogAffectedDates(result.dirtyDates);
+    setDialogOpen(true);
   }, [loadCategories, showStatus]);
 
   return (
@@ -1296,10 +1321,20 @@ const CategoryManagementPanel: React.FC<CategoryManagementPanelProps> = ({ onBac
           <span className="text-alipay-blue">[CATEGORY_POLICY]</span>
           <br />
           删除标签后，关联交易会被重置为未分类并强制解锁；标签名仅支持小写字母、数字和下划线。
+          重命名标签不触发重分类。
         </div>
       </div>
 
       <div className="h-4" />
+
+      {/* 渐进式重分类范围确认对话框 */}
+      <ReclassifyConfirmDialog
+        isOpen={dialogOpen}
+        onClose={() => setDialogOpen(false)}
+        mode={dialogMode}
+        categoryName={dialogCategory}
+        affectedDirtyDates={dialogAffectedDates}
+      />
     </motion.div>
   );
 };

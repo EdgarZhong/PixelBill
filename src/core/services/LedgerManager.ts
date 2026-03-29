@@ -20,6 +20,7 @@ import type { LedgerMemory } from '../../types/metadata';
 import { format } from 'date-fns';
 import { classifyQueue } from '../ai_engine/ClassifyQueue';
 import { classifyTrigger } from '../ai_engine/ClassifyTrigger';
+import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
 
 /**
  * LedgerManager - 账本管理器（决策层）
@@ -354,6 +355,20 @@ export class LedgerManager {
       }
       this.ledgerService.loadFromHandle(newHandle, normalized.memory);
 
+      /**
+       * 切换账本后自动恢复目标账本的补偿入队记录。
+       * 确保在上次 App 崩溃或入队失败后遗留的 recovery 文件能在切换时被及时重放，
+       * 而不是等到下次 App 冷启动才触发恢复。
+       */
+      const recoveryResult = await classifyTrigger.recoverPending(ledgerName);
+      if (recoveryResult.attempted > 0) {
+        console.log('[LedgerManager] Recovered pending classify dates on switch:', {
+          ledger: ledgerName,
+          attempted: recoveryResult.attempted,
+          failed: recoveryResult.failedDates.length
+        });
+      }
+
       console.log('[LedgerManager] Switched to ledger:', ledgerName);
       return true;
     } catch (error) {
@@ -470,10 +485,11 @@ export class LedgerManager {
         return false;
       }
 
-      // 3. 删除物理文件
+      // 3. 删除物理文件及所有关联的 AI 数据文件
       await deleteLedgerFile(this.ledgerDirHandle, ledgerName);
       await classifyQueue.removeByLedger(ledgerName);
       await classifyTrigger.clearRecoveryByLedger(ledgerName);
+      await this.deleteLedgerAIFiles(ledgerName);
 
       // 4. 更新索引
       const updatedLedgers = index.ledgers.filter(l => l.name !== ledgerName);
@@ -559,6 +575,7 @@ export class LedgerManager {
       await deleteLedgerFile(this.ledgerDirHandle, oldName);
       await classifyQueue.renameLedger(oldName, sanitizedNewName);
       await classifyTrigger.renameRecoveryLedger(oldName, sanitizedNewName);
+      await this.renameLedgerAIFiles(oldName, sanitizedNewName);
 
       const now = new Date().toISOString();
       const updatedLedgers = index.ledgers.map(l =>
@@ -599,6 +616,154 @@ export class LedgerManager {
    */
   public getLedgerService(): LedgerService {
     return this.ledgerService;
+  }
+
+  /**
+   * 删除账本时清理所有关联的 AI 数据文件：
+   * - Documents/PixelBill/classify_memory/{ledger}.md
+   * - 沙箱 classify_examples/{ledger}.json
+   * - 沙箱 memory_snapshots/{ledger}/ 整个目录（含 index.json 和所有快照文件）
+   *
+   * 任一文件不存在时静默忽略，不影响整体删除流程。
+   */
+  private async deleteLedgerAIFiles(ledgerName: string): Promise<void> {
+    // 1. 删除记忆文件（Documents）
+    try {
+      await Filesystem.deleteFile({
+        path: `PixelBill/classify_memory/${ledgerName}.md`,
+        directory: Directory.Documents
+      });
+      console.log(`[LedgerManager] Deleted memory file for: ${ledgerName}`);
+    } catch {
+      // 文件不存在时静默忽略
+    }
+
+    // 2. 删除实例库文件（沙箱）
+    try {
+      await Filesystem.deleteFile({
+        path: `classify_examples/${ledgerName}.json`,
+        directory: Directory.Data
+      });
+      console.log(`[LedgerManager] Deleted examples file for: ${ledgerName}`);
+    } catch {
+      // 文件不存在时静默忽略
+    }
+
+    // 3. 删除快照目录（沙箱）：先列出所有文件，逐一删除，再删目录
+    const snapshotDir = `memory_snapshots/${ledgerName}`;
+    try {
+      const result = await Filesystem.readdir({
+        path: snapshotDir,
+        directory: Directory.Data
+      });
+      for (const entry of result.files) {
+        const fileName = typeof entry === 'string' ? entry : entry.name;
+        try {
+          await Filesystem.deleteFile({
+            path: `${snapshotDir}/${fileName}`,
+            directory: Directory.Data
+          });
+        } catch {
+          // 单文件删除失败不中断
+        }
+      }
+      // Capacitor Filesystem 没有 rmdir，逐文件删除后目录自然为空
+      console.log(`[LedgerManager] Deleted snapshots for: ${ledgerName}`);
+    } catch {
+      // 目录不存在时静默忽略
+    }
+  }
+
+  /**
+   * 重命名账本时迁移所有关联的 AI 数据文件：
+   * - classify_memory/{old}.md → classify_memory/{new}.md（Documents）
+   * - classify_examples/{old}.json → classify_examples/{new}.json（沙箱）
+   * - memory_snapshots/{old}/ → memory_snapshots/{new}/（沙箱，逐文件复制）
+   *
+   * 任一源文件不存在时静默跳过，不影响整体重命名流程。
+   */
+  private async renameLedgerAIFiles(oldName: string, newName: string): Promise<void> {
+    // 1. 迁移记忆文件（Documents）
+    try {
+      const memResult = await Filesystem.readFile({
+        path: `PixelBill/classify_memory/${oldName}.md`,
+        directory: Directory.Documents,
+        encoding: Encoding.UTF8
+      });
+      await Filesystem.writeFile({
+        path: `PixelBill/classify_memory/${newName}.md`,
+        data: memResult.data as string,
+        directory: Directory.Documents,
+        encoding: Encoding.UTF8,
+        recursive: true
+      });
+      await Filesystem.deleteFile({
+        path: `PixelBill/classify_memory/${oldName}.md`,
+        directory: Directory.Documents
+      });
+      console.log(`[LedgerManager] Migrated memory file: ${oldName} -> ${newName}`);
+    } catch {
+      // 源文件不存在时静默忽略
+    }
+
+    // 2. 迁移实例库文件（沙箱）
+    try {
+      const exResult = await Filesystem.readFile({
+        path: `classify_examples/${oldName}.json`,
+        directory: Directory.Data,
+        encoding: Encoding.UTF8
+      });
+      await Filesystem.writeFile({
+        path: `classify_examples/${newName}.json`,
+        data: exResult.data as string,
+        directory: Directory.Data,
+        encoding: Encoding.UTF8,
+        recursive: true
+      });
+      await Filesystem.deleteFile({
+        path: `classify_examples/${oldName}.json`,
+        directory: Directory.Data
+      });
+      console.log(`[LedgerManager] Migrated examples file: ${oldName} -> ${newName}`);
+    } catch {
+      // 源文件不存在时静默忽略
+    }
+
+    // 3. 迁移快照目录（沙箱）：逐文件复制到新目录，成功后删除旧目录文件
+    const oldSnapshotDir = `memory_snapshots/${oldName}`;
+    const newSnapshotDir = `memory_snapshots/${newName}`;
+    try {
+      const result = await Filesystem.readdir({
+        path: oldSnapshotDir,
+        directory: Directory.Data
+      });
+      for (const entry of result.files) {
+        const fileName = typeof entry === 'string' ? entry : entry.name;
+        try {
+          const fileResult = await Filesystem.readFile({
+            path: `${oldSnapshotDir}/${fileName}`,
+            directory: Directory.Data,
+            encoding: Encoding.UTF8
+          });
+          await Filesystem.writeFile({
+            path: `${newSnapshotDir}/${fileName}`,
+            data: fileResult.data as string,
+            directory: Directory.Data,
+            encoding: Encoding.UTF8,
+            recursive: true
+          });
+          await Filesystem.deleteFile({
+            path: `${oldSnapshotDir}/${fileName}`,
+            directory: Directory.Data
+          });
+        } catch {
+          // 单文件迁移失败不中断整体流程
+        }
+      }
+      console.log(`[LedgerManager] Migrated snapshots: ${oldName} -> ${newName}`);
+    } catch {
+      // 旧快照目录不存在时静默忽略
+    }
   }
 
   /**

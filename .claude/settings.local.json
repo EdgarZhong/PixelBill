@@ -5,7 +5,8 @@
       "Bash(powershell -Command \"Get-Host | Select-Object Version\")",
       "Bash(npx tsc:*)",
       "Bash(npm run build)",
-      "Bash(npm run:*)"
+      "Bash(npm run:*)",
+      "Bash(wc -l /root/projects/PixelBill/src/core/ai_engine/*.ts /root/projects/PixelBill/src/core/services/*.ts)"
     ]
   }
 }
