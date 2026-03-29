@@ -5,6 +5,7 @@ import { DateRangePicker } from '../components/mobile/DateRangePicker';
 import { DetailPage } from '../components/mobile/DetailPage';
 import { PullIndicator } from '../components/mobile/PullIndicator';
 import { SettingsPage } from '../components/mobile/SettingsPage';
+import { VerticalCategoryPicker } from '../components/mobile/VerticalCategoryPicker';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAppLogic } from '../hooks/useAppLogic';
 import { useSafeArea, injectSafeAreaCSS } from '../hooks/useSafeArea';
@@ -47,6 +48,12 @@ export function MobileApp() {
   const [isDetailAnimating, setIsDetailAnimating] = useState(false);
   const [scaleOrigin, setScaleOrigin] = useState('50% 50%');
   const [lastSelectedId, setLastSelectedId] = useState<string | null>(null);
+  const [quickEditTarget, setQuickEditTarget] = useState<Transaction | null>(null);
+  const [isQuickPickerOpen, setIsQuickPickerOpen] = useState(false);
+  const [quickReasonTargetId, setQuickReasonTargetId] = useState<string | null>(null);
+  const [isQuickReasonBarVisible, setIsQuickReasonBarVisible] = useState(false);
+  const [isQuickNoteEditorOpen, setIsQuickNoteEditorOpen] = useState(false);
+  const [quickNoteDraft, setQuickNoteDraft] = useState('');
 
   // [CHOOSE_LEDGER]状态
   const [ledgers, setLedgers] = useState<LedgerMeta[]>([]);
@@ -79,8 +86,35 @@ export function MobileApp() {
   const hadAiPatchRef = useRef(false);
   const delayTimeoutRef = useRef<number | null>(null);
   const auraOffTimeoutRef = useRef<number | null>(null);
+  const quickReasonTimeoutRef = useRef<number | null>(null);
   // 账本面板打开后的延迟同步定时器，避免首帧卡顿
   const ledgerOpenSyncTimeoutRef = useRef<number | null>(null);
+  const quickEditCategories = useMemo(
+    () => (ledgerMemory ? Object.keys(ledgerMemory.defined_categories || {}) : []),
+    [ledgerMemory]
+  );
+
+  const hideQuickReasonBar = useCallback(() => {
+    if (quickReasonTimeoutRef.current) {
+      window.clearTimeout(quickReasonTimeoutRef.current);
+      quickReasonTimeoutRef.current = null;
+    }
+    setIsQuickReasonBarVisible(false);
+    setQuickReasonTargetId(null);
+  }, []);
+
+  const showQuickReasonBar = useCallback((txId: string) => {
+    if (quickReasonTimeoutRef.current) {
+      window.clearTimeout(quickReasonTimeoutRef.current);
+    }
+    setQuickReasonTargetId(txId);
+    setIsQuickReasonBarVisible(true);
+    quickReasonTimeoutRef.current = window.setTimeout(() => {
+      setIsQuickReasonBarVisible(false);
+      setQuickReasonTargetId(null);
+      quickReasonTimeoutRef.current = null;
+    }, 3000);
+  }, []);
 
   const triggerPulse = useCallback(() => {
     const now = Date.now();
@@ -336,6 +370,10 @@ export function MobileApp() {
         window.clearTimeout(auraOffTimeoutRef.current);
         auraOffTimeoutRef.current = null;
       }
+      if (quickReasonTimeoutRef.current) {
+        window.clearTimeout(quickReasonTimeoutRef.current);
+        quickReasonTimeoutRef.current = null;
+      }
     };
   }, []);
 
@@ -387,6 +425,52 @@ export function MobileApp() {
       setSelectedTxId(null);
     }
   };
+
+  const handleQuickCategoryTrigger = useCallback((t: Transaction) => {
+    if (quickEditCategories.length === 0) return;
+    setQuickEditTarget(t);
+    setIsQuickPickerOpen(true);
+  }, [quickEditCategories.length]);
+
+  const handleQuickCategorySelect = useCallback((newCategory: string) => {
+    if (!quickEditTarget) return;
+    const changed = quickEditTarget.category !== newCategory;
+    setIsQuickPickerOpen(false);
+    if (!changed) {
+      setQuickEditTarget(null);
+      return;
+    }
+    updateCategory(quickEditTarget.id, newCategory, '');
+    setQuickNoteDraft('');
+    setIsQuickNoteEditorOpen(false);
+    showQuickReasonBar(quickEditTarget.id);
+    setQuickEditTarget(null);
+  }, [quickEditTarget, showQuickReasonBar, updateCategory]);
+
+  const openQuickNoteEditor = useCallback(() => {
+    if (!quickReasonTargetId) return;
+    if (quickReasonTimeoutRef.current) {
+      window.clearTimeout(quickReasonTimeoutRef.current);
+      quickReasonTimeoutRef.current = null;
+    }
+    setIsQuickReasonBarVisible(false);
+    setIsQuickNoteEditorOpen(true);
+  }, [quickReasonTargetId]);
+
+  const closeQuickNoteEditor = useCallback(() => {
+    setIsQuickNoteEditorOpen(false);
+    hideQuickReasonBar();
+    setQuickNoteDraft('');
+  }, [hideQuickReasonBar]);
+
+  const saveQuickNote = useCallback(() => {
+    if (!quickReasonTargetId) return;
+    setUserNote(quickReasonTargetId, quickNoteDraft.trim());
+    setIsQuickNoteEditorOpen(false);
+    hideQuickReasonBar();
+    setQuickNoteDraft('');
+  }, [hideQuickReasonBar, quickNoteDraft, quickReasonTargetId, setUserNote]);
+
   const tabContainerRef = useRef<HTMLDivElement>(null);
   // 修改 ref 类型以支持 Framer Motion controls
   const animationFrameRef = useRef<number | null>(null);
@@ -978,6 +1062,7 @@ export function MobileApp() {
               <TransactionList 
                 transactions={delayedTransactions}
                 onTransactionClick={handleTransactionSelect}
+                onTransactionCategoryClick={handleQuickCategoryTrigger}
                 isMobile={true}
                 activeTransactionId={activeTransactionId}
                 currentFilter={filter}
@@ -1037,6 +1122,121 @@ export function MobileApp() {
               }
             }}
           />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {isQuickPickerOpen && quickEditTarget && quickEditCategories.length > 0 && (
+          <div className="fixed inset-0 z-[70] flex items-center justify-center px-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="absolute inset-0 bg-black/40 backdrop-blur-[1px]"
+              onClick={() => {
+                setIsQuickPickerOpen(false);
+                setQuickEditTarget(null);
+              }}
+            />
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="relative w-full max-w-xs bg-card border border-gray-600 shadow-[0_0_15px_rgba(255,255,255,0.05)] rounded-sm overflow-hidden flex flex-col"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="h-64 relative w-full">
+                <VerticalCategoryPicker
+                  key={`quick-picker-${quickEditTarget.id}`}
+                  categories={quickEditCategories}
+                  selectedCategory={quickEditTarget.category}
+                  onSelect={handleQuickCategorySelect}
+                />
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {isQuickReasonBarVisible && quickReasonTargetId && !isQuickNoteEditorOpen && (
+          <motion.div
+            initial={{ y: 24, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 24, opacity: 0 }}
+            transition={{ duration: 0.3, ease: 'easeInOut' }}
+            className="fixed left-3 right-3 z-[65] bg-card/95 border border-pixel-green/40 rounded-sm px-3 py-2"
+            style={{ bottom: `max(12px, ${safeArea.bottom}px)` }}
+          >
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[11px] text-primary">想告诉 AI 为什么改吗？</span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={openQuickNoteEditor}
+                  className="text-[11px] px-2 py-1 bg-pixel-green/20 text-pixel-green rounded-sm"
+                >
+                  ✏️ 文字
+                </button>
+                <button
+                  type="button"
+                  onClick={hideQuickReasonBar}
+                  className="text-[11px] px-2 py-1 text-dim border border-gray-700 rounded-sm"
+                >
+                  × 关闭
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {isQuickNoteEditorOpen && quickReasonTargetId && (
+          <div className="fixed inset-0 z-[72] flex items-end">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="absolute inset-0 bg-black/40"
+              onClick={closeQuickNoteEditor}
+            />
+            <motion.div
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ duration: 0.3, ease: [0.25, 1, 0.5, 1] }}
+              className="relative w-full bg-card border-t border-gray-700 p-4 space-y-3"
+              style={{ paddingBottom: `max(1rem, ${safeArea.bottom}px)` }}
+            >
+              <div className="text-xs text-dim uppercase tracking-wider">补充修正理由</div>
+              <textarea
+                value={quickNoteDraft}
+                onChange={(e) => setQuickNoteDraft(e.target.value)}
+                placeholder="例如：这是团建聚餐，不是日常正餐"
+                className="w-full h-24 bg-background border border-gray-700 rounded-sm px-3 py-2 text-sm text-primary focus:outline-none focus:border-pixel-green"
+              />
+              <div className="flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={closeQuickNoteEditor}
+                  className="px-3 py-1.5 text-xs border border-gray-700 text-dim rounded-sm"
+                >
+                  取消
+                </button>
+                <button
+                  type="button"
+                  onClick={saveQuickNote}
+                  className="px-3 py-1.5 text-xs bg-pixel-green/20 text-pixel-green border border-pixel-green/40 rounded-sm"
+                >
+                  保存
+                </button>
+              </div>
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
 

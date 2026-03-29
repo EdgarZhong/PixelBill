@@ -9,6 +9,7 @@ import { AuraOverlay, type AuraOverlayHandle } from './AuraOverlay';
 interface TransactionListProps {
   transactions: Transaction[];
   onTransactionClick?: (transaction: Transaction) => void;
+  onTransactionCategoryClick?: (transaction: Transaction) => void;
   isMobile?: boolean;
   activeTransactionId?: string | null;
   currentFilter?: string;
@@ -19,6 +20,7 @@ interface TransactionListProps {
 const TransactionListComponent: React.FC<TransactionListProps> = ({ 
   transactions, 
   onTransactionClick, 
+  onTransactionCategoryClick,
   isMobile = false, 
   activeTransactionId,
   currentFilter = 'ALL',
@@ -223,6 +225,7 @@ const TransactionListComponent: React.FC<TransactionListProps> = ({
                     <TransactionItem
                       transaction={t}
                       onClick={onTransactionClick}
+                      onCategoryClick={onTransactionCategoryClick}
                       isActive={t.id === activeTransactionId}
                       currentFilter={currentFilter}
                     />

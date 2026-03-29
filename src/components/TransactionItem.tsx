@@ -7,6 +7,7 @@ import clsx from 'clsx';
 interface TransactionItemProps {
   transaction: Transaction;
   onClick?: (transaction: Transaction) => void;
+  onCategoryClick?: (transaction: Transaction) => void;
   isActive?: boolean;
   currentFilter?: string;
 }
@@ -40,6 +41,7 @@ const AmountDots: React.FC<{ amount: number }> = ({ amount }) => {
 export const TransactionItem: React.FC<TransactionItemProps> = ({
   transaction: t,
   onClick,
+  onCategoryClick,
   isActive,
   currentFilter = 'ALL'
 }) => {
@@ -64,14 +66,20 @@ export const TransactionItem: React.FC<TransactionItemProps> = ({
         <div className="flex-1 min-w-0 pl-2">
           <div className="flex items-baseline gap-2 mb-1 h-5">
             <span className="text-primary truncate font-bold leading-none">
-              {currentFilter === 'ALL' && (
-                <span className={clsx(
-                  "mr-2 text-[10px]",
+              <button
+                type="button"
+                className={clsx(
+                  "mr-2 text-[10px] align-middle",
+                  currentFilter !== 'ALL' && "opacity-90",
                   t.category === 'uncategorized' ? "text-expense-red" : "text-income-yellow"
-                )}>
+                )}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onCategoryClick?.(t);
+                }}
+              >
                   [{CategoryDict[t.category] || t.category.toUpperCase()}]
-                </span>
-              )}
+              </button>
               {t.product !== '/' && t.product !== 'Unknown' ? t.product : t.counterparty}
             </span>
             <span className="text-[10px] text-dim truncate">{format(t.originalDate, 'MM-dd')}</span>
