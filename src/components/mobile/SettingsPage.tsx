@@ -8,6 +8,7 @@ import { ExampleStore } from '../../core/services/ExampleStore';
 import { MemoryManager } from '../../core/services/MemoryManager';
 import { SnapshotManager, type SnapshotMeta, type SnapshotContent } from '../../core/services/SnapshotManager';
 import { LearningSession } from '../../core/ai_engine/LearningSession';
+import { LedgerService } from '../../core/services/LedgerService';
 
 interface SettingsPageProps {
   /** 是否打开 */
@@ -69,7 +70,7 @@ const PREDEFINED_MODELS: Record<string, string[]> = {
   custom: [],
 };
 
-type PanelView = 'main' | 'ai-config' | 'theme' | 'user-context' | 'ai-memory';
+type PanelView = 'main' | 'ai-config' | 'theme' | 'user-context' | 'ai-memory' | 'manage-categories';
 
 /**
  * [设置页面] 组件
@@ -164,14 +165,9 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
       {
         id: 'categories',
         icon: <PixelIcon color="income-yellow" />,
-        label: 'CATEGORIES',
-        onClick: () => console.log('Manage categories')
-      },
-      {
-        id: 'rules',
-        icon: <PixelIcon color="alipay-blue" />,
-        label: 'AUTO_RULES',
-        onClick: () => console.log('Auto rules')
+        label: 'MANAGE_CATEGORIES',
+        value: 'CONFIGURE',
+        onClick: () => setCurrentView('manage-categories')
       },
       {
         id: 'clear',
@@ -239,6 +235,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                  currentView === 'ai-config' ? '[AI_API_CONFIG]' :
                  currentView === 'theme' ? '[THEME]' :
                  currentView === 'user-context' ? '[SELF_DESCRIPTION]' :
+                 currentView === 'manage-categories' ? '[MANAGE_CATEGORIES]' :
                  currentView === 'ai-memory' ? '[AI_MEMORY]' : '[SETTINGS]'}
               </div>
               <button
@@ -291,6 +288,13 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                   <AIMemoryPanel
                     key="ai-memory"
                     ledgerName={activeLedger}
+                    onBack={() => setCurrentView('main')}
+                    transition={panelTransition}
+                  />
+                )}
+                {currentView === 'manage-categories' && (
+                  <CategoryManagementPanel
+                    key="manage-categories"
                     onBack={() => setCurrentView('main')}
                     transition={panelTransition}
                   />
@@ -511,10 +515,10 @@ const AIConfigPanel: React.FC<AIConfigPanelProps> = ({ onBack, transition }) => 
       const finalModel = selectedProvider === 'custom' ? customModel.trim() : selectedModel;
 
       if (!apiKey.trim()) {
-        throw new Error('API Key is required');
+        throw new Error('请先填写 API Key');
       }
       if (!finalBaseUrl) {
-        throw new Error('Base URL is required');
+        throw new Error('请先填写 Base URL');
       }
 
       // 构建请求 URL（去掉末尾的 /，避免双斜杠）
@@ -546,11 +550,11 @@ const AIConfigPanel: React.FC<AIConfigPanelProps> = ({ onBack, transition }) => 
       const data = await response.json();
       if (data.choices?.[0]?.message?.content) {
         setTestStatus('success');
-        const successMsg = `✓ Connected (${finalModel || 'default'})`;
+        const successMsg = `✓ 连接成功（模型：${finalModel || 'default'}）`;
         setTestMessage(successMsg);
         await triggerHaptic(HapticFeedbackLevel.MEDIUM);
       } else {
-        throw new Error('Invalid response format');
+        throw new Error('响应格式无效');
       }
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : String(err);
@@ -793,8 +797,8 @@ const ThemePanel: React.FC<ThemePanelProps> = ({
   transition
 }) => {
   const themes = [
-    { key: 'dark' as const, label: 'Dark Mode', desc: 'For night use' },
-    { key: 'light' as const, label: 'Light Mode', desc: 'For day use' },
+    { key: 'dark' as const, label: 'Dark Mode', desc: '适合夜间使用' },
+    { key: 'light' as const, label: 'Light Mode', desc: '适合白天使用' },
   ];
 
   const handleSelect = async (theme: 'dark' | 'light') => {
@@ -856,7 +860,7 @@ const ThemePanel: React.FC<ThemePanelProps> = ({
         <div className="text-[10px] text-dim font-mono leading-relaxed">
           <span className="text-pixel-green">[NOTE]</span>
           <br />
-          Theme settings applied and saved. Some elements may require a page refresh.
+          主题设置已应用并保存，部分界面元素可能需要刷新后生效。
         </div>
       </div>
 
@@ -980,8 +984,8 @@ const UserContextPanel: React.FC<UserContextPanelProps> = ({ onBack, transition 
       <div className="mb-6">
         <h3 className="text-sm font-mono text-gray-200 mb-2">[SELF_DESCRIPTION]</h3>
         <p className="text-[10px] text-dim font-mono leading-relaxed">
-          Add personal context to help AI better understand your classification preferences.
-          This context will be prepended to the system prompt.
+          添加你的消费习惯与分类偏好，帮助 AI 更准确理解你的记账方式。
+          这段内容会作为补充上下文注入提示词。
         </p>
       </div>
 
@@ -993,7 +997,7 @@ const UserContextPanel: React.FC<UserContextPanelProps> = ({ onBack, transition 
             value={userContext}
             onChange={(e) => setUserContext(e.target.value)}
             maxLength={MAX_SELF_DESCRIPTION_LENGTH}
-            placeholder={`Example:\nI usually categorize Starbucks as work meals because I drink coffee during meetings.\n\nAll transportation expenses under 50 yuan should be categorized as 'daily transport', while those over 50 yuan should be 'travel'.`}
+            placeholder={`示例：\n我经常把星巴克归到餐饮，因为大多是在开会时购买咖啡。\n\n交通费用中，50 元以下归为“日常通勤”，50 元以上归为“出行”。`}
             className="w-full min-h-[200px] p-4 bg-zinc-950 border border-gray-700 rounded
               text-xs font-mono text-gray-200 placeholder:text-gray-600
               focus:border-pixel-green focus:outline-none resize-none
@@ -1043,10 +1047,10 @@ const UserContextPanel: React.FC<UserContextPanelProps> = ({ onBack, transition 
             <span className="text-pixel-green">[USAGE_TIPS]</span>
           </div>
           <ul className="list-disc list-inside space-y-1 text-gray-500">
-            <li>Describe your spending habits and preferences</li>
-            <li>Explain special categorization rules</li>
-            <li>Mention specific merchants and how to categorize them</li>
-            <li>Keep it concise for best results (under 500 characters recommended)</li>
+            <li>描述你的消费习惯和分类偏好</li>
+            <li>说明你希望长期遵循的特殊分类规则</li>
+            <li>可提及常见商户及对应分类方式</li>
+            <li>建议精炼表达（推荐控制在 500 字以内）</li>
           </ul>
         </div>
       </div>
@@ -1056,12 +1060,245 @@ const UserContextPanel: React.FC<UserContextPanelProps> = ({ onBack, transition 
         <div className="text-[10px] text-dim font-mono leading-relaxed">
           <span className="text-alipay-blue">[ISOLATION_NOTE]</span>
           <br />
-          User context is isolated from system prompts and transaction data.
-          It is only used to supplement AI understanding and will not affect the rules engine.
+          用户自述与系统提示词、交易数据相互隔离。
+          它仅用于补充 AI 理解，不会改变规则引擎优先级。
         </div>
       </div>
 
       {/* 底部垫片 */}
+      <div className="h-4" />
+    </motion.div>
+  );
+};
+
+interface CategoryManagementPanelProps {
+  onBack: () => void;
+  transition: Transition;
+}
+
+const CategoryManagementPanel: React.FC<CategoryManagementPanelProps> = ({ onBack, transition }) => {
+  const [categories, setCategories] = useState<Array<{ name: string; description: string }>>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [newName, setNewName] = useState('');
+  const [newDescription, setNewDescription] = useState('');
+  const [status, setStatus] = useState<{ type: 'idle' | 'success' | 'error'; text: string }>({
+    type: 'idle',
+    text: ''
+  });
+
+  const loadCategories = useCallback(async () => {
+    const service = LedgerService.getInstance();
+    const categoryMap = service.getCategories();
+    const items = Object.entries(categoryMap).map(([name, description]) => ({
+      name,
+      description
+    }));
+    setCategories(items);
+  }, []);
+
+  useEffect(() => {
+    const init = async () => {
+      try {
+        setIsLoading(true);
+        await loadCategories();
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    void init();
+  }, [loadCategories]);
+
+  const showStatus = useCallback((type: 'success' | 'error', text: string) => {
+    setStatus({ type, text });
+    setTimeout(() => {
+      setStatus((prev) => (prev.text === text ? { type: 'idle', text: '' } : prev));
+    }, 2500);
+  }, []);
+
+  const handleAdd = useCallback(async () => {
+    const service = LedgerService.getInstance();
+    const result = await service.addCategory(newName, newDescription);
+    if (!result.success) {
+      showStatus('error', '新增标签失败，请检查名称格式（仅小写字母/数字/下划线）');
+      return;
+    }
+    await triggerHaptic(HapticFeedbackLevel.MEDIUM);
+    setNewName('');
+    setNewDescription('');
+    await loadCategories();
+    if (!result.enqueueSuccess) {
+      showStatus('error', '标签已新增，但重分类日期入队失败，稍后可点重分类按钮启动消费');
+      return;
+    }
+    showStatus('success', `标签已新增，已入队 ${result.dirtyDates.length} 个日期；可点重分类按钮启动消费`);
+  }, [newDescription, newName, loadCategories, showStatus]);
+
+  const handleRename = useCallback(async (oldName: string) => {
+    const newCategoryName = window.prompt('请输入新的标签名称（仅支持小写字母、数字、下划线）', oldName);
+    if (!newCategoryName || newCategoryName === oldName) {
+      return;
+    }
+    const service = LedgerService.getInstance();
+    const result = await service.renameCategory(oldName, newCategoryName);
+    if (!result.success) {
+      showStatus('error', '重命名失败，请检查名称格式或是否重复');
+      return;
+    }
+    await triggerHaptic(HapticFeedbackLevel.MEDIUM);
+    await loadCategories();
+    if (!result.enqueueSuccess) {
+      showStatus('error', `已重命名并标记 ${result.dirtyDates.length} 天待重分类，但入队补偿失败，请稍后点重分类按钮启动消费`);
+      return;
+    }
+    showStatus('success', `已将 ${oldName} 重命名为 ${newCategoryName.toLowerCase().trim()}，并完成 ${result.dirtyDates.length} 天入队，点重分类按钮即可启动消费`);
+  }, [loadCategories, showStatus]);
+
+  const handleUpdateDescription = useCallback(async (name: string, currentDescription: string) => {
+    const nextDescription = window.prompt('请输入新的标签说明', currentDescription);
+    if (nextDescription === null || nextDescription === currentDescription) {
+      return;
+    }
+    const service = LedgerService.getInstance();
+    const result = await service.updateCategoryDescription(name, nextDescription);
+    if (!result.success) {
+      showStatus('error', '更新说明失败，请稍后重试');
+      return;
+    }
+    await triggerHaptic(HapticFeedbackLevel.LIGHT);
+    await loadCategories();
+    if (!result.enqueueSuccess) {
+      showStatus('error', `标签 ${name} 说明已更新，但入队失败，稍后可点重分类按钮启动消费`);
+      return;
+    }
+    showStatus('success', `标签 ${name} 说明已更新，已入队 ${result.dirtyDates.length} 个日期`);
+  }, [loadCategories, showStatus]);
+
+  const handleDelete = useCallback(async (name: string) => {
+    const confirmed = window.confirm(`确定删除标签 "${name}" 吗？该标签下交易会被重置为未分类。`);
+    if (!confirmed) {
+      return;
+    }
+    const service = LedgerService.getInstance();
+    const result = await service.deleteCategory(name);
+    if (!result.success) {
+      showStatus('error', '删除失败，请稍后重试');
+      return;
+    }
+    await triggerHaptic(HapticFeedbackLevel.HEAVY);
+    await loadCategories();
+    if (!result.enqueueSuccess) {
+      showStatus('error', `标签已删除，受影响交易 ${result.affectedTxIds.length} 条；${result.dirtyDates.length} 天入队失败，请稍后点重分类按钮启动消费`);
+      return;
+    }
+    showStatus('success', `标签已删除，受影响交易 ${result.affectedTxIds.length} 条；${result.dirtyDates.length} 天已入队，点重分类按钮即可启动消费`);
+  }, [loadCategories, showStatus]);
+
+  return (
+    <motion.div
+      initial={{ x: 50, opacity: 0 }}
+      animate={{ x: 0, opacity: 1 }}
+      exit={{ x: 50, opacity: 0 }}
+      transition={transition}
+      className="absolute inset-0 overflow-y-auto p-6"
+    >
+      <button
+        onClick={onBack}
+        className="flex items-center gap-2 text-dim text-xs font-mono mb-6 hover:text-white transition-colors"
+      >
+        <span>‹</span>
+        <span>[BACK_TO_SETTINGS]</span>
+      </button>
+
+      <div className="mb-6 p-4 bg-zinc-950 border border-gray-800 rounded space-y-3">
+        <div className="text-[10px] text-dim font-mono tracking-wider">[ADD_CATEGORY]</div>
+        <input
+          type="text"
+          value={newName}
+          onChange={(e) => setNewName(e.target.value)}
+          placeholder="标签名（仅小写字母/数字/下划线）"
+          className="w-full px-4 py-3 bg-black/30 border border-gray-700 rounded
+            text-xs font-mono text-gray-200 placeholder:text-gray-600
+            focus:border-pixel-green focus:outline-none"
+        />
+        <input
+          type="text"
+          value={newDescription}
+          onChange={(e) => setNewDescription(e.target.value)}
+          placeholder="标签说明（可选）"
+          className="w-full px-4 py-3 bg-black/30 border border-gray-700 rounded
+            text-xs font-mono text-gray-200 placeholder:text-gray-600
+            focus:border-pixel-green focus:outline-none"
+        />
+        <button
+          onClick={handleAdd}
+          disabled={!newName.trim()}
+          className="w-full py-2.5 border border-pixel-green/50 rounded text-xs font-mono text-pixel-green
+            hover:bg-pixel-green/10 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+        >
+          [ADD]
+        </button>
+      </div>
+
+      {status.text && (
+        <div className={`mb-4 px-3 py-2 rounded text-xs font-mono ${
+          status.type === 'success' ? 'text-pixel-green bg-pixel-green/5 border border-pixel-green/30' : 'text-expense-red bg-expense-red/5 border border-expense-red/30'
+        }`}>
+          {status.text}
+        </div>
+      )}
+
+      {isLoading ? (
+        <div className="text-dim text-xs font-mono">[LOADING_CATEGORIES...]</div>
+      ) : categories.length === 0 ? (
+        <div className="text-xs font-mono text-gray-500">当前账本暂无标签</div>
+      ) : (
+        <div className="space-y-3">
+          {categories.map((item) => (
+            <div key={item.name} className="p-4 bg-zinc-950 border border-gray-800 rounded">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="text-sm font-mono text-income-yellow break-all">[{item.name}]</div>
+                  <div className="text-[10px] font-mono text-dim mt-1 break-words">
+                    {item.description || '暂无说明'}
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    onClick={() => void handleRename(item.name)}
+                    className="px-2 py-1.5 border border-gray-700 rounded text-[10px] font-mono text-gray-300 hover:border-gray-500"
+                  >
+                    [RENAME]
+                  </button>
+                  <button
+                    onClick={() => void handleUpdateDescription(item.name, item.description)}
+                    className="px-2 py-1.5 border border-gray-700 rounded text-[10px] font-mono text-gray-300 hover:border-gray-500"
+                  >
+                    [EDIT_DESC]
+                  </button>
+                  <button
+                    onClick={() => void handleDelete(item.name)}
+                    disabled={item.name === 'others'}
+                    className="px-2 py-1.5 border rounded text-[10px] font-mono transition-colors
+                      text-expense-red border-expense-red/30 hover:bg-expense-red/10
+                      disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    [DELETE]
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="mt-6 p-4 bg-zinc-950/50 border border-gray-800 rounded">
+        <div className="text-[10px] text-dim font-mono leading-relaxed">
+          <span className="text-alipay-blue">[CATEGORY_POLICY]</span>
+          <br />
+          删除标签后，关联交易会被重置为未分类并强制解锁；标签名仅支持小写字母、数字和下划线。
+        </div>
+      </div>
+
       <div className="h-4" />
     </motion.div>
   );

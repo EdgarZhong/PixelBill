@@ -19,6 +19,7 @@ import {
 import type { LedgerMemory } from '../../types/metadata';
 import { format } from 'date-fns';
 import { classifyQueue } from '../ai_engine/ClassifyQueue';
+import { classifyTrigger } from '../ai_engine/ClassifyTrigger';
 
 /**
  * LedgerManager - 账本管理器（决策层）
@@ -256,6 +257,14 @@ export class LedgerManager {
 
     // 调用 LedgerService 加载数据
     this.ledgerService.loadFromHandle(handle, normalized.memory);
+    const recoveryResult = await classifyTrigger.recoverPending(this.activeLedgerName);
+    if (recoveryResult.attempted > 0) {
+      console.log('[LedgerManager] Recovered pending classify dates:', {
+        ledger: this.activeLedgerName,
+        attempted: recoveryResult.attempted,
+        failed: recoveryResult.failedDates.length
+      });
+    }
 
     console.log('[LedgerManager] Loaded ledger:', this.activeLedgerName);
   }
@@ -464,6 +473,7 @@ export class LedgerManager {
       // 3. 删除物理文件
       await deleteLedgerFile(this.ledgerDirHandle, ledgerName);
       await classifyQueue.removeByLedger(ledgerName);
+      await classifyTrigger.clearRecoveryByLedger(ledgerName);
 
       // 4. 更新索引
       const updatedLedgers = index.ledgers.filter(l => l.name !== ledgerName);
@@ -548,6 +558,7 @@ export class LedgerManager {
 
       await deleteLedgerFile(this.ledgerDirHandle, oldName);
       await classifyQueue.renameLedger(oldName, sanitizedNewName);
+      await classifyTrigger.renameRecoveryLedger(oldName, sanitizedNewName);
 
       const now = new Date().toISOString();
       const updatedLedgers = index.ledgers.map(l =>

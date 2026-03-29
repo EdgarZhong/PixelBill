@@ -4,24 +4,11 @@
  * 职责：
  * 1. 管理分类任务的入队/出队
  * 2. 持久化到沙箱 classify_queue/{ledger}.json（按账本隔离）
- * 3. 任务去重和优先级升级
+ * 3. 任务去重（仅按 date 语义）
  * 4. App 重启后恢复队列状态
  */
 
 import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
-
-/**
- * 分类任务类型
- * - normal: 正常分类（绿色光效）
- * - reclassify_full: 全量重分类（黄色光效）
- * - reclassify_affected: 仅受影响条目重分类（黄色光效）
- * - reclassify_scoped: 仅指定标签重分类（黄色光效）
- */
-export type ClassifyTaskType =
-  | 'normal'
-  | 'reclassify_full'
-  | 'reclassify_affected'
-  | 'reclassify_scoped';
 
 /**
  * 分类任务结构
@@ -31,18 +18,12 @@ export interface ClassifyTask {
   ledger: string;
   /** 日期 (YYYY-MM-DD) */
   date: string;
-  /** 任务类型 */
-  type: ClassifyTaskType;
-  /** 可选：指定标签（仅 reclassify_scoped 使用） */
-  tag?: string;
   /** 入队时间戳 */
   enqueuedAt: number;
 }
 
 interface LedgerQueueTask {
   date: string;
-  type: ClassifyTaskType;
-  tag?: string;
   enqueuedAt: number;
 }
 
@@ -51,21 +32,30 @@ interface LedgerQueueTask {
  */
 interface QueueData {
   version: string;
+  revision: number;
+  metrics?: LedgerQueueMetrics;
   tasks: LedgerQueueTask[];
 }
 
-const QUEUE_DIR = 'classify_queue';
-const QUEUE_VERSION = '1.0';
+interface LedgerQueueMetrics {
+  emptyTaskConsumedCount: number;
+  lastEmptyTaskDate: string | null;
+}
 
-/**
- * 任务优先级映射（数值越高优先级越高）
- */
-const TASK_PRIORITY: Record<ClassifyTaskType, number> = {
-  reclassify_full: 3,
-  reclassify_affected: 2,
-  reclassify_scoped: 2,
-  normal: 1
-};
+export interface QueuePeekSnapshot {
+  task: ClassifyTask;
+  revision: number;
+}
+
+export interface QueueMetrics {
+  ledger: string;
+  revision: number;
+  emptyTaskConsumedCount: number;
+  lastEmptyTaskDate: string | null;
+}
+
+const QUEUE_DIR = 'classify_queue';
+const QUEUE_VERSION = '1.1';
 
 /**
  * 分类任务队列管理器
@@ -74,6 +64,8 @@ export class ClassifyQueue {
   private static instance: ClassifyQueue;
   private ledgerTasks = new Map<string, LedgerQueueTask[]>();
   private loadedLedgers = new Set<string>();
+  private ledgerRevisions = new Map<string, number>();
+  private ledgerMetrics = new Map<string, LedgerQueueMetrics>();
 
   private constructor() {}
 
@@ -139,10 +131,34 @@ export class ClassifyQueue {
       });
 
       const data = JSON.parse(result.data as string) as QueueData;
-      this.ledgerTasks.set(ledger, data.tasks || []);
-      console.log(`[ClassifyQueue] Loaded ${ledger}: ${(data.tasks || []).length} tasks`);
+      /**
+       * v5.1 收口：队列任务业务语义仅保留 { date }。
+       * 这里对历史数据做向后兼容迁移，丢弃旧的 type/tag 字段。
+       */
+      const normalizedTasks = Array.isArray(data.tasks)
+        ? data.tasks
+            .filter(task => typeof task?.date === 'string' && task.date.length > 0)
+            .map(task => ({
+              date: task.date,
+              enqueuedAt: Number.isFinite(task.enqueuedAt) ? task.enqueuedAt : Date.now()
+            }))
+        : [];
+      this.ledgerTasks.set(ledger, normalizedTasks);
+      this.ledgerRevisions.set(ledger, Number.isFinite(data.revision) ? data.revision : 0);
+      this.ledgerMetrics.set(ledger, {
+        emptyTaskConsumedCount: data.metrics?.emptyTaskConsumedCount ?? 0,
+        lastEmptyTaskDate: data.metrics?.lastEmptyTaskDate ?? null
+      });
+      console.log(
+        `[ClassifyQueue] Loaded ${ledger}: ${normalizedTasks.length} tasks, rev=${this.ledgerRevisions.get(ledger)}`
+      );
     } catch {
       this.ledgerTasks.set(ledger, []);
+      this.ledgerRevisions.set(ledger, 0);
+      this.ledgerMetrics.set(ledger, {
+        emptyTaskConsumedCount: 0,
+        lastEmptyTaskDate: null
+      });
       console.log(`[ClassifyQueue] No existing queue for ${ledger}, starting fresh`);
     }
 
@@ -152,10 +168,20 @@ export class ClassifyQueue {
   /**
    * 保存指定账本队列
    */
-  private async saveLedger(ledger: string): Promise<void> {
+  private async saveLedger(ledger: string, options?: { bumpRevision?: boolean }): Promise<void> {
+    const currentRevision = this.ledgerRevisions.get(ledger) ?? 0;
+    const revision = options?.bumpRevision ? currentRevision + 1 : currentRevision;
+    this.ledgerRevisions.set(ledger, revision);
+    const metrics = this.ledgerMetrics.get(ledger) || {
+      emptyTaskConsumedCount: 0,
+      lastEmptyTaskDate: null
+    };
+    this.ledgerMetrics.set(ledger, metrics);
     const tasks = this.ledgerTasks.get(ledger) || [];
     const data: QueueData = {
       version: QUEUE_VERSION,
+      revision,
+      metrics,
       tasks
     };
 
@@ -196,6 +222,10 @@ export class ClassifyQueue {
     }
   }
 
+  private getCurrentRevision(ledger: string): number {
+    return this.ledgerRevisions.get(ledger) ?? 0;
+  }
+
   private async hasLedgerQueueFile(ledger: string): Promise<boolean> {
     try {
       await Filesystem.stat({
@@ -215,8 +245,6 @@ export class ClassifyQueue {
     return tasks.map(task => ({
       ledger,
       date: task.date,
-      type: task.type,
-      tag: task.tag,
       enqueuedAt: task.enqueuedAt
     }));
   }
@@ -246,11 +274,10 @@ export class ClassifyQueue {
    *
    * 去重规则：
    * - 同一账本同一天视为重复
-   * - 如果新任务优先级更高，则升级
-   * - 如果新任务优先级相同或更低，则忽略
+   * - 队列元素业务语义仅 { date }，重复日期直接忽略
    *
    * @param task 要添加的任务
-   * @returns 是否成功添加（或升级）
+   * @returns 是否成功添加
    */
   public async enqueue(task: Omit<ClassifyTask, 'enqueuedAt'>): Promise<boolean> {
     await this.ensureLedgerLoaded(task.ledger);
@@ -258,8 +285,6 @@ export class ClassifyQueue {
     const ledgerQueue = this.ledgerTasks.get(task.ledger)!;
     const newTask: LedgerQueueTask = {
       date: task.date,
-      type: task.type,
-      tag: task.tag,
       enqueuedAt: Date.now()
     };
 
@@ -267,28 +292,13 @@ export class ClassifyQueue {
 
     if (existingIndex === -1) {
       ledgerQueue.push(newTask);
-      await this.saveLedger(task.ledger);
-      console.log(`[ClassifyQueue] Enqueued ${task.type} for ${task.ledger}/${task.date}`);
+      await this.saveLedger(task.ledger, { bumpRevision: true });
+      console.log(`[ClassifyQueue] Enqueued date task for ${task.ledger}/${task.date}`);
       return true;
     }
 
-    const existingTask = ledgerQueue[existingIndex];
-    const existingPriority = TASK_PRIORITY[existingTask.type];
-    const newPriority = TASK_PRIORITY[task.type];
-
-    if (newPriority > existingPriority) {
-      ledgerQueue[existingIndex] = newTask;
-      await this.saveLedger(task.ledger);
-      console.log(
-        `[ClassifyQueue] Upgraded ${existingTask.type} -> ${task.type} for ${task.ledger}/${task.date}`
-      );
-      return true;
-    }
-
-    // 优先级相同或更低，忽略
-    console.log(
-      `[ClassifyQueue] Ignored ${task.type} (existing ${existingTask.type} has same or higher priority)`
-    );
+    // v5.1 收口：同日任务已存在则忽略，不再进行任务类型升级
+    console.log(`[ClassifyQueue] Ignored duplicate date task for ${task.ledger}/${task.date}`);
     return false;
   }
 
@@ -306,13 +316,11 @@ export class ClassifyQueue {
     }
 
     const task = ledgerQueue.shift()!;
-    await this.saveLedger(ledger);
-    console.log(`[ClassifyQueue] Dequeued ${task.type} for ${ledger}/${task.date}`);
+    await this.saveLedger(ledger, { bumpRevision: true });
+    console.log(`[ClassifyQueue] Dequeued date task for ${ledger}/${task.date}`);
     return {
       ledger,
       date: task.date,
-      type: task.type,
-      tag: task.tag,
       enqueuedAt: task.enqueuedAt
     };
   }
@@ -330,9 +338,18 @@ export class ClassifyQueue {
     return {
       ledger,
       date: task.date,
-      type: task.type,
-      tag: task.tag,
       enqueuedAt: task.enqueuedAt
+    };
+  }
+
+  public async peekWithRevision(ledger: string): Promise<QueuePeekSnapshot | null> {
+    const task = await this.peek(ledger);
+    if (!task) {
+      return null;
+    }
+    return {
+      task,
+      revision: this.getCurrentRevision(ledger)
     };
   }
 
@@ -373,12 +390,36 @@ export class ClassifyQueue {
     );
 
     if ((this.ledgerTasks.get(ledger) || []).length !== initialLength) {
-      await this.saveLedger(ledger);
+      await this.saveLedger(ledger, { bumpRevision: true });
       console.log(`[ClassifyQueue] Removed task for ${ledger}/${date}`);
       return true;
     }
 
     return false;
+  }
+
+  public async removeIfRevisionMatch(ledger: string, date: string, expectedRevision: number): Promise<boolean> {
+    await this.ensureLedgerLoaded(ledger);
+    const currentRevision = this.getCurrentRevision(ledger);
+    if (currentRevision !== expectedRevision) {
+      console.warn(
+        `[ClassifyQueue] Skip remove for ${ledger}/${date}: revision changed ${currentRevision} !== ${expectedRevision}`
+      );
+      return false;
+    }
+
+    const ledgerQueue = this.ledgerTasks.get(ledger)!;
+    const initialLength = ledgerQueue.length;
+    this.ledgerTasks.set(
+      ledger,
+      ledgerQueue.filter(t => t.date !== date)
+    );
+    if ((this.ledgerTasks.get(ledger) || []).length === initialLength) {
+      return false;
+    }
+    await this.saveLedger(ledger, { bumpRevision: true });
+    console.log(`[ClassifyQueue] CAS removed task for ${ledger}/${date} @rev=${expectedRevision}`);
+    return true;
   }
 
   /**
@@ -390,7 +431,7 @@ export class ClassifyQueue {
     if (ledger) {
       await this.ensureLedgerLoaded(ledger);
       this.ledgerTasks.set(ledger, []);
-      await this.saveLedger(ledger);
+      await this.saveLedger(ledger, { bumpRevision: true });
       console.log(`[ClassifyQueue] Cleared queue for ${ledger}`);
       return;
     }
@@ -400,9 +441,13 @@ export class ClassifyQueue {
     for (const ledgerName of allLedgers) {
       this.ledgerTasks.set(ledgerName, []);
       await this.deleteLedgerFile(ledgerName);
+      this.ledgerRevisions.delete(ledgerName);
+      this.ledgerMetrics.delete(ledgerName);
     }
     this.ledgerTasks.clear();
     this.loadedLedgers.clear();
+    this.ledgerRevisions.clear();
+    this.ledgerMetrics.clear();
     console.log('[ClassifyQueue] Cleared all ledger queues');
   }
 
@@ -457,6 +502,8 @@ export class ClassifyQueue {
       await this.deleteLedgerFile(ledger);
       this.ledgerTasks.delete(ledger);
       this.loadedLedgers.delete(ledger);
+      this.ledgerRevisions.delete(ledger);
+      this.ledgerMetrics.delete(ledger);
       console.log(`[ClassifyQueue] Removed ${removedCount} tasks for ledger ${ledger}`);
     }
 
@@ -478,6 +525,16 @@ export class ClassifyQueue {
 
     const oldTasks = this.ledgerTasks.get(oldName) || [];
     const newTasks = this.ledgerTasks.get(newName) || [];
+    const oldRevision = this.ledgerRevisions.get(oldName) ?? 0;
+    const newRevision = this.ledgerRevisions.get(newName) ?? 0;
+    const oldMetrics = this.ledgerMetrics.get(oldName) || {
+      emptyTaskConsumedCount: 0,
+      lastEmptyTaskDate: null
+    };
+    const newMetrics = this.ledgerMetrics.get(newName) || {
+      emptyTaskConsumedCount: 0,
+      lastEmptyTaskDate: null
+    };
     if (oldTasks.length === 0 && !oldFileExists) return 0;
 
     const mergedByDate = new Map<string, LedgerQueueTask>();
@@ -490,26 +547,67 @@ export class ClassifyQueue {
         mergedByDate.set(oldTask.date, oldTask);
         continue;
       }
-      const existingPriority = TASK_PRIORITY[existing.type];
-      const oldPriority = TASK_PRIORITY[oldTask.type];
-      if (oldPriority > existingPriority) {
+      /**
+       * v5.1 收口：同日冲突时不再比较任务类型优先级，
+       * 统一保留更早入队的任务，保证队列顺序稳定。
+       */
+      if (oldTask.enqueuedAt < existing.enqueuedAt) {
         mergedByDate.set(oldTask.date, oldTask);
       }
     }
 
     const mergedTasks = Array.from(mergedByDate.values()).sort((a, b) => a.enqueuedAt - b.enqueuedAt);
     this.ledgerTasks.set(newName, mergedTasks);
-    await this.saveLedger(newName);
+    this.ledgerMetrics.set(newName, {
+      emptyTaskConsumedCount: newMetrics.emptyTaskConsumedCount + oldMetrics.emptyTaskConsumedCount,
+      lastEmptyTaskDate: [newMetrics.lastEmptyTaskDate, oldMetrics.lastEmptyTaskDate]
+        .filter(Boolean)
+        .sort()
+        .pop() || null
+    });
+    this.ledgerRevisions.set(newName, Math.max(newRevision, oldRevision));
+    await this.saveLedger(newName, { bumpRevision: true });
 
     await this.deleteLedgerFile(oldName);
     this.ledgerTasks.delete(oldName);
     this.loadedLedgers.delete(oldName);
+    this.ledgerRevisions.delete(oldName);
+    this.ledgerMetrics.delete(oldName);
 
     const updatedCount = oldTasks.length;
     if (updatedCount > 0) {
       console.log(`[ClassifyQueue] Renamed ${updatedCount} tasks from ${oldName} to ${newName}`);
     }
     return updatedCount;
+  }
+
+  public async incrementEmptyTaskConsumed(ledger: string, date: string): Promise<number> {
+    await this.ensureLedgerLoaded(ledger);
+    const metrics = this.ledgerMetrics.get(ledger) || {
+      emptyTaskConsumedCount: 0,
+      lastEmptyTaskDate: null
+    };
+    const next: LedgerQueueMetrics = {
+      emptyTaskConsumedCount: metrics.emptyTaskConsumedCount + 1,
+      lastEmptyTaskDate: date
+    };
+    this.ledgerMetrics.set(ledger, next);
+    await this.saveLedger(ledger, { bumpRevision: true });
+    return next.emptyTaskConsumedCount;
+  }
+
+  public async getMetrics(ledger: string): Promise<QueueMetrics> {
+    await this.ensureLedgerLoaded(ledger);
+    const metrics = this.ledgerMetrics.get(ledger) || {
+      emptyTaskConsumedCount: 0,
+      lastEmptyTaskDate: null
+    };
+    return {
+      ledger,
+      revision: this.getCurrentRevision(ledger),
+      emptyTaskConsumedCount: metrics.emptyTaskConsumedCount,
+      lastEmptyTaskDate: metrics.lastEmptyTaskDate
+    };
   }
 
   // ============================================
@@ -524,7 +622,7 @@ export class ClassifyQueue {
     console.log('=== ClassifyQueue Status ===');
     console.log(`Total tasks: ${tasks.length}${ledger ? ` (ledger: ${ledger})` : ''}`);
     tasks.forEach((task, i) => {
-      console.log(`  ${i + 1}. [${task.type}] ${task.ledger}/${task.date}`);
+      console.log(`  ${i + 1}. ${task.ledger}/${task.date}`);
     });
     console.log('============================');
   }

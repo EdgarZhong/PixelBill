@@ -515,8 +515,6 @@ function App() {
           console.table(tasks.map(t => ({
             ledger: t.ledger,
             date: t.date,
-            type: t.type,
-            tag: t.tag || '-',
             enqueuedAt: new Date(t.enqueuedAt).toLocaleTimeString()
           })));
           return tasks;
@@ -526,17 +524,16 @@ function App() {
          * 添加测试任务到队列
          * 用法: await window.__DEBUG_TOOLS__.addTestTask()
          */
-        addTestTask: async (ledger = 'default', date = '2026-03-18', type = 'normal') => {
+        addTestTask: async (ledger = 'default', date = '2026-03-18') => {
           const { classifyQueue } = await import('./core/ai_engine/ClassifyQueue');
           const success = await classifyQueue.enqueue({
             ledger,
-            date,
-            type: type as 'normal' | 'reclassify_full' | 'reclassify_affected' | 'reclassify_scoped'
+            date
           });
           if (success) {
-            console.log(`[ClassifyQueue] 已添加任务: ${type} for ${ledger}/${date}`);
+            console.log(`[ClassifyQueue] 已添加任务: ${ledger}/${date}`);
           } else {
-            console.log('[ClassifyQueue] 任务未添加（可能已存在同优先级或更高优先级任务）');
+            console.log('[ClassifyQueue] 任务未添加（同账本同日期已存在）');
           }
           return success;
         },
@@ -554,65 +551,53 @@ function App() {
         },
 
         /**
-         * 测试队列优先级升级
+         * 测试同日去重行为
          * 用法: await window.__DEBUG_TOOLS__.testQueuePriority()
          */
         testQueuePriority: async () => {
           const { classifyQueue } = await import('./core/ai_engine/ClassifyQueue');
-          console.log('%c🧪 测试队列优先级升级...', 'color: #00ff00; font-size: 14px; font-weight: bold');
+          console.log('%c🧪 测试同日去重...', 'color: #00ff00; font-size: 14px; font-weight: bold');
 
-          // 1. 添加 normal 任务
-          console.log('\n[Step 1] 添加 normal 任务');
-          await classifyQueue.enqueue({ ledger: 'test', date: '2026-03-18', type: 'normal' });
+          // 1. 添加同日任务
+          console.log('\n[Step 1] 添加任务');
+          await classifyQueue.enqueue({ ledger: 'test', date: '2026-03-18' });
           await debugTools.viewQueue('test');
 
-          // 2. 尝试添加相同 normal 任务（应被忽略）
-          console.log('\n[Step 2] 再次添加 normal 任务（应被忽略）');
-          const ignored = await classifyQueue.enqueue({ ledger: 'test', date: '2026-03-18', type: 'normal' });
+          // 2. 再次添加同日任务（应被忽略）
+          console.log('\n[Step 2] 再次添加同日任务（应被忽略）');
+          const ignored = await classifyQueue.enqueue({ ledger: 'test', date: '2026-03-18' });
           console.log(`  结果: ${ignored ? '已添加' : '已忽略'}`);
 
-          // 3. 升级为 reclassify_full（应成功）
-          console.log('\n[Step 3] 升级为 reclassify_full（应成功）');
-          const upgraded = await classifyQueue.enqueue({ ledger: 'test', date: '2026-03-18', type: 'reclassify_full' });
-          console.log(`  结果: ${upgraded ? '已升级' : '未升级'}`);
-          await debugTools.viewQueue('test');
-
-          // 4. 清理
-          console.log('\n[Step 4] 清理测试数据');
+          // 3. 清理
+          console.log('\n[Step 3] 清理测试数据');
           await classifyQueue.remove('test', '2026-03-18');
 
-          console.log('%c✅ 优先级测试完成', 'color: #00ff00; font-weight: bold');
+          console.log('%c✅ 同日去重测试完成', 'color: #00ff00; font-weight: bold');
         },
 
         queueSnapshot: async (ledger: string = '*') => {
           const tasks = await debugTools.viewQueue(ledger);
           const byLedger: Record<string, number> = {};
-          const byType: Record<string, number> = {};
           for (const task of tasks) {
             byLedger[task.ledger] = (byLedger[task.ledger] || 0) + 1;
-            byType[task.type] = (byType[task.type] || 0) + 1;
           }
           const ledgerStats = Object.entries(byLedger).map(([ledgerName, count]) => ({ ledger: ledgerName, count }));
-          const typeStats = Object.entries(byType).map(([type, count]) => ({ type, count }));
           console.log('[ClassifyQueue] 快照统计');
           console.table(ledgerStats);
-          console.table(typeStats);
-          return { total: tasks.length, byLedger, byType };
+          return { total: tasks.length, byLedger };
         },
 
         addTestTasksBatch: async (
           tasks: Array<{
             ledger: string;
             date: string;
-            type: 'normal' | 'reclassify_full' | 'reclassify_affected' | 'reclassify_scoped';
-            tag?: string;
           }>
         ) => {
           const { classifyQueue } = await import('./core/ai_engine/ClassifyQueue');
-          const results: Array<{ ledger: string; date: string; type: string; added: boolean }> = [];
+          const results: Array<{ ledger: string; date: string; added: boolean }> = [];
           for (const task of tasks) {
             const added = await classifyQueue.enqueue(task);
-            results.push({ ledger: task.ledger, date: task.date, type: task.type, added });
+            results.push({ ledger: task.ledger, date: task.date, added });
           }
           console.table(results);
           return results;
@@ -655,9 +640,10 @@ function App() {
           const dateB = options?.dateB || '2026-03-19';
           console.log('%c🧪 开始 P2 回归测试...', 'color: #00ff00; font-size: 14px; font-weight: bold');
           await debugTools.clearQueue();
-          await debugTools.addTestTask(ledgerA, dateA, 'normal');
-          await debugTools.addTestTask(ledgerA, dateA, 'reclassify_full');
-          await debugTools.addTestTask(ledgerB, dateB, 'normal');
+          // v5.1 收口：仅按日期语义入队，同日重复会被忽略
+          await debugTools.addTestTask(ledgerA, dateA);
+          await debugTools.addTestTask(ledgerA, dateA);
+          await debugTools.addTestTask(ledgerB, dateB);
           const queueA = await debugTools.viewQueue(ledgerA);
           const queueB = await debugTools.viewQueue(ledgerB);
           const all = await debugTools.viewQueue('*');
@@ -679,6 +665,287 @@ function App() {
           };
         },
 
+        triggerConfirmedReclassify: async (dates: string[], reason: string = 'debug_confirmed') => {
+          const service = LedgerService.getInstance();
+          const success = await service.enqueueReclassifyForConfirmedDates(dates, reason);
+          const queue = await debugTools.viewQueue();
+          return {
+            success,
+            dates,
+            reason,
+            pending: queue.length
+          };
+        },
+
+        viewQueueRecovery: async (ledger?: string) => {
+          const { LedgerManager } = await import('./core/services/LedgerManager');
+          const { Filesystem, Directory, Encoding } = await import('@capacitor/filesystem');
+          const manager = LedgerManager.getInstance();
+          const targetLedger = ledger || manager.getActiveLedgerName();
+          try {
+            const result = await Filesystem.readFile({
+              path: `classify_queue_recovery/${targetLedger}.json`,
+              directory: Directory.Data,
+              encoding: Encoding.UTF8
+            });
+            const parsed = JSON.parse(result.data as string);
+            console.log(`[ClassifyTrigger] recovery(${targetLedger}):`, parsed);
+            return parsed;
+          } catch {
+            console.log(`[ClassifyTrigger] recovery(${targetLedger}) 不存在`);
+            return null;
+          }
+        },
+
+        testTriggerCompensationRecovery: async (date?: string) => {
+          const { classifyQueue } = await import('./core/ai_engine/ClassifyQueue');
+          const { classifyTrigger } = await import('./core/ai_engine/ClassifyTrigger');
+          const { LedgerManager } = await import('./core/services/LedgerManager');
+          const manager = LedgerManager.getInstance();
+          const activeLedger = manager.getActiveLedgerName();
+          const service = LedgerService.getInstance();
+          const state = service.getState();
+          const fallbackDate = Object.values(state.ledgerMemory?.records || {})[0]?.time?.slice(0, 10) || '2026-03-18';
+          const targetDate = date || fallbackDate;
+
+          const originalEnqueue = classifyQueue.enqueue.bind(classifyQueue);
+          let injected = false;
+          (classifyQueue as unknown as { enqueue: typeof classifyQueue.enqueue }).enqueue = async (task) => {
+            if (!injected) {
+              injected = true;
+              throw new Error('P2_DEBUG_INJECTED_ENQUEUE_FAILURE');
+            }
+            return originalEnqueue(task);
+          };
+
+          let enqueueSuccess = false;
+          try {
+            enqueueSuccess = await service.enqueueReclassifyForConfirmedDates([targetDate], 'debug_compensation_recovery');
+          } finally {
+            (classifyQueue as unknown as { enqueue: typeof classifyQueue.enqueue }).enqueue = originalEnqueue;
+          }
+
+          const recoveryBefore = await debugTools.viewQueueRecovery(activeLedger);
+          const replay = await classifyTrigger.recoverPending(activeLedger);
+          const pendingAfter = await classifyQueue.getPending(activeLedger);
+
+          const result = {
+            ledger: activeLedger,
+            date: targetDate,
+            enqueueSuccess,
+            recoveryBefore,
+            replay,
+            pendingAfter: pendingAfter.map(t => t.date)
+          };
+          console.log('[P2] 补偿恢复测试结果:', result);
+          return result;
+        },
+
+        runP2FullChainRegression: async (date?: string) => {
+          const { BatchProcessor } = await import('./core/ai_engine/BatchProcessor');
+          const { classifyQueue } = await import('./core/ai_engine/ClassifyQueue');
+          const { LedgerManager } = await import('./core/services/LedgerManager');
+          const manager = LedgerManager.getInstance();
+          const service = LedgerService.getInstance();
+          const activeLedger = manager.getActiveLedgerName();
+          const state = service.getState();
+          const allRecords = Object.entries(state.ledgerMemory?.records || {});
+          const unlocked = allRecords.find(([, record]) => !record.is_verified);
+          if (!unlocked) {
+            const emptyResult = {
+              success: false,
+              reason: '当前账本不存在可用于回归的未锁定交易'
+            };
+            console.warn('[P2] 全链路回归跳过:', emptyResult.reason);
+            return emptyResult;
+          }
+
+          const targetDate = date || unlocked[1].time.slice(0, 10);
+          const processor = BatchProcessor.getInstance();
+          const statusEvents: string[] = [];
+          const dayEvents: Array<{ date: string; success: boolean; processedTxsCount: number; error?: string }> = [];
+
+          const offStatus = processor.on('status', ({ status, progress }) => {
+            statusEvents.push(`${status}:${progress.currentDate || '-'}`);
+          });
+          const offDay = processor.on('dayCompleted', (event) => {
+            dayEvents.push({
+              date: event.date,
+              success: event.success,
+              processedTxsCount: event.processedTxsCount,
+              error: event.error
+            });
+          });
+
+          try {
+            await service.enqueueReclassifyForConfirmedDates([targetDate], 'debug_full_chain');
+            const queueBefore = await classifyQueue.getPending(activeLedger);
+            const runResult = await processor.run();
+            const queueAfter = await classifyQueue.getPending(activeLedger);
+            const latestState = service.getState();
+            const aiTaggedCount = latestState.computedTransactions.filter(tx => !!tx.ai_category).length;
+
+            const result = {
+              ledger: activeLedger,
+              targetDate,
+              queueBefore: queueBefore.map(t => t.date),
+              queueAfter: queueAfter.map(t => t.date),
+              runResult,
+              statusEvents,
+              dayEvents,
+              aiTaggedCount
+            };
+            console.log('[P2] 全链路回归结果:', result);
+            return result;
+          } finally {
+            offStatus();
+            offDay();
+          }
+        },
+
+        testReentryDuringConsume: async (date?: string) => {
+          const { BatchProcessor } = await import('./core/ai_engine/BatchProcessor');
+          const { classifyQueue } = await import('./core/ai_engine/ClassifyQueue');
+          const { LedgerManager } = await import('./core/services/LedgerManager');
+          const manager = LedgerManager.getInstance();
+          const activeLedger = manager.getActiveLedgerName();
+          const service = LedgerService.getInstance();
+          const state = service.getState();
+          const fallbackDate = Object.values(state.ledgerMemory?.records || {})[0]?.time?.slice(0, 10) || '2026-03-18';
+          const targetDate = date || fallbackDate;
+          await service.enqueueReclassifyForConfirmedDates([targetDate], 'debug_reentry_before_run');
+
+          const processor = BatchProcessor.getInstance();
+          let reentered = false;
+          const off = processor.on('status', async ({ status, progress }) => {
+            if (status === 'ANALYZING' && progress.currentDate === targetDate && !reentered) {
+              reentered = true;
+              await service.enqueueReclassifyForConfirmedDates([targetDate], 'debug_reentry_during_run');
+            }
+          });
+          const runResult = await processor.run();
+          off();
+          const pendingAfter = await classifyQueue.getPending(activeLedger);
+          const result = {
+            ledger: activeLedger,
+            targetDate,
+            reentered,
+            runResult,
+            pendingAfter: pendingAfter.map(t => t.date)
+          };
+          console.log('[P2] 消费中同日重入测试结果:', result);
+          return result;
+        },
+
+        testFailureRetention: async (date?: string) => {
+          const { BatchProcessor } = await import('./core/ai_engine/BatchProcessor');
+          const { LLMClient } = await import('./core/llm_service/LLMClient');
+          const { classifyQueue } = await import('./core/ai_engine/ClassifyQueue');
+          const { LedgerManager } = await import('./core/services/LedgerManager');
+          const manager = LedgerManager.getInstance();
+          const activeLedger = manager.getActiveLedgerName();
+          const service = LedgerService.getInstance();
+          const state = service.getState();
+          const fallbackDate = Object.values(state.ledgerMemory?.records || {})[0]?.time?.slice(0, 10) || '2026-03-18';
+          const targetDate = date || fallbackDate;
+          await service.enqueueReclassifyForConfirmedDates([targetDate], 'debug_failure_retention');
+
+          const originalChat = LLMClient.prototype.chat.bind(LLMClient.prototype);
+          let failed = false;
+          LLMClient.prototype.chat = async function chatWithInjectedFailure(messages) {
+            if (!failed) {
+              failed = true;
+              throw new Error('P2_DEBUG_INJECTED_CHAT_FAILURE');
+            }
+            return originalChat.call(this, messages);
+          };
+
+          let firstRun: unknown = null;
+          try {
+            firstRun = await BatchProcessor.getInstance().run();
+          } finally {
+            LLMClient.prototype.chat = originalChat;
+          }
+
+          const pendingAfterFirstRun = await classifyQueue.getPending(activeLedger);
+          const secondRun = await BatchProcessor.getInstance().run();
+          const pendingAfterSecondRun = await classifyQueue.getPending(activeLedger);
+          const result = {
+            ledger: activeLedger,
+            targetDate,
+            firstRun,
+            pendingAfterFirstRun: pendingAfterFirstRun.map(t => t.date),
+            secondRun,
+            pendingAfterSecondRun: pendingAfterSecondRun.map(t => t.date)
+          };
+          console.log('[P2] 失败保留重试测试结果:', result);
+          return result;
+        },
+
+        testVerifiedRaceGuard: async (date?: string) => {
+          const { BatchProcessor } = await import('./core/ai_engine/BatchProcessor');
+          const { LLMClient } = await import('./core/llm_service/LLMClient');
+          const { LedgerManager } = await import('./core/services/LedgerManager');
+          const manager = LedgerManager.getInstance();
+          const service = LedgerService.getInstance();
+          const activeLedger = manager.getActiveLedgerName();
+          const state = service.getState();
+          const records = Object.entries(state.ledgerMemory?.records || {});
+          const candidate = records.find(([, record]) => !record.is_verified && (!date || record.time.startsWith(date)));
+          if (!candidate) {
+            const skipped = { success: false, reason: '未找到可用于锁定竞态测试的未锁定交易' };
+            console.warn('[P2] 锁定竞态测试跳过:', skipped.reason);
+            return skipped;
+          }
+
+          const [targetTxId, targetRecord] = candidate;
+          const targetDate = date || targetRecord.time.slice(0, 10);
+          const beforeAiCategory = targetRecord.ai_category || '';
+          await service.enqueueReclassifyForConfirmedDates([targetDate], 'debug_verified_race');
+
+          const originalChat = LLMClient.prototype.chat.bind(LLMClient.prototype);
+          LLMClient.prototype.chat = async function chatWithRace(messages) {
+            void messages;
+            service.setVerification(targetTxId, true);
+            return JSON.stringify({
+              results: [
+                {
+                  id: targetTxId,
+                  category: 'meal',
+                  reasoning: 'debug-verified-race-guard'
+                }
+              ]
+            });
+          };
+
+          let runResult: unknown = null;
+          try {
+            runResult = await BatchProcessor.getInstance().run();
+          } finally {
+            LLMClient.prototype.chat = originalChat;
+          }
+
+          const latest = service.getState().ledgerMemory?.records[targetTxId];
+          const result = {
+            ledger: activeLedger,
+            targetDate,
+            targetTxId,
+            runResult,
+            before: {
+              is_verified: targetRecord.is_verified,
+              ai_category: beforeAiCategory
+            },
+            after: latest
+              ? {
+                  is_verified: latest.is_verified,
+                  ai_category: latest.ai_category || ''
+                }
+              : null
+          };
+          console.log('[P2] 锁定竞态保护测试结果:', result);
+          return result;
+        },
+
         testLedgerLifecycleQueue: async () => {
           const { classifyQueue } = await import('./core/ai_engine/ClassifyQueue');
           const { LedgerManager } = await import('./core/services/LedgerManager');
@@ -690,7 +957,7 @@ function App() {
           const newName = `p2_lifecycle_renamed_${seed}`;
           const date = '2026-03-20';
           const created = await manager.createLedger(oldName);
-          await classifyQueue.enqueue({ ledger: oldName, date, type: 'normal' });
+          await classifyQueue.enqueue({ ledger: oldName, date });
           const beforeRename = await classifyQueue.getPending(oldName);
           const renamed = created ? await manager.renameLedger(oldName, newName) : false;
           const afterRenameOld = await classifyQueue.getPending(oldName);
@@ -737,11 +1004,11 @@ function App() {
          */
         addCategory: async (name: string, description: string) => {
           const service = LedgerService.getInstance();
-          const success = await service.addCategory(name, description);
-          if (success) {
-            console.log(`[LedgerService] 已添加标签: ${name}`);
+          const result = await service.addCategory(name, description);
+          if (result.success) {
+            console.log(`[LedgerService] 已添加标签: ${name}，入队 ${result.dirtyDates.length} 天`);
           }
-          return success;
+          return result;
         },
 
         /**
@@ -763,11 +1030,11 @@ function App() {
          */
         renameCategory: async (oldName: string, newName: string) => {
           const service = LedgerService.getInstance();
-          const success = await service.renameCategory(oldName, newName);
-          if (success) {
-            console.log(`[LedgerService] 已重命名标签: ${oldName} -> ${newName}`);
+          const result = await service.renameCategory(oldName, newName);
+          if (result.success) {
+            console.log(`[LedgerService] 已重命名标签: ${oldName} -> ${newName}，受影响 ${result.affectedTxIds.length} 条，入队 ${result.dirtyDates.length} 天`);
           }
-          return success;
+          return result;
         },
 
         /**
@@ -776,11 +1043,11 @@ function App() {
          */
         updateCategoryDesc: async (name: string, description: string) => {
           const service = LedgerService.getInstance();
-          const success = await service.updateCategoryDescription(name, description);
-          if (success) {
-            console.log(`[LedgerService] 已更新标签描述: ${name}`);
+          const result = await service.updateCategoryDescription(name, description);
+          if (result.success) {
+            console.log(`[LedgerService] 已更新标签描述: ${name}，入队 ${result.dirtyDates.length} 天`);
           }
-          return success;
+          return result;
         }
       };
       window.__DEBUG_TOOLS__ = debugTools;

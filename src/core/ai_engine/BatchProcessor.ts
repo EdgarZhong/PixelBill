@@ -10,9 +10,10 @@ import {
 import type { FullTransactionRecord } from '../../types/metadata';
 import type { Proposal } from '../plugin/types';
 import type { AIStatus, AIProgress, ProcessingResult } from './types';
-import { format, parseISO } from 'date-fns';
+import { parse } from 'date-fns';
 import { classifyQueue } from './ClassifyQueue';
 import { LedgerManager } from '../services/LedgerManager';
+import { normalizeToDateKey } from './DateNormalizer';
 
 export interface DayCompletedEvent {
   date: string;
@@ -118,12 +119,18 @@ export class BatchProcessor {
           throw new Error('API Key not configured');
         }
 
+        /**
+         * v5.1 约束：
+         * 1) 仅消费当前选中账本；
+         * 2) 队列任务业务语义仅 { date }，账本由消费上下文决定。
+         */
         const ledgerName = LedgerManager.getInstance().getActiveLedgerName();
-        const task = await classifyQueue.peek(ledgerName);
-        if (!task) {
+        const peekSnapshot = await classifyQueue.peekWithRevision(ledgerName);
+        if (!peekSnapshot) {
           this.updateState('IDLE', { total: 0, current: 0, currentDate: '' });
           return { success: true, processedCount: 0, errors: [] };
         }
+        const { task, revision } = peekSnapshot;
 
         if (task.ledger !== ledgerName) {
           throw new Error(`Peeked task ledger mismatch: ${task.ledger} !== ${ledgerName}`);
@@ -144,12 +151,21 @@ export class BatchProcessor {
 
         const memory = await readMemoryFile(fileHandle);
         const txs = Object.values(memory.records) as FullTransactionRecord[];
-        const dayTxs = txs.filter(tx => format(parseISO(tx.time), 'yyyy-MM-dd') === task.date);
+        const dayTxs = txs.filter(tx => normalizeToDateKey(tx.time) === task.date);
 
         this.updateState('ANALYZING', { total: 1, current: 1, currentDate: task.date });
 
         if (dayTxs.length === 0) {
-          await classifyQueue.remove(ledgerName, task.date);
+          /**
+           * 空任务处理：
+           * - 通过 revision CAS 删除，避免并发重入时误删新任务；
+           * - 仅在成功删除后累计 emptyTask 指标。
+           */
+          const removedByCas = await classifyQueue.removeIfRevisionMatch(ledgerName, task.date, revision);
+          if (removedByCas) {
+            const emptyCount = await classifyQueue.incrementEmptyTaskConsumed(ledgerName, task.date);
+            console.log(`[BatchProcessor] Empty task consumed for ${ledgerName}/${task.date}, count=${emptyCount}`);
+          }
           this.emit('dayCompleted', {
             date: task.date,
             processedTxsCount: 0,
@@ -160,7 +176,8 @@ export class BatchProcessor {
         }
 
         try {
-          const messages = await PromptBuilder.build(dayTxs, parseISO(task.date), ledgerName);
+          const dayDate = parse(task.date, 'yyyy-MM-dd', new Date());
+          const messages = await PromptBuilder.build(dayTxs, dayDate, ledgerName);
           const responseText = await client.chat(messages);
 
           const aiResult = JSON.parse(responseText);
@@ -170,12 +187,13 @@ export class BatchProcessor {
 
           if (this.proposalHandler) {
             const timestamp = Date.now();
+            const latestMemory = await readMemoryFile(fileHandle);
             for (const item of aiResult.results as Array<{ id: string; category: string; reasoning?: string }>) {
               if (!item.id || !item.category) {
                 continue;
               }
 
-              const existing = memory.records[item.id] as FullTransactionRecord | undefined;
+              const existing = latestMemory.records[item.id] as FullTransactionRecord | undefined;
               if (existing?.is_verified) {
                 continue;
               }
@@ -198,11 +216,17 @@ export class BatchProcessor {
             processedTxsCount: dayTxs.length,
             success: true
           });
-          await classifyQueue.remove(ledgerName, task.date);
+          /**
+           * 成功后按 CAS 出队，若 revision 已变化，说明队列被并发更新，不应误删。
+           */
+          await classifyQueue.removeIfRevisionMatch(ledgerName, task.date, revision);
 
           this.updateState('IDLE');
           return { success: true, processedCount: 1, errors: [] };
         } catch (e: unknown) {
+          /**
+           * 失败不出队：保留同日任务等待后续重试，满足“失败不丢任务”约束。
+           */
           const errorMessage = e instanceof Error ? e.message : String(e);
           this.emit('dayCompleted', {
             date: task.date,

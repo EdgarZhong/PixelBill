@@ -13,6 +13,8 @@ import { RegexRulePlugin, UserMetaPlugin, AIEnginePlugin } from '../plugin';
 import { PersistenceManager } from './PersistenceManager';
 import { ExampleStore } from './ExampleStore';
 import { format, parse, startOfDay, endOfDay } from 'date-fns';
+import { classifyTrigger } from '../ai_engine/ClassifyTrigger';
+import { normalizeToDateKey } from '../ai_engine/DateNormalizer';
 
 export interface LedgerState {
   rawTransactions: Transaction[];
@@ -499,6 +501,18 @@ export class LedgerService {
                 dateRange: range
             });
             this.flushPendingPatches();
+
+            const ledgerName = this.getCurrentLedgerName();
+            if (ledgerName) {
+              const importedTxIds = parsedData.map(tx => tx.id);
+              const triggerResult = await classifyTrigger.enqueueCsvImport(ledgerName, newMemory, importedTxIds);
+              console.log('[LedgerService] CSV auto-trigger result:', {
+                ledger: ledgerName,
+                attempted: triggerResult.attempted,
+                enqueued: triggerResult.enqueued,
+                failed: triggerResult.failedDates.length
+              });
+            }
         }
     } catch (error) {
         console.error('[LedgerService] Ingest failed:', error);
@@ -539,11 +553,73 @@ export class LedgerService {
             dateRange: range
         });
         this.flushPendingPatches();
+
+        const ledgerName = this.getCurrentLedgerName();
+        if (ledgerName) {
+          const importedTxIds = parsedData.map(tx => tx.id);
+          const triggerResult = await classifyTrigger.enqueueCsvImport(ledgerName, newMemory, importedTxIds);
+          console.log('[LedgerService] CSV auto-trigger result:', {
+            ledger: ledgerName,
+            attempted: triggerResult.attempted,
+            enqueued: triggerResult.enqueued,
+            failed: triggerResult.failedDates.length
+          });
+        }
     } catch (error) {
         console.error('[LedgerService] Ingest raw failed:', error);
     } finally {
         this.setState({ isLoading: false });
     }
+  }
+
+  public async enqueueReclassifyForConfirmedDates(dates: string[], reason: string = 'user_confirmed'): Promise<boolean> {
+    const ledgerName = this.getCurrentLedgerName();
+    if (!ledgerName || dates.length === 0) {
+      return false;
+    }
+    const result = await classifyTrigger.enqueueConfirmedDates(ledgerName, dates, reason);
+    console.log('[LedgerService] User-confirmed trigger result:', {
+      ledger: ledgerName,
+      attempted: result.attempted,
+      enqueued: result.enqueued,
+      failed: result.failedDates.length
+    });
+    return result.failedDates.length === 0;
+  }
+
+  public collectDirtyDatesForTxIds(txIds: string[]): string[] {
+    const memory = this.state.ledgerMemory;
+    if (!memory || txIds.length === 0) {
+      return [];
+    }
+    const dates = new Set<string>();
+    for (const txId of txIds) {
+      const record = memory.records[txId];
+      if (!record?.time) {
+        continue;
+      }
+      dates.add(normalizeToDateKey(record.time));
+    }
+    return Array.from(dates).sort();
+  }
+
+  /**
+   * 按条件从当前账本记录中提取脏日期集合
+   * 用于“标签变更即入队”场景，保证触发层与消费层解耦。
+   */
+  public collectDirtyDatesByPredicate(predicate: (record: FullTransactionRecord) => boolean): string[] {
+    const memory = this.state.ledgerMemory;
+    if (!memory) {
+      return [];
+    }
+    const dates = new Set<string>();
+    for (const record of Object.values(memory.records)) {
+      if (!record?.time || !predicate(record as FullTransactionRecord)) {
+        continue;
+      }
+      dates.add(normalizeToDateKey(record.time));
+    }
+    return Array.from(dates).sort();
   }
 
   private async syncWithLedger(
@@ -674,24 +750,24 @@ export class LedgerService {
    * @param description 标签描述
    * @returns 是否成功添加
    */
-  public async addCategory(name: string, description: string): Promise<boolean> {
+  public async addCategory(name: string, description: string): Promise<{ success: boolean; dirtyDates: string[]; enqueueSuccess: boolean }> {
     if (!this.memoryFileHandle || !this.state.ledgerMemory) {
       console.error('[LedgerService] Cannot add category: no ledger loaded');
-      return false;
+      return { success: false, dirtyDates: [], enqueueSuccess: false };
     }
 
     // 验证名称
     const sanitizedName = this.sanitizeCategoryName(name);
     if (!sanitizedName) {
       console.error('[LedgerService] Invalid category name:', name);
-      return false;
+      return { success: false, dirtyDates: [], enqueueSuccess: false };
     }
 
     // 检查是否已存在
     const currentCategories = this.state.ledgerMemory.defined_categories;
     if (currentCategories[sanitizedName]) {
       console.error('[LedgerService] Category already exists:', sanitizedName);
-      return false;
+      return { success: false, dirtyDates: [], enqueueSuccess: false };
     }
 
     // 更新 defined_categories
@@ -715,8 +791,25 @@ export class LedgerService {
       TABS: this.computeTabs(newMemory)
     });
 
-    console.log('[LedgerService] Added category:', sanitizedName);
-    return true;
+    /**
+     * v5.1 解耦约束：
+     * 标签变更完成后立即生产队列（dirtyDates 入队），
+     * 后续“重分类按钮”仅负责启动消费。
+     *
+     * 新增标签默认采用“仅未分类且未锁定”范围，避免无差别全量重跑。
+     */
+    const dirtyDates = this.collectDirtyDatesByPredicate(
+      (record) => !record.is_verified && (!record.category || record.category === 'uncategorized')
+    );
+    const enqueueSuccess = dirtyDates.length > 0
+      ? await this.enqueueReclassifyForConfirmedDates(dirtyDates, 'category_add_confirmed_uncategorized')
+      : true;
+
+    console.log('[LedgerService] Added category:', sanitizedName, {
+      dirtyDates,
+      enqueueSuccess
+    });
+    return { success: true, dirtyDates, enqueueSuccess };
   }
 
   /**
@@ -724,23 +817,23 @@ export class LedgerService {
    * @param name 标签名称
    * @returns 删除结果，包含受影响的交易 ID 列表
    */
-  public async deleteCategory(name: string): Promise<{ success: boolean; affectedTxIds: string[] }> {
+  public async deleteCategory(name: string): Promise<{ success: boolean; affectedTxIds: string[]; dirtyDates: string[]; enqueueSuccess: boolean }> {
     if (!this.memoryFileHandle || !this.state.ledgerMemory) {
       console.error('[LedgerService] Cannot delete category: no ledger loaded');
-      return { success: false, affectedTxIds: [] };
+      return { success: false, affectedTxIds: [], dirtyDates: [], enqueueSuccess: false };
     }
 
     // 不能删除 others（兜底标签）
     if (name === 'others') {
       console.error('[LedgerService] Cannot delete "others" category');
-      return { success: false, affectedTxIds: [] };
+      return { success: false, affectedTxIds: [], dirtyDates: [], enqueueSuccess: false };
     }
 
     // 检查标签是否存在
     const currentCategories = this.state.ledgerMemory.defined_categories;
     if (!currentCategories[name]) {
       console.error('[LedgerService] Category not found:', name);
-      return { success: false, affectedTxIds: [] };
+      return { success: false, affectedTxIds: [], dirtyDates: [], enqueueSuccess: false };
     }
 
     // 收集受影响的交易
@@ -801,8 +894,17 @@ export class LedgerService {
       TABS: this.computeTabs(newMemory)
     });
 
-    console.log('[LedgerService] Deleted category:', name, 'Affected transactions:', affectedTxIds.length);
-    return { success: true, affectedTxIds };
+    const dirtyDates = this.collectDirtyDatesForTxIds(affectedTxIds);
+    const enqueueSuccess = dirtyDates.length > 0
+      ? await this.enqueueReclassifyForConfirmedDates(dirtyDates, 'category_delete_confirmed_affected')
+      : true;
+
+    console.log('[LedgerService] Deleted category:', name, {
+      affectedCount: affectedTxIds.length,
+      dirtyDates,
+      enqueueSuccess
+    });
+    return { success: true, affectedTxIds, dirtyDates, enqueueSuccess };
   }
 
   /**
@@ -811,30 +913,30 @@ export class LedgerService {
    * @param newName 新标签名
    * @returns 是否成功
    */
-  public async renameCategory(oldName: string, newName: string): Promise<boolean> {
+  public async renameCategory(oldName: string, newName: string): Promise<{ success: boolean; affectedTxIds: string[]; dirtyDates: string[]; enqueueSuccess: boolean }> {
     if (!this.memoryFileHandle || !this.state.ledgerMemory) {
       console.error('[LedgerService] Cannot rename category: no ledger loaded');
-      return false;
+      return { success: false, affectedTxIds: [], dirtyDates: [], enqueueSuccess: false };
     }
 
     // 验证新名称
     const sanitizedNewName = this.sanitizeCategoryName(newName);
     if (!sanitizedNewName) {
       console.error('[LedgerService] Invalid new category name:', newName);
-      return false;
+      return { success: false, affectedTxIds: [], dirtyDates: [], enqueueSuccess: false };
     }
 
     // 检查旧标签是否存在
     const currentCategories = this.state.ledgerMemory.defined_categories;
     if (!currentCategories[oldName]) {
       console.error('[LedgerService] Old category not found:', oldName);
-      return false;
+      return { success: false, affectedTxIds: [], dirtyDates: [], enqueueSuccess: false };
     }
 
     // 检查新名称是否已存在
     if (currentCategories[sanitizedNewName] && oldName !== sanitizedNewName) {
       console.error('[LedgerService] New category name already exists:', sanitizedNewName);
-      return false;
+      return { success: false, affectedTxIds: [], dirtyDates: [], enqueueSuccess: false };
     }
 
     // 更新 defined_categories
@@ -845,9 +947,11 @@ export class LedgerService {
     };
 
     // 批量更新交易记录
+    const affectedTxIds: string[] = [];
     const updatedRecords = { ...this.state.ledgerMemory.records };
     Object.entries(updatedRecords).forEach(([txId, record]) => {
       if (record.category === oldName) {
+        affectedTxIds.push(txId);
         updatedRecords[txId] = { ...record, category: sanitizedNewName };
       }
       // 同时更新元数据中的分类字段
@@ -879,8 +983,17 @@ export class LedgerService {
       TABS: this.computeTabs(newMemory)
     });
 
-    console.log('[LedgerService] Renamed category:', oldName, '->', sanitizedNewName);
-    return true;
+    const dirtyDates = this.collectDirtyDatesForTxIds(affectedTxIds);
+    const enqueueSuccess = dirtyDates.length > 0
+      ? await this.enqueueReclassifyForConfirmedDates(dirtyDates, 'category_rename_confirmed_affected')
+      : true;
+
+    console.log('[LedgerService] Renamed category:', oldName, '->', sanitizedNewName, {
+      affectedCount: affectedTxIds.length,
+      dirtyDates,
+      enqueueSuccess
+    });
+    return { success: true, affectedTxIds, dirtyDates, enqueueSuccess };
   }
 
   /**
@@ -889,17 +1002,17 @@ export class LedgerService {
    * @param description 新描述
    * @returns 是否成功
    */
-  public async updateCategoryDescription(name: string, description: string): Promise<boolean> {
+  public async updateCategoryDescription(name: string, description: string): Promise<{ success: boolean; dirtyDates: string[]; enqueueSuccess: boolean }> {
     if (!this.memoryFileHandle || !this.state.ledgerMemory) {
       console.error('[LedgerService] Cannot update category description: no ledger loaded');
-      return false;
+      return { success: false, dirtyDates: [], enqueueSuccess: false };
     }
 
     // 检查标签是否存在
     const currentCategories = this.state.ledgerMemory.defined_categories;
     if (!currentCategories[name]) {
       console.error('[LedgerService] Category not found:', name);
-      return false;
+      return { success: false, dirtyDates: [], enqueueSuccess: false };
     }
 
     // 更新描述
@@ -920,8 +1033,23 @@ export class LedgerService {
     // 更新状态
     this.setState({ ledgerMemory: newMemory });
 
-    console.log('[LedgerService] Updated category description:', name);
-    return true;
+    /**
+     * v5.1 解耦约束：
+     * 描述变更后立即生产该标签相关的脏日期队列，
+     * 重分类按钮只作为消费启动快捷入口。
+     */
+    const dirtyDates = this.collectDirtyDatesByPredicate(
+      (record) => !record.is_verified && record.category === name
+    );
+    const enqueueSuccess = dirtyDates.length > 0
+      ? await this.enqueueReclassifyForConfirmedDates(dirtyDates, 'category_desc_confirmed_scoped')
+      : true;
+
+    console.log('[LedgerService] Updated category description:', name, {
+      dirtyDates,
+      enqueueSuccess
+    });
+    return { success: true, dirtyDates, enqueueSuccess };
   }
 
   /**

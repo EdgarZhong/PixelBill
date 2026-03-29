@@ -315,22 +315,22 @@ await window.__DEBUG_TOOLS__.clearCurrentLedgerAI('default')
 await window.__DEBUG_TOOLS__.viewQueue()
 
 // 添加测试任务
-await window.__DEBUG_TOOLS__.addTestTask('default', '2026-03-18', 'normal')
+await window.__DEBUG_TOOLS__.addTestTask('default', '2026-03-18')
 
 // 清空队列
 await window.__DEBUG_TOOLS__.clearQueue()
 
-// 测试优先级升级
+// 测试同日合并逻辑（函数名为历史命名，后续将按 v5.1 语义重命名）
 await window.__DEBUG_TOOLS__.testQueuePriority()
 
-// 队列快照统计（按账本/类型聚合）
+// 队列快照统计（按账本聚合）
 await window.__DEBUG_TOOLS__.queueSnapshot('*')
 
 // 批量注入测试任务（高自由度）
 await window.__DEBUG_TOOLS__.addTestTasksBatch([
-  { ledger: 'default', date: '2026-03-18', type: 'normal' },
-  { ledger: 'default', date: '2026-03-19', type: 'reclassify_full' },
-  { ledger: 'travel', date: '2026-03-18', type: 'reclassify_affected' }
+  { ledger: 'default', date: '2026-03-18' },
+  { ledger: 'default', date: '2026-03-19' },
+  { ledger: 'travel', date: '2026-03-18' }
 ])
 
 // 逐步调试原语：peek / dequeue / remove
@@ -340,6 +340,27 @@ await window.__DEBUG_TOOLS__.removeTask('default', '2026-03-18')
 
 // 一键执行 P2 回归测试
 await window.__DEBUG_TOOLS__.runP2Test()
+
+// 用户确认触发接线验证（日期入队）
+await window.__DEBUG_TOOLS__.triggerConfirmedReclassify(['2026-03-18'], 'manual_confirmed')
+
+// 查看触发补偿 recovery 文件
+await window.__DEBUG_TOOLS__.viewQueueRecovery()
+
+// 全链路可观测回归（生产→入队→消费→写回→状态反馈）
+await window.__DEBUG_TOOLS__.runP2FullChainRegression()
+
+// 边界回归：消费中同日重入
+await window.__DEBUG_TOOLS__.testReentryDuringConsume()
+
+// 边界回归：失败保留与重试
+await window.__DEBUG_TOOLS__.testFailureRetention()
+
+// 边界回归：锁定竞态保护（is_verified 二次校验）
+await window.__DEBUG_TOOLS__.testVerifiedRaceGuard()
+
+// 边界回归：前置成功+入队失败补偿恢复
+await window.__DEBUG_TOOLS__.testTriggerCompensationRecovery()
 
 // 生命周期联动测试（创建→重命名→删除，并校验队列迁移/清理）
 await window.__DEBUG_TOOLS__.testLedgerLifecycleQueue()
@@ -451,8 +472,8 @@ git --no-pager show <commit> -- path/to/file
 
 | 任务 | 优先级 | 说明 |
 |------|--------|------|
-| AI 自学习 P2：分类触发层 (ClassifyTrigger) | P2 | 各场景触发逻辑的接口预埋（暂不接管线上触发） |
-| AI 自学习 P2：渐进式重分类交互 UI | P2 | 标签变更后的重分类对话框 |
+| AI 自学习 P2：分类触发层 (ClassifyTrigger) | P2 | 各场景触发逻辑按 v5.1 落地（CSV 自动触发，其余用户确认触发） |
+| AI 自学习 P2：渐进式重分类交互 UI | P2 | 标签变更后的范围确认对话框；按钮确认即入队并自动衔接消费启动 |
 | AI 自学习 P2：记忆文件/快照生命周期联动 | P2 | 账本删除/重命名时同步处理 classify_memory 与 memory_snapshots |
 | AI 自学习 P2：测试与调试工具（自动化） | P2 | 增补 P2 场景脚本：账本隔离、失败重试、标签变更链路 |
 | AI 自学习 P3：列表页快速修正 | P3 | 降低修正摩擦力的交互优化 |
@@ -461,22 +482,26 @@ git --no-pager show <commit> -- path/to/file
 ### P2 当前阶段边界（2026-03 冲刺期）
 
 - **队列定位**：`ClassifyQueue` 作为分类请求接口层，按账本隔离存储，封装自动分类/重分类在数据筛选与预处理上的差异，对 AI Engine 隐藏复杂度。
-- **本阶段目标**：先完成队列、触发层接口、PromptBuilder 新结构、AI Engine 队列消费能力等基础设施。
-- **触发控制不变**：AI 分类入口暂不改动，仍由现有 UI 按钮触发；按钮后的执行链路可切换为“入队 + 消费”。
+- **本阶段目标**：按 `AI_SELF_LEARNING_DESIGN_v5.md` v5.1 冻结口径完成队列、触发层、消费层与回归验收。
+- **队列语义冻结**：任务元素业务语义仅 `{ date }`，同日合并，不承载触发来源/任务类型。
 - **消费约束**：AI Engine 仅消费当前选中账本队列，其他账本队列停放，切换账本后同步切换消费目标。
-- **自动触发延期**：CSV 导入、标签变更等自动触发时机，待交互规则与产品策略评审定稿后再接管线上逻辑。
-- **验收口径**：先做“按钮触发下的队列链路”端到端验收，确认稳定后再推进自动触发策略。
+- **触发策略冻结**：仅 CSV 导入允许自动触发；标签相关与手动重分类均由用户确认后触发。
+- **UI/UX 冻结**：标签变更的“范围差异”保留在渐进式 UI 中；不同按钮对应不同前置处理与 dirtyDates 计算逻辑。
+- **前置处理约束**：条目级改写必须在入队前同步落盘，且与入队成对成立（失败需补偿）。
+- **确认按钮语义冻结**：用户点击某个范围按钮时，必须当场完成该范围对应的入队；不得把范围语义延迟到后续按钮或后台推断。
+- **消费启动衔接**：范围按钮入队成功后自动通知消费端启动；若消费端已在运行，则不重复唤起。
+- **验收口径**：以队列链路端到端与边界回归为准，不再以“按钮触发链路”作为唯一阶段门槛。
 
 ### P2 并行任务分配（队列基础设施优先）
 
 | 并行任务 | 负责人建议 | 目标产出 | 边界约束 |
 |----------|------------|----------|----------|
-| Workstream A：Per-Ledger Queue Core | Agent A | 实现 `classify_queue/{ledger}.json` 读写、同日去重、优先级升级 | 不改触发策略，不改 UI 交互 |
-| Workstream B：Engine Consumption Scope | Agent B | AI Engine 仅消费当前账本队列；切账本后切换消费目标 | 不接管自动触发，入口仍为 UI 按钮 |
+| Workstream A：Per-Ledger Queue Core | Agent A | 实现 `classify_queue/{ledger}.json` 读写、同日去重合并、并发安全元数据 | 不改变 `{ date }` 业务语义，不改 UI 交互 |
+| Workstream B：Engine Consumption Scope | Agent B | AI Engine 仅消费当前账本队列；切账本后切换消费目标 | 按 v5.1 触发策略接入，不扩展额外自动触发 |
 | Workstream C：Prompt/Data Pipeline | Agent C | 按队列任务加载该天交易并拼接 v5 结构，结果回写链路稳定 | 不实现场景筛选，仅消费既有任务 |
 | Workstream D：Lifecycle & Debug | Agent D | 删除/重命名账本时同步处理 `classify_queue/{ledger}.json`；完善队列调试命令 | 不新增前端交互流程 |
 
-**集成顺序**：A → B/C 并行 → D 收尾 → E2E 验收（按钮触发链路）。
+**集成顺序**：A → B/C 并行 → D 收尾 → E2E + 边界回归验收。
 
 ### P2 集成执行口径（B + C → D）
 
@@ -487,14 +512,19 @@ git --no-pager show <commit> -- path/to/file
   - C 的“按任务日期装载 dayTxs + Prompt v5 组装 + is_verified 跳过 proposal”。
 - 禁止回退到默认账本读取与旧 Prompt 结构（`context + transactions`）。
 - 任务出队策略必须统一（不可混用）：
-  - 策略 A：处理成功后 remove，失败保留任务；
-  - 策略 B：先 dequeue，但失败必须补偿回队。
+  - 推荐策略：处理成功后 remove，失败保留任务；
+  - 若采用先 dequeue，失败必须补偿回队且保证幂等。
+- 必须加入同日重入并发保护：出队前执行版本一致性校验（CAS），版本变化则不得删除当日任务。
+- 必须加入锁定竞态保护：AI 写回前基于最新记录二次校验 `is_verified`，已锁定则丢弃该条 proposal。
+- 必须保证前置处理与入队原子性：禁止出现“已改写条目但未入队”的静默状态。
 - D 验收最小闭环必须覆盖：
   - A/B 账本切换后的消费隔离；
   - Prompt v5 三字段（`category_list/reference_corrections/days`）；
   - `reference_corrections` 排序稳定；
   - `is_verified=true` 不被 AI proposal 覆盖；
-  - 失败场景下任务不丢失。
+  - 失败场景下任务不丢失；
+  - 同日二次触发（消费前/消费中）不吞任务；
+  - 前置改写成功 + 入队失败可恢复补齐。
 
 ---
 
