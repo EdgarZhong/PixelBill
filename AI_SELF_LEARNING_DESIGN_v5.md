@@ -1,8 +1,8 @@
 # PixelBill AI 自学习系统设计文档
 
-**版本**: v5.1
-**日期**: 2026-03-24
-**状态**: ✅ P0、P1 已完成，P2、P3 规划中
+**版本**: v6
+**日期**: 2026-04-05
+**状态**: 目标规格已升版至 v6；当前代码与规格差距见第十章
 
 ***
 
@@ -39,7 +39,7 @@
 
 **三重作用**：
 
-1. **冷启动锚点**：记忆文件为空时，AI 仅凭这句话也能做出基本合理的分类
+1. **冷启动锚点**：当前记忆快照为空时，AI 仅凭这句话也能做出基本合理的分类
 2. **学习锚点**：学习 AI 以此为基准归纳规则，不会偏离用户定义的标签含义
 3. **新增标签门槛**：用户新增标签时必须写至少一句描述，这是唯一的强制交互
 
@@ -91,17 +91,31 @@
 | ------------ | ---------------- | -------------- | ----------- |
 | AI 分对 + 用户锁定 | 保持最终落盘类别         | 保留             | 有则保留        |
 | AI 分错 + 用户修正 | 保持最终落盘类别         | 可置空（避免错误理由污染）  | 有则保留        |
-| 字段为空时        | —                | 空字符串或省略        | 空字符串或省略     |
+| 字段为空时        | —                | 固定为空字符串        | 固定为空字符串     |
 
-实例库注入 Prompt 时，不再转换为极简结构，直接注入完整条目：
+实例库存储层保留完整上下文；分类/学习/收编三类 Prompt 注入时也使用**固定 rich schema**，不是极简结构，也不是无差别把账本原始字段整包透传。目标是：
+
+- 保留真正影响语义判断的交易上下文
+- 保持 few-shot / 学习 / 收编三条链路字段口径一致
+- 把原始分类元数据先合并成“最终类别 + 固定理由字段”，再进入 Prompt
 
 ```json
-{ "id": "abc123", "time": "2026-01-15 18:10:00", "counterparty": "杨国福",
-  "amount": 45, "category": "meal", "ai_reasoning": "餐饮商户，正餐时段，金额合理" }
+{ "tx_id": "abc123", "time": "2026-01-15 18:10:00", "counterparty": "杨国福",
+  "description": "麻辣烫", "amount": 45, "direction": "out", "source": "wechat",
+  "paymentMethod": "零钱", "transactionStatus": "SUCCESS", "remark": "/",
+  "rawClass": "商户消费", "category": "meal",
+  "ai_reason": "餐饮商户，正餐时段，金额合理", "user_reason": "" }
 
-{ "id": "abc124", "time": "2026-01-15 19:40:00", "counterparty": "面包码头",
-  "amount": 16.8, "category": "others", "user_note": "同时段已吃过杨国福，这是零食" }
+{ "tx_id": "abc124", "time": "2026-01-15 19:40:00", "counterparty": "面包码头",
+  "description": "芝士面包", "amount": 16.8, "direction": "out", "source": "wechat",
+  "paymentMethod": "零钱", "transactionStatus": "SUCCESS", "remark": "/",
+  "rawClass": "商户消费", "category": "others",
+  "ai_reason": "", "user_reason": "同时段已吃过杨国福，这是零食" }
 ```
+
+**固定注入字段**：
+
+`tx_id` / `time` / `source` / `rawClass` / `counterparty` / `description` / `amount` / `direction` / `paymentMethod` / `transactionStatus` / `remark` / `category` / `ai_reason` / `user_reason`
 
 **检索逻辑**（批量级检索 + 去重合并）：
 
@@ -112,25 +126,134 @@
    - **品类相似**：description / counterparty 的关键词交集
    - **金额区间**：实例金额在当前交易 ±50% 范围内优先
    - **时段相近**：同一餐点时段（早/午/晚/非餐点）优先
-2. **去重合并**：将所有交易检索到的案例按 `id` 去重，合并为一个统一的案例列表
+2. **去重合并**：将所有交易检索到的案例按 `tx_id` 去重，合并为一个统一的案例列表
 3. **统一注入**：合并后的案例列表作为顶层 `reference_corrections` 字段注入 User Message（与 `days` 同级），而非跟随每条交易
-4. **排序约束**：注入前按 `time` 升序（等价于 `date + time` 升序）排序，确保同一天多条案例保持时间上下文
+4. **排序约束**：注入前按 `time` 升序排序（完整日期时间），确保跨日与日内时间上下文都稳定
 
 > **设计考量**：实例库通常不会太大，且不同交易的检索结果重叠率较高（同一商户多次出现），去重后的总量可控。
 
 **与交易记录的同步规则**：
 
-一条交易被重新分类时（无论 AI 重分还是用户再次手改），先按 `id` 查实例库，有则删除旧记录。如果用户对新结果又做了修正，自然产生新的实例记录。实例库永远与交易当前状态一致。
+一条交易被重新分类时（无论 AI 重分还是用户再次手改），先按 `tx_id` 查实例库，有则删除旧记录。如果用户对新结果又做了修正，自然产生新的实例记录。实例库永远与交易当前状态一致。
+
+**为学习会话服务的变更基线机制（新增规格）**：
+
+为了让学习 AI 看到“相对上次学习的完整实例变更”，实例库不能只维护当前态，还必须维护**revision + 变更日志**。
+
+**当前态文件（目标规格）**：
+
+```json
+{
+  "revision": 42,
+  "entries": [
+    {
+      "tx_id": "abc123",
+      "time": "2026-01-15 19:40:00",
+      "source": "wechat",
+      "rawClass": "商户消费",
+      "counterparty": "面包码头",
+      "description": "芝士面包",
+      "amount": 16.8,
+      "direction": "out",
+      "paymentMethod": "零钱",
+      "transactionStatus": "SUCCESS",
+      "remark": "/",
+      "category": "others",
+      "ai_reason": "",
+      "user_reason": "同时段已吃过杨国福，这是零食"
+    }
+  ]
+}
+```
+
+**变更日志文件（目标规格）**：`classify_example_changes/{ledger}.json`
+
+```json
+[
+  {
+    "revision": 41,
+    "type": "upsert",
+    "tx_id": "abc123",
+    "before": null,
+    "after": {
+      "tx_id": "abc123",
+      "time": "2026-01-15 19:40:00",
+      "source": "wechat",
+      "rawClass": "商户消费",
+      "counterparty": "面包码头",
+      "description": "芝士面包",
+      "amount": 16.8,
+      "direction": "out",
+      "paymentMethod": "零钱",
+      "transactionStatus": "SUCCESS",
+      "remark": "/",
+      "category": "others",
+      "ai_reason": "",
+      "user_reason": "同时段已吃过杨国福，这是零食"
+    }
+  },
+  {
+    "revision": 42,
+    "type": "delete",
+    "tx_id": "old_001",
+    "before": {
+      "tx_id": "old_001",
+      "time": "2026-01-03 12:20:00",
+      "source": "alipay",
+      "rawClass": "餐饮美食",
+      "counterparty": "旧商户",
+      "description": "旧样本",
+      "amount": 32,
+      "direction": "out",
+      "paymentMethod": "花呗",
+      "transactionStatus": "SUCCESS",
+      "remark": "",
+      "category": "meal",
+      "ai_reason": "午餐餐饮",
+      "user_reason": ""
+    },
+    "after": null
+  }
+]
+```
+
+**学习基线指针（目标规格）**：
+
+- `classify_memory/{ledger}/index.json` 中维护 `last_learned_example_revision`
+- 学习成功后将其推进到当前实例库 `revision`
+- 学习失败时不推进，保证下次仍能拿到同一批变更
+
+**变更集计算规则**：
+
+- **upserts**：相对上次学习后新增或更新后仍存在的样本，取最终 `after`
+- **deletions**：相对上次学习后从实例库移除的样本，保留删除前 `before`
+- **中间抖动折叠**：同一 `tx_id` 在学习窗口内发生多次改写时，学习 Prompt 看到的是相对上次学习的**净变更结果**，而不是所有中间抖动步骤
+- **失败保护**：若变更日志丢失、revision 回退或区间不可重建，则退化为 `full_reconcile` 模式，直接给学习 AI 注入当前全量实例库，避免静默错学
 
 ### 2.2 非结构化存储
 
-#### 记忆文件（`classify_memory/{ledger}.md`）
+#### 记忆快照目录（`classify_memory/{ledger}/`）
 
-AI 从用户修正行为中归纳出的模式认知。形式为**有序列表**，每条是一个独立信息点。
+AI 从用户修正行为中归纳出的模式认知。形式仍为**有序列表**，每条是一个独立信息点；但存储上不再维护“当前记忆文件”单独落盘，而是统一维护为**快照集合 + 当前指针**。
 
-**文件格式约定**：文件中的**每一行视为一条有序列表项**。代码读取时按换行符 split，忽略空行，为每一行自动分配序号。写入时遍历加序号。无论用户把文件编辑成什么样子（删掉序号、打乱格式、插入空行），代码总能为每一行赋予一个稳定的序号。
+**目录结构**：
 
-**文件示例**：
+```
+Documents/PixelBill/classify_memory/{ledger}/
+├── index.json
+├── 2026-03-17_14-30-00-000.md
+├── 2026-03-17_15-10-00-000.md
+└── ...
+```
+
+- `index.json`：快照索引 + 当前指针
+- `*.md`：单个记忆快照文件
+- **当前记忆内容**：始终通过 `index.json.current_snapshot_id` 指向某个快照文件获得
+- **创建账本时**：立即生成一个空快照，作为该账本的初始当前版本
+
+**单个快照文件格式约定**：文件中的**每一行视为一条有序列表项**。代码读取时按换行符 split，忽略空行，为每一行自动分配序号。写入时遍历加序号。无论用户把文件编辑成什么样子（删掉序号、打乱格式、插入空行），代码总能为每一行赋予一个稳定的序号。
+
+**快照内容示例**：
 
 ```markdown
 1. 我是西工大学生，和女朋友一起生活，meal只统计双人用餐
@@ -142,17 +265,17 @@ AI 从用户修正行为中归纳出的模式认知。形式为**有序列表**�
 7. 云上南山咖啡：虽是咖啡店但卖简餐，正餐时段+合理金额 → meal
 ```
 
-**代码维护方式**：内存中为 `string[]`，读取时按行 split、去除序号前缀和空行，写入时遍历加序号。用户编辑后保存时，代码无条件地按行 split + 重编号，不尝试解析任何 Markdown 结构。
+**代码维护方式**：内存中为 `string[]`，读取时按行 split、去除序号前缀和空行，写入新快照时遍历加序号。用户编辑后保存时，代码无条件地按行 split + 重编号，不尝试解析任何 Markdown 结构。
 
 #### 自述文件（`PixelBill/self_description/user_profile.md`，全局）
 
 用户手动维护的静态偏好描述，全局共享，不按账本隔离。存储于 `Documents/PixelBill/self_description/user_profile.md`，独立目录，不与账本 JSON 混放。
 
-与记忆文件形成分层：**自述是全局人设，记忆文件是账本专属认知**。用户想告诉 AI 的通用信息（"我是西工大学生，和女朋友一起生活"）写在自述里；账本特定的分类规则由 AI 在记忆文件中自动归纳。
+与记忆快照形成分层：**自述是全局人设，记忆快照是账本专属认知**。用户想告诉 AI 的通用信息（"我是西工大学生，和女朋友一起生活"）写在自述里；账本特定的分类规则由 AI 在记忆快照中自动归纳。
 
 **与记忆文件的关系**：
 
-| 维度           | 记忆文件             | 自述                         |
+| 维度           | 记忆快照             | 自述                         |
 | ------------ | ---------------- | -------------------------- |
 | 作用域          | 按账本隔离            | 全局共享                       |
 | 维护者          | AI 生成，用户可编辑      | 用户手动编写                     |
@@ -170,16 +293,16 @@ AI 从用户修正行为中归纳出的模式认知。形式为**有序列表**�
 
 **与旧字段的关系**：
 
-| 旧字段/文件                            | 处理方式                      | 原因                    |
-| --------------------------------- | ------------------------- | --------------------- |
-| `userContext`（secure\_config.bin） | **迁移**至 `user_profile.md` | 从加密配置中拆出，改为可直接编辑的独立文件 |
-| `classify_rules/{ledger}.md`      | **废弃**                    | 记忆文件同时承担规则和认知职责       |
+| 旧字段/文件                  | 处理方式                     | 原因                                       |
+| ---------------------------- | ---------------------------- | ------------------------------------------ |
+| `userContext`                | **迁移**至 `user_profile.md` | 从加密配置中拆出，改为可直接编辑的独立文件 |
+| `classify_rules/{ledger}.md` | **废弃**                     | 记忆快照同时承担规则和认知职责             |
 
-**用户编辑**：记忆文件区域展示有序列表，用户可直接增删改任意行，保存时代码自动按行 split + 重编号。即使用户完全破坏了格式，代码也能正确恢复为有序列表。自述区域为自由文本，无格式约束。
+**用户编辑**：记忆区域展示当前快照内容的有序列表，用户可直接增删改任意行；保存时创建一个新的 `user_edit` 快照，并将 `current_snapshot_id` 指向它。即使用户完全破坏了格式，代码也能正确恢复为有序列表。自述区域为自由文本，无格式约束。
 
 ***
 
-## 三、记忆文件维护机制
+## 三、记忆快照维护机制
 
 ### 3.1 增量更新（常态操作）
 
@@ -207,7 +330,7 @@ AI 从用户修正行为中归纳出的模式认知。形式为**有序列表**�
 
 **变动前后对比**：
 
-更新前的记忆文件：
+更新前的当前记忆列表：
 
 ```markdown
 1. 我是西工大学生，和女朋友一起生活，meal只统计双人用餐
@@ -231,7 +354,7 @@ AI 从用户修正行为中归纳出的模式认知。形式为**有序列表**�
 7. 便利店消费 > 20元 + 晚间无其他正餐 → meal                    ← ADD
 ```
 
-执行完毕后自动重编号并写入文件。
+执行完毕后自动重编号，并生成一个新的当前快照。
 
 **对学习 AI 的约束（写入其 System Prompt）**：
 
@@ -240,31 +363,39 @@ AI 从用户修正行为中归纳出的模式认知。形式为**有序列表**�
 
 ### 3.2 版本快照机制
 
-AI 拥有 MODIFY 和 DELETE 权限，用户也能任意编辑，任何一次改动都可能导致信息丢失。因此每次写入记忆文件前，必须先拍快照。
+AI 拥有 MODIFY 和 DELETE 权限，用户也能任意编辑，任何一次改动都可能导致信息丢失。因此记忆系统统一采用：**快照集合 + 当前指针 + 写后快照**。
 
-**快照存储**：沙箱目录（`Directory.Data`），不和 Documents 正式文件混在一起。
+**快照存储**：正式存储目录（`Directory.Documents`），与账本记忆同目录，不再拆出单独的沙箱快照目录。
 
 ```
-沙箱/memory_snapshots/{ledger}/
-├── index.json              ← 快照索引
-├── snap_001.md             ← 快照文件
-├── snap_002.md
+Documents/PixelBill/classify_memory/{ledger}/
+├── index.json
+├── 2026-03-17_14-30-00-000.md
+├── 2026-03-17_15-10-00-000.md
 └── ...
 ```
 
-**`index.json`** **结构**：
+**命名规则**：
+
+- 快照文件名与 UI 展示名统一使用日期时间字符串
+- 推荐格式：`YYYY-MM-DD_HH-mm-ss-SSS`
+- `id`、文件名 basename、UI 列表展示名三者保持一致
+- Windows 文件名中不使用冒号
+
+**`index.json` 结构**：
 
 ```json
 {
+  "current_snapshot_id": "2026-03-17_15-10-00-000",
   "snapshots": [
     {
-      "id": "snap_001",
+      "id": "2026-03-17_14-30-00-000",
       "timestamp": "2026-03-17T14:30:00",
-      "trigger": "ai_learn",
-      "summary": "学习会话：新增2条，修改1条"
+      "trigger": "ledger_init",
+      "summary": "账本初始化：空记忆"
     },
     {
-      "id": "snap_002",
+      "id": "2026-03-17_15-10-00-000",
       "timestamp": "2026-03-17T15:10:00",
       "trigger": "user_edit",
       "summary": "用户手动编辑"
@@ -273,22 +404,41 @@ AI 拥有 MODIFY 和 DELETE 权限，用户也能任意编辑，任何一次改�
 }
 ```
 
-**快照触发时机**——每次写入记忆文件之前，先把当前版本拍一份快照：
+**`trigger` 设计**：
 
-| 触发场景        | `trigger` 值   | `summary`          |
-| ----------- | ------------- | ------------------ |
-| 学习会话执行完操作指令 | `ai_learn`    | 自动生成：本次操作摘要        |
-| 收编完成        | `ai_compress` | "收编：N条 → M条"       |
-| 用户在编辑器点保存   | `user_edit`   | "用户手动编辑"           |
-| 标签删除导致追加    | `tag_delete`  | "标签 xxx 删除，追加失效标记" |
+| 触发场景 | `trigger` 值 | `summary` |
+| -------- | ------------ | --------- |
+| 创建账本 | `ledger_init` | "账本初始化：空记忆" |
+| 学习会话完成 | `ai_learn` | 自动生成：本次操作摘要 |
+| 收编完成 | `ai_compress` | "收编：N条 → M条" |
+| 用户在编辑器点保存 | `user_edit` | "用户手动编辑" |
+| 标签删除导致追加 | `tag_delete` | "标签 xxx 删除，追加失效标记" |
+| 手动创建测试快照 | `manual` | 用户传入摘要 |
 
-**执行流程**：任何代码路径要写入记忆文件 → 先读取当前文件 → 存为 `snap_{自增ID}.md` → 更新 `index.json` → 再执行实际写入。
+**关键语义**：
 
-**快照上限**：保留最近 30 个快照，超出后删除最旧的。
+- **当前版本唯一来源**：`current_snapshot_id`
+- **不再单独维护当前记忆文件**：当前记忆内容始终通过读取 `current_snapshot_id` 指向的快照获得
+- **创建账本即生成空快照**：因此不存在“账本已存在但当前指针为空”的常规状态
+- **当前快照不可删除**
+- **GC 规则**：保留最近 30 个快照；超出时删除“最旧且非当前”的快照，绝不删除当前快照
 
-**回退操作**：回退不删除任何快照历史。执行回退时：先将当前记忆文件拍一个新快照（`trigger: "rollback"`，summary: "回退前的版本"），然后用选中的历史快照内容覆盖当前记忆文件。快照时间线始终只增不减，用户永远可以再次回退到回退之前的状态。
+**写后快照执行流程**：
 
-**UI**：设置页 "AI 记忆" 页面中，提供"历史版本"入口。点进去是快照列表，展示时间、触发类型、摘要。用户点击某条可预览内容，确认后回退。
+```
+某条代码路径完成一次记忆变更
+  → 产出新的完整记忆列表 string[]
+  → 生成新快照文件 {timestamp}.md
+  → 将快照元数据追加到 index.json
+  → 更新 current_snapshot_id 指向该新快照
+  → 如超上限，删除“最旧且非当前”的旧快照
+```
+
+> 说明：这里的“创建”本身也算一次写入，因此同样创建新快照并更新当前指针，不再区分“当前文件写入”和“快照备份”两套路径。
+
+**回退操作**：回退不再额外创建 `rollback` 快照。执行回退时，仅将 `current_snapshot_id` 指向目标历史快照。由于当前版本本身已经是一个快照，时间线天然保留，用户永远可以再次切回回退前版本。
+
+**UI**：设置页 "AI 记忆" 页面中，提供"历史版本"入口。点进去是快照列表，展示时间、触发类型、摘要。用户点击某条可预览内容，确认后将其设为当前快照。
 
 ### 3.3 收编（上下文压缩，低频操作）
 
@@ -298,7 +448,7 @@ AI 拥有 MODIFY 和 DELETE 权限，用户也能任意编辑，任何一次改�
 
 > *"以下是当前的分类记忆，共 N 条。请压缩到不超过 M 条，合并语义相近的条目，保留所有关键信息。输出新的完整有序列表，每条包含一个信息点。收编时允许合并多个信息点为一条。"*
 
-**与标签删除的联动**：删除标签时会向记忆文件追加一条失效标记（如 `标签 "transport" 已从分类体系中移除，涉及该标签的规则不再适用`）。收编时需要特殊处理：
+**与标签删除的联动**：删除标签时会向当前记忆快照追加一条失效标记（如 `标签 "transport" 已从分类体系中移除，涉及该标签的规则不再适用`）。收编时需要特殊处理：
 
 - 收编 Prompt 中额外注入当前的 `defined_categories`，让 AI 知道哪些标签现在存在
 - 收编 AI 应当清理涉及已删除标签的规则条目，并移除失效标记本身
@@ -306,9 +456,10 @@ AI 拥有 MODIFY 和 DELETE 权限，用户也能任意编辑，任何一次改�
 
 **执行流程**：
 
-1. 拍快照（`trigger: "ai_compress"`）
-2. 将完整列表 + 当前 `defined_categories` 交给 AI 压缩
-3. AI 输出新列表，整体替换文件内容
+1. 读取当前快照内容 + 当前 `defined_categories`
+2. 读取当前实例库**全量**内容（rich schema）
+3. 将完整列表 + 当前标签体系 + 全量实例库一并交给 AI 压缩
+4. AI 输出新列表，创建一个 `ai_compress` 快照并更新 `current_snapshot_id`
 
 这是**唯一做全量重写的时机**。如收编后分类效果变差，可通过快照回退。
 
@@ -346,11 +497,18 @@ AI 拥有 MODIFY 和 DELETE 权限，用户也能任意编辑，任何一次改�
 ```
 检测到触发条件
   → 异步后台静默启动学习会话
-  → 读取实例库全量 + 读取当前记忆文件（如有）
+  → 读取当前快照内容（如有）
+  → 读取实例库当前 revision
+  → 基于 last_learned_example_revision 构造“相对上次学习的完整净变更”
+      - upserts：新增 / 更新后仍存在的样本
+      - deletions：已从实例库移除的样本
+      - fallback：若无法重建变更，则切 full_reconcile 模式注入全量实例库
   → 发送给学习 AI（专用学习 Prompt）
   → 学习 AI 输出操作指令（ADD / MODIFY / DELETE）
-  → 拍快照（trigger: "ai_learn"，summary: 本次操作摘要）
-  → 代码执行指令，更新记忆文件
+  → 代码执行指令，得到新的完整记忆列表
+  → 创建一个 `ai_learn` 快照（summary: 本次操作摘要）
+  → 更新 `current_snapshot_id`
+  → 推进 last_learned_example_revision 到当前实例库 revision
   → 清除"待学习"标记，修正计数归零
   → 检查列表长度，超阈值则触发收编
   → 顶部弹出轻量通知："AI 已学习新的分类偏好 ✓"
@@ -363,10 +521,12 @@ AI 拥有 MODIFY 和 DELETE 权限，用户也能任意编辑，任何一次改�
 
 ```
 读取当前选中账本 currentLedger
-  → 从 classify_queue/{currentLedger}.json 取出一天的任务 { date, type }
+  → 读取当前 UI 的 data range（仅作为消费许可窗口）
+  → 从 classify_queue/{currentLedger}.json 中寻找“落在当前 data range 内的最早可消费日期”
+      → 若当前范围内无可消费任务，则本轮不消费，但队列任务保留
   → 加载该天全部交易
   → 并行加载：
-      ① classify_memory/{currentLedger}.md（模式记忆）
+      ① classify_memory/{currentLedger}/ 中 current_snapshot_id 指向的快照（模式记忆）
       ② classify_examples/{currentLedger}.json
          → 对该天每条交易检索最多3条相关案例
          → 按 tx_id 去重合并为统一案例列表
@@ -375,7 +535,8 @@ AI 拥有 MODIFY 和 DELETE 权限，用户也能任意编辑，任何一次改�
   → 拼接最终 Prompt（见第六节）
   → 调用 LLM
   → 解析结果 → Arbiter.ingest()（锁定条目受保护）
-  → UI 光效：type === "normal" ? 绿色 : 黄色
+  → UI 反馈：统一展示“分类处理中 / 有未完成任务”
+  → 若队列中仍存在超出当前 data range 的待处理日期，则统一提示“存在当前范围外待处理任务”
 ```
 
 ***
@@ -394,16 +555,10 @@ AI 拥有 MODIFY 和 DELETE 权限，用户也能任意编辑，任何一次改�
 
 ```
 新增标签完成
-  → 弹窗："需要重新分类吗？"
+  → 弹窗："需要开始分类吗？"
       → [暂时跳过] → 结束
-      → [现在重新分类] →
-          弹窗："选择重新分类范围"
-            → [仅未分类的交易]
-            → [全量（未锁定的交易）] →
-                展示锁定交易列表，允许用户当场解锁
-                → 用户确认对应范围按钮
-                    → 同步完成该范围的前置处理与 dirtyDates 入队
-                    → 通知消费端开始消费（若当前空闲）
+      → [现在启动分类] →
+      	→ 通知消费端尝试启动（运行中则忽略；队列为空则 no-op）
 ```
 
 ### 5.3 删除标签
@@ -414,22 +569,20 @@ AI 拥有 MODIFY 和 DELETE 权限，用户也能任意编辑，任何一次改�
 | -- | -------------------------- | ---------------------------------------------------------------------------------------------------------------- |
 | 1  | 受影响交易（`category === 被删标签`） | `category → "uncategorized"`，`source → FALLBACK`，`is_verified → false`（强制解锁）                                     |
 | 2  | 实例库                        | 删除所有 `category === 被删标签` 的记录                                                                                     |
-| 3  | 记忆文件                       | 追加一条：`标签 "xxx" 已从分类体系中移除，涉及该标签的规则不再适用`（此条为临时失效标记，下次收编时由 AI 根据当前 `defined_categories` 决定是否清理相关规则——如果该标签被重新添加，则保留） |
+| 3  | 当前记忆快照                   | 生成一个新的 `tag_delete` 快照，并在其中追加一条：`标签 "xxx" 已从分类体系中移除，涉及该标签的规则不再适用`（此条为临时失效标记，下次收编时由 AI 根据当前 `defined_categories` 决定是否清理相关规则——如果该标签被重新添加，则保留） |
 
 **用户交互（渐进式披露）**：
 
 ```
 删除标签完成，数据处理执行完毕
-  → 弹窗："受影响的 X 条交易已设为未分类。需要重新分类吗？"
-      → [暂时跳过] → 结束
-      → [现在重新分类] →
-          弹窗："选择重新分类范围"
-            → [仅受影响的交易（原属于被删标签）]
-            → [全量（所有未锁定的交易）] →
-                展示锁定交易列表，允许用户当场解锁
-                → 用户确认对应范围按钮
-                    → 同步完成该范围的前置处理与 dirtyDates 入队
-                    → 通知消费端开始消费（若当前空闲）
+  → 直接进入范围确认弹窗
+      → [仅受影响的交易（原属于被删标签）]
+      → [真全量重分类（全账本所有未锁定交易）] →
+          展示锁定交易列表，允许用户当场勾选并解锁
+          → 用户确认对应范围按钮
+              → 同步完成该范围的前置处理与 dirtyDates 入队
+              → 通知消费端开始消费（若当前空闲）
+      → 关闭弹窗 / 返回上一步 → 结束
 ```
 
 ### 5.4 重命名标签
@@ -437,6 +590,8 @@ AI 拥有 MODIFY 和 DELETE 权限，用户也能任意编辑，任何一次改�
 **数据处理**：四处批量字符串替换——交易记录、实例库、记忆文件文本、`defined_categories`。
 
 **不触发重分类，不影响锁定状态。**
+
+**与已有队列的关系**：若当前队列中已存在待处理日期，不需要改写队列任务本身。消费端按天读取的是最新账本状态，因此这些旧任务在后续消费时会自然使用重命名后的标签文本。
 
 ### 5.5 修改标签描述
 
@@ -447,12 +602,12 @@ AI 拥有 MODIFY 和 DELETE 权限，用户也能任意编辑，任何一次改�
 ```
 描述修改完成
   → 弹窗："标签定义已更改，需要重新分类吗？"
-      → [暂时跳过] → 结束
+      → [暂时跳过（不对该类别下现有交易做更改）] → 结束
       → [现在重新分类] →
           弹窗："选择重新分类范围"
-            → [仅该标签下的未锁定交易]
-            → [全量（所有未锁定的交易）] →
-                展示锁定交易列表，允许用户当场解锁
+            → [该标签下仅未锁定交易]
+            → [该标签下所有交易] →
+                展示该标签下锁定交易列表，允许用户当场解锁，**提供快捷全选按钮**
                 → 用户确认对应范围按钮
                     → 同步完成该范围的前置处理与 dirtyDates 入队
                     → 通知消费端开始消费（若当前空闲）
@@ -460,7 +615,7 @@ AI 拥有 MODIFY 和 DELETE 权限，用户也能任意编辑，任何一次改�
 
 ### 5.6 分类任务队列架构
 
-正常分类和重分类共用一套 AI Engine 管道（投喂全天交易、AI 输出全天结果、Arbiter 保护锁定条目）。本阶段重点是将“任务生产（前置处理 + 按天入队）”与“任务消费（按天执行）”彻底解耦；UI/UX 层只负责帮助用户选择触发范围，并在入队成功后自动衔接消费启动。
+正常分类和重分类共用一套 AI Engine 管道（投喂全天交易、AI 输出全天结果、Arbiter 保护锁定条目）。本阶段重点是将“任务生产（前置处理 + 按天入队）”与“任务消费（按天执行）”彻底解耦；同时将“触发层”从 UI 中独立出来，统一承接按钮意图并暴露清晰接口。UI 可以在一次点击中同时触发两件事——任务生产与通知消费启动——但这只是控制流上的连续动作，不代表数据流耦合；消费端始终只读取队列，不读取 UI 上下文。
 
 #### 5.6.1 队列设计
 
@@ -508,26 +663,59 @@ AI 拥有 MODIFY 和 DELETE 权限，用户也能任意编辑，任何一次改�
 - 业务语义保持不变：队列只表达 `{ date }`
 - 工程实现允许附加不可见元数据（如 `revision` 或 `lastEnqueueAt`），用于并发安全，不承载业务语义
 - 消费端取队首时记录该任务版本，出队时执行“版本一致性校验”（CAS 语义）
-- 若消费期间同日再次入队导致版本变化，则本次消费完成后**不得删除该日任务**，必须保留并在下一轮继续消费
+- 若消费期间同日再次入队导致版本变化，则本次消费完成后**不得删除该日任务**，必须保留并在下一轮继续消费（注：消费期间指的是AI引擎已经发送读入数据并发送LLM请求，到结果返回并完成后续链路触发过程的区间）
 - 目标：避免“运行中二次触发被首次消费 remove 掉”的吞任务问题
 
 **跨账本消费约束**：AI Engine 只消费当前选中账本对应的队列文件；其他账本队列保持停放，不会被后台自动处理。用户切换账本后，消费目标同步切换为新账本队列。
 
+**`data range` 约束层级（v6 新增高层约束）**：
+
+- `data range` 是 **UI 当前查看窗口**，同时也是 **AI Engine 的消费许可窗口**
+- `data range` **不参与**条目级前置处理、dirtyDates 计算、队列入队与 recovery 补偿
+- 换言之：**任务生产范围只由业务语义决定；`data range` 只决定“现在允许消费哪些已入队日期”**
+- 若某次操作生产出的任务范围超出当前 `data range`，这些范围外任务必须继续保留在队列中，等待后续范围切换或显式全量消费
+- 消费端不得把“当前范围外任务”视为成功完成、也不得静默丢弃
+
+**消费调度规则（与 `data range` 联动）**：
+
+- 允许消费端跳过“当前不在 `data range` 内”的更早任务，转而处理当前范围内最早可消费日期
+- 这意味着 `data range` 可以暂时打破严格队首消费顺序；该行为属于**调度层策略**，不改变队列元素业务语义
+- 若当前范围内没有任何待处理任务，则本轮消费安全结束；队列保持不变
+- 当用户扩大、缩小或切换 `data range` 后，系统应重新尝试调度当前范围内可消费的待处理日期
+
 #### 5.6.2 触发层设计
 
-触发层职责固定为两件事：**生产前前置处理** + **按天入队**。\
-所有条目级数据改写必须在用户 UI 确认后、入队前同步完成。\
-若某次入队成功，UI/应用层应立即通知消费端开始消费；若消费端已在运行，则不重复启动，只保留任务等待后续消费。
+触发层必须作为**独立模块**存在，位于 UI 与 AI Engine 之间。\
+其职责不是抽象成一个“大一统聚合接口”，而是**按 UI 按钮语义暴露明确入口**：场景少、语义清晰时，允许保留少量重复代码，优先保证每个按钮的行为一眼可读。\
+触发层内部可同时完成两类动作：
+
+1. **任务生产**：执行前置处理、计算 dirtyDates、按天入队
+2. **消费通知**：在需要时通知消费端尝试启动
+
+这两类动作可以在同一次点击里连续发生，但必须在概念上分离：
+
+- **数据流**：生产端只负责把 `{ date }` 写入队列
+- **消费流**：消费端只从队列读取，不关心 UI 来源
+- **控制流**：某个按钮点击后，可以先生产、再通知消费；也可以只通知消费而不生产新任务
+
+**触发层总原则**：
+
+- 所有条目级数据改写必须在用户确认后、入队前同步完成
+- 若某次场景需要入队，则入队成功后可立即通知消费端开始消费
+- 若某次场景不需要生成新任务，则允许只发出“尝试启动消费”的控制信号
+- 若消费端已在运行，则跳过重复启动，只保留队列中的待处理任务
+- 接口按按钮拆分，不强求抽象复用；**三段重复的代码好过过早的抽象**
 
 **日期筛选辅助判定**：
 
 - "该天有未分类且未锁定的条目"：`is_verified === false && (category 为空 || category === "uncategorized")`
 - "该天有未锁定条目"：存在 `is_verified === false` 的交易
 
-**生产前前置处理总流程（统一口径）**：
+**需要生产任务的通用流程**：
 
 ```
-用户在 UI 完成一次操作并点击确认
+UI 点击某个会生产任务的按钮
+  → 调用该按钮对应的触发层接口
   → 执行该场景要求的条目级数据改写（同步落盘）
   → 计算“脏日期集合 dirtyDates”
   → 将 dirtyDates 逐天并入 classify_queue（同日合并）
@@ -535,90 +723,108 @@ AI 拥有 MODIFY 和 DELETE 权限，用户也能任意编辑，任何一次改�
   → 结束
 ```
 
-**各场景的前置处理细则**：
+**各按钮对应的触发层接口语义**：
 
 **CSV 导入**：
 
 ```
-扫描导入涉及的日期
+UI/导入流程调用 CSV 导入接口
+  → 扫描导入涉及的日期
   → 筛选：该天有未分类且未锁定的条目
   → dirtyDates += date
   → 入队 { date }
 ```
 
-**新增标签 → 用户选"仅未分类"**：
+**新增标签 → [暂时跳过]**：
 
 ```
-扫描全量日期
-  → 筛选：该天有未分类且未锁定的条目
-  → dirtyDates += date
-  → 入队 { date }
+UI 调用新增标签跳过接口
+  → 不做任何任务生产
+  → 不通知消费端
 ```
 
-**新增标签 → 用户选"全量"**：
+**新增标签 → [现在启动分类]**：
 
 ```
-扫描全量日期
-  → 筛选：该天有未锁定条目
-  → 前置处理：入选日期中所有未锁定条目按 tx_id 清理实例库
-  → dirtyDates += date
-  → 入队 { date }
+UI 调用新增标签启动接口
+  → 不做条目级改写
+  → 不计算 dirtyDates
+  → 不新增队列任务
+  → 仅通知消费端尝试启动
+  → 若当前队列为空，则安全 no-op
+  → 若当前队列中已有待处理日期，则这些旧任务会按最新 defined_categories 执行
 ```
 
 **删除标签 → 用户选"仅受影响"**：
 
 ```
-（前置操作已完成：重置条目、清理实例库、记录受影响的日期列表）
+UI 调用“删除标签-仅受影响”接口
+  → （前置操作已完成：重置条目、清理实例库、记录受影响的日期列表）
   → dirtyDates += 受影响日期
   → 入队 { date }
 ```
 
-**删除标签 → 用户选"全量"**：
+**删除标签 → 用户选"真全量重分类"**：
 
 ```
-扫描全量日期
+UI 调用“删除标签-真全量重分类”接口
+  → 扫描全量日期
   → 筛选：该天有未锁定条目
   → 前置处理：入选日期中所有未锁定条目按 tx_id 清理实例库
   → dirtyDates += date
   → 入队 { date }
 ```
 
-**修改标签描述 → 用户选"仅该标签"**：
+**修改标签描述 → 用户选"该标签下仅未锁定交易"**：
 
 ```
-扫描全量日期
+UI 调用“修改描述-仅该标签”接口
+  → 扫描全量日期
   → 筛选：该天有该标签的未锁定条目
   → 前置处理：入选日期中该标签的未锁定条目按 tx_id 清理实例库
   → dirtyDates += date
   → 入队 { date }
 ```
 
-**修改标签描述 → 用户选"全量"**：
+**修改标签描述 → 用户选"该标签下所有交易"**：
 
 ```
-（同新增标签全量逻辑）
+UI 调用“修改描述-该标签下所有交易”接口
+  → 扫描全量日期
+  → 筛选：该天有该标签条目
+  → 前置处理：入选日期中该标签的未锁定条目，以及用户当场解锁的该标签锁定条目，按 tx_id 清理实例库
+  → dirtyDates += date
   → 入队 { date }
 ```
 
 **学习完成 → 用户确认重分类**：
 
 ```
-扫描全量日期
+UI 调用学习后重分类接口
+  → 扫描全量日期
   → 筛选：该天有未锁定条目
   → 前置处理：入选日期中所有未锁定条目按 tx_id 清理实例库
   → dirtyDates += date
   → 入队 { date }
 ```
 
-**手动触发重分类**：
+**设置页账本区 → [全量重分类]**：
 
 ```
-扫描全量日期
+UI 调用“设置页-全量重分类”接口
+  → 扫描全量日期
   → 筛选：该天有未锁定条目
   → 前置处理：入选日期中所有未锁定条目按 tx_id 清理实例库
   → dirtyDates += date
   → 入队 { date }
 ```
+
+**生产范围与当前消费范围不一致时的统一提示约束**：
+
+- 凡是某次操作最终生产出的 dirtyDates 超出当前 `data range`，UI 都必须给予用户**统一样式的提示**
+- 提示只负责说明“已有部分任务进入队列，但当前不会立即消费”，**不改变队列内容，也不改变触发层语义**
+- 提示文案与展现形式需在后续 UI/UX 专章统一设计；本章只冻结其**存在性与触发条件**
+- CSV 导入后的特殊性不在“生产层例外”，而在“消费层例外”：导入完成后，UI 会自动把 `data range` 调整回最大日期范围，因此本来可能受当前范围限制的消费会被立即放开
 
 **中断与恢复口径（与队列生产联动）**：
 
@@ -633,22 +839,26 @@ AI 拥有 MODIFY 和 DELETE 权限，用户也能任意编辑，任何一次改�
 - 实施上可采用“触发事务日志”最小方案：记录 `triggerId + dirtyDates + enqueueState`，重启后自动补齐未完成入队
 - 验收标准：不存在“条目已重置/解锁，但对应日期未入队”的状态
 
-#### 5.6.3 正常分类 vs 重分类对比
+#### 5.6.3 按钮 → 触发层接口 → 副作用总表
 
-| 维度     | 正常分类（来源语义）       | 重分类（来源语义）               |
-| ------ | ---------------- | ----------------------- |
-| 队列元素   | `{ date }`       | `{ date }`（相同）          |
-| 触发按钮语义 | CSV 自动触发 / 用户确认“仅未分类” | 用户确认“全量 / 仅受影响 / 仅该标签”等 |
-| 日期筛选   | 该天有未分类且未锁定条目     | 按场景筛选“该天有未锁定条目”或“受影响日期” |
-| 实例库预清理 | 无                | 在触发层完成（入队前）             |
-| 投喂内容   | 该天全部交易           | 该天全部交易（相同）              |
-| AI 输出  | 全部交易的分类结果        | 全部交易的分类结果（相同）           |
-| 结果应用   | ai\_category 全覆盖 | ai\_category 全覆盖（相同）    |
-| 锁定保护   | Arbiter 保护       | Arbiter 保护（相同）          |
-| 消费启动   | CSV 自动触发或按钮确认后自动通知消费端 | 按钮确认后自动通知消费端           |
-| UI 表现  | 统一“分类处理中/有未完成任务” | 统一“分类处理中/有未完成任务”        |
+| UI 按钮 / 入口 | 触发层接口职责 | 条目级改写 | 实例库处理 | dirtyDates | 入队 | 消费通知 | 锁定条目处理 |
+| -------------- | -------------- | ---------- | ---------- | ---------- | ---- | -------- | ------------ |
+| CSV 导入（自动） | 扫描导入日期并生产普通分类任务 | 无 | 无 | 导入日期中“有未分类且未锁定条目”的日期 | 是 | 可自动 | 不涉及 |
+| 新增标签 → [暂时跳过] | 结束本次交互 | 无 | 无 | 无 | 否 | 否 | 不涉及 |
+| 新增标签 → [现在启动分类] | 仅尝试启动当前消费 | 无 | 无 | 无 | 否 | 是 | 不涉及 |
+| 删除标签 → [仅受影响的交易] | 对受影响日期生产任务 | 删除流程已完成 | 删除被删标签样本已完成 | 受影响日期 | 是 | 是 | 删除标签导致原标签条目强制解锁 |
+| 删除标签 → [真全量重分类] | 对全账本未锁定条目生产任务 | 无额外条目重置 | 清理入选日期中所有未锁定条目的样本 | 全账本日期 | 是 | 是 | 锁定条目默认不参与，除非用户当场解锁 |
+| 修改标签描述 → [该标签下仅未锁定交易] | 对该标签范围生产任务 | 无 | 清理该标签下未锁定条目的样本 | 该标签涉及日期 | 是 | 是 | 锁定条目不参与 |
+| 修改标签描述 → [该标签下所有交易] | 对该标签范围生产任务 | 当场解锁用户勾选的该标签锁定条目 | 清理该标签下未锁定条目 + 当场解锁条目的样本 | 该标签涉及日期 | 是 | 是 | 仅该标签下的锁定条目进入解锁列表 |
+| 设置页账本区 → [全量重分类] | 生产真全量任务 | 无 | 清理全账本未锁定条目的样本 | 全账本日期 | 是 | 是 | 锁定条目默认不参与，除非用户先在别处解锁 |
 
-**代码分离点**：触发层（日期筛选 + 前置处理 + 入队）独立于 AI Engine。AI Engine 只看当前账本队列中的 `{ date }`，不关心"为什么要分类"。
+**按动作类型归类**：
+
+- **生产型触发**：CSV 导入、删除标签范围按钮、修改描述范围按钮、设置页账本区的全量重分类
+- **仅通知消费型触发**：新增标签后的“现在启动分类”
+- **无副作用退出型触发**：新增标签后的“暂时跳过”
+
+**代码分离点**：触发层独立于 AI Engine。**UI 不得直接读写 `classify_queue`，也不得直接编排 `BatchProcessor` 细节，必须通过触发层暴露的按钮级接口完成。** AI Engine 只看当前账本队列中的 `{ date }`，不关心“为什么要分类”。
 
 #### 5.6.4 当前阶段实施边界（补充说明）
 
@@ -656,10 +866,14 @@ AI 拥有 MODIFY 和 DELETE 权限，用户也能任意编辑，任何一次改�
 
 1. **队列统一为按天任务**：队列元素仅 `{ date }`。
 2. **自动触发仅限 CSV 导入**：切换窗口、回前台、重启不自动生成新任务。
-3. **重分类由用户操作触发**：标签相关操作与手动重分类在 UI 渐进式确认后生成任务。
+3. **重分类由用户操作触发**：标签相关操作与设置页账本区的“全量重分类”在 UI 渐进式确认后生成任务。
 4. **前置处理必须同步落盘**：所有解锁与分类元数据联动改写在入队前完成。
-5. **确认按钮即完成生产**：用户点击某个范围按钮时，必须当场完成该范围对应的入队，不得把“范围选择”延迟到后续按钮或后台推断。
-6. **消费启动自动衔接**：标签相关确认按钮在入队成功后应自动通知消费端启动；若消费端已在运行，则不重复唤起。
+5. **范围按钮即完成生产**：凡是会生成任务的范围按钮，点击当场必须完成该范围对应的入队，不得把“范围选择”延迟到后续按钮或后台推断。
+6. **新增标签是特例**：新增标签后的“现在启动分类”不生成新任务，只尝试启动当前已有消费流程。
+7. **消费启动自动衔接**：需要入队的按钮在入队成功后应自动通知消费端启动；若消费端已在运行，则不重复唤起。
+8. **触发接口按按钮拆分**：不强制抽象为统一聚合入口；每个按钮可拥有独立触发层接口，以保持语义清晰、实现可审计。
+9. **`data range` 永远不限制生产范围**：`data range` 只约束消费，不得反向限制 dirtyDates 生产、队列入队与补偿恢复。CSV 导入的特殊性仅在于：导入完成后 UI 会自动把 `data range` 调整回最大日期范围，因此消费限制会被自动放宽；这不是生产层例外。
+10. **范围外 backlog 需可感知**：若队列中仍有超出当前 `data range` 的待处理任务，系统必须提供统一的待处理提示能力。
 
 #### 5.6.5 方案正确性与健壮性说明（最终复盘）
 
@@ -727,25 +941,29 @@ AI 拥有 MODIFY 和 DELETE 权限，用户也能任意编辑，任何一次改�
 6. **崩溃恢复**：崩溃前未完成任务在重启后仍在队首可继续消费
 7. **空任务清理**：当日无交易时任务能正常出队，不形成死循环
 8. **日期边界样本**：23:59/00:00 邻近交易在筛选与消费阶段归属同一规则，结果一致
+9. **新增标签启动消费**：点击“现在启动分类”时不新增 dirtyDates、不写入队列，仅尝试启动当前消费；若队列为空则安全 no-op
+10. **标签重命名 + 队列共存**：重命名后无需改写既有队列任务，后续消费仍按最新账本状态正确执行
 
 ### 5.7 所有场景 vs is\_verified 交互矩阵
 
 | 操作            | 未锁定交易                       | 已锁定交易                 |
 | ------------- | --------------------------- | --------------------- |
 | CSV 导入新交易     | 计算 dirtyDates 并入队           | 不适用                   |
-| 新增标签 → 仅未分类   | 计算 dirtyDates 并入队           | 不适用                   |
-| 新增标签 → 全量     | 清理实例库 + 计算 dirtyDates 并入队   | **不参与**，除非用户主动解锁      |
-| 删除标签          | 重置 + 清理 + 计算 dirtyDates 并入队 | **强制解锁** → 重置 → 可选重分类 |
+| 新增标签 → 现在启动分类 | 不改写现有交易，不计算 dirtyDates，不入队；仅尝试启动当前消费 | 不适用 |
+| 删除标签 → 仅受影响 / 真全量 | 重置 + 清理 + 计算 dirtyDates 并入队 | **强制解锁** → 重置；真全量路径中其余锁定条目默认不参与，除非用户当场解锁 |
 | 重命名标签         | 批量改名                        | 批量改名（不影响锁定）           |
-| 修改标签描述 → 仅该标签 | 清理实例库 + 计算 dirtyDates 并入队   | **不参与**，除非用户主动解锁      |
-| 修改标签描述 → 全量   | 清理实例库 + 计算 dirtyDates 并入队   | **不参与**，除非用户主动解锁      |
+| 修改标签描述 → 该标签下仅未锁定交易 | 清理实例库 + 计算 dirtyDates 并入队   | **不参与** |
+| 修改标签描述 → 该标签下所有交易 | 清理实例库 + 计算 dirtyDates 并入队   | 仅该标签下锁定条目在用户当场解锁后参与 |
 | 学习完成 → 重分类    | 清理实例库 + 计算 dirtyDates 并入队   | **不参与**               |
-| 手动触发重分类       | 清理实例库 + 计算 dirtyDates 并入队   | **不参与**，除非用户先手动解锁     |
+| 设置页账本区 → 全量重分类 | 清理实例库 + 计算 dirtyDates 并入队   | **不参与**，除非用户先在别处手动解锁     |
 
 **补充冻结说明**：
 
-- “执行重分类”在本阶段的精确定义为：**完成该按钮对应的前置处理 + dirtyDates 入队，并自动通知消费端开始消费**
-- 这不是让 UI 绕过队列直接调用分类逻辑，而是“生产完成后自动衔接消费启动”
+- “执行重分类”在本阶段通常指：**完成该按钮对应的前置处理 + dirtyDates 入队，并自动通知消费端开始消费**
+- `新增标签 → 现在启动分类` 属于特例：**只通知消费，不生产新任务**
+- “真全量”一词只用于：删除标签路径中的全账本重分类，以及设置页账本区的独立全量重分类入口
+- 修改标签描述场景禁止复用“全量”一词；只能使用“该标签下仅未锁定交易 / 该标签下所有交易”
+- 这不是让 UI 绕过队列直接调用分类逻辑，而是“触发层完成生产后自动衔接消费启动”，或在特例场景下仅发出消费启动信号
 - `重命名标签` 维持特殊口径：只做批量改名，不进入渐进式重分类流程
 
 ***
@@ -754,14 +972,14 @@ AI 拥有 MODIFY 和 DELETE 权限，用户也能任意编辑，任何一次改�
 
 ### 6.1 分类 System Prompt（完整静态部分）
 
-以下为新版 System Prompt 的完整静态部分。动态部分（自述、记忆文件）在代码中拼接时插入到指定位置。
+以下为新版 System Prompt 的完整静态部分。动态部分（自述、当前记忆快照内容）在代码中拼接时插入到指定位置。
 
 ```typescript
 export interface SystemPromptConfig {
   language?: string;
   /** 用户自述（全局，来自 self_description/user_profile.md） */
   selfDescription?: string;
-  /** AI 记忆（按账本，来自 classify_memory/{ledger}.md） */
+  /** AI 记忆（按账本，来自 classify_memory/{ledger}/ 当前指针指向的快照） */
   memory?: string;
 }
 
@@ -782,12 +1000,12 @@ export const generateSystemPrompt = (config: SystemPromptConfig = { language: '�
 ### Input Format
 The user will provide a JSON object with the following structure:
 - **category_list**: An object mapping category keys to their natural-language descriptions (e.g., {"meal": "Daily meals for two...", "others": "Everything else..."}). You MUST only use keys from this object.
-- **reference_corrections**: A top-level array of past classification corrections. Each entry keeps full transaction attributes (same shape as ledger record + \`created_at\`) and is sorted by \`time\` ascending (equivalent to \`date + time\` ascending). When you encounter a similar transaction, you MUST follow the correction.
-  - \`id\`, \`originalId\`, \`created_at\`
-  - \`time\`, \`sourceType\`, \`rawClass\`
-  - \`counterparty\`, \`product\`, \`amount\`, \`direction\`
+- **reference_corrections**: A top-level array of past classification corrections. Each entry uses the merged rich schema below and is sorted by \`time\` ascending. The fields \`ai_reason\` and \`user_reason\` are always present as strings and may be empty. When you encounter a similar transaction, you MUST follow the correction.
+  - \`tx_id\`, \`time\`, \`source\`, \`rawClass\`
+  - \`counterparty\`, \`description\`, \`amount\`, \`direction\`
   - \`paymentMethod\`, \`transactionStatus\`, \`remark\`
-  - \`category\`, \`ai_category\`, \`ai_reasoning\`, \`user_category\`, \`user_note\`, \`is_verified\`, \`updated_at\`
+  - \`category\`
+  - \`ai_reason\`, \`user_reason\`
 - **days**: An array of day-grouped transaction batches. Each day object contains:
   - \`date\`: The date of the transactions (YYYY-MM-DD).
   - \`weekday\`: The day of the week (e.g., "Monday").
@@ -843,6 +1061,36 @@ ${selfDescriptionSection}${memorySection}`;
 
 ### 6.2 User Message 结构
 
+**分类阶段实例库注入 Schema（`reference_corrections`）**：
+
+这里必须严格遵循 2.1.2 的“分类元数据合并逻辑”：实例库进入 Prompt 时，表达的是**已确认正确的最终类别 + 可选理由**，而不是把原交易上的 `ai_category / user_category / user_note / ai_reasoning` 原样摊平回去。\
+因此分类 Prompt 注入层使用的不是“交易完整同构对象”，而是**合并后的 few-shot 结构**：
+
+```json
+{
+  "tx_id": "abc123",
+  "time": "2026-01-15 19:40:00",
+  "source": "wechat",
+  "rawClass": "商户消费",
+  "counterparty": "面包码头",
+  "description": "芝士面包",
+  "amount": 16.8,
+  "direction": "out",
+  "paymentMethod": "零钱",
+  "transactionStatus": "SUCCESS",
+  "remark": "/",
+  "category": "others",
+  "ai_reason": "",
+  "user_reason": "同时段已吃过杨国福，这是零食"
+}
+```
+
+**不注入字段**：
+
+- 不注入 `originalId`、`created_at`、`updated_at`
+- 不注入 `ai_category`、`user_category`、`user_note`、`ai_reasoning`
+- 上述字段可以保留在账本记录或实例库存储层，但**分类 Prompt 只接收合并后的最终 few-shot 结构**
+
 ```json
 {
   "category_list": {
@@ -852,48 +1100,36 @@ ${selfDescriptionSection}${memorySection}`;
 
   "reference_corrections": [
     {
-      "id": "5110f45d20aab6c3",
-      "originalId": "4200002945202601057339056941",
-      "created_at": "2026-02-16T23:55:18",
+      "tx_id": "5110f45d20aab6c3",
       "time": "2026-01-05 19:08:17",
-      "sourceType": "wechat",
-      "category": "meal",
+      "source": "wechat",
       "rawClass": "商户消费",
+      "category": "meal",
       "counterparty": "袁记肉夹馍西工大店",
-      "product": "袁记肉夹馍西工大店",
+      "description": "袁记肉夹馍西工大店",
       "amount": 40,
       "direction": "out",
       "paymentMethod": "广发银行信用卡(6885)",
       "transactionStatus": "SUCCESS",
       "remark": "/",
-      "ai_category": "meal",
-      "ai_reasoning": "正餐时间段的肉夹馍餐饮消费，金额合理",
-      "user_category": "meal",
-      "user_note": "Manual Test Update，111",
-      "is_verified": true,
-      "updated_at": "2026-02-16 23:55:18"
+      "ai_reason": "正餐时间段的肉夹馍餐饮消费，金额合理",
+      "user_reason": "Manual Test Update，111"
     },
     {
-      "id": "d4db723dbb333a5a",
-      "originalId": "2026010522001485081435081052",
-      "created_at": "2026-02-16T23:55:19",
+      "tx_id": "d4db723dbb333a5a",
       "time": "2026-01-05 14:03:25",
-      "sourceType": "alipay",
-      "category": "meal",
+      "source": "alipay",
       "rawClass": "餐饮美食",
+      "category": "meal",
       "counterparty": "水之源川菜",
-      "product": "水之源川菜",
+      "description": "水之源川菜",
       "amount": 50,
       "direction": "out",
       "paymentMethod": "花呗",
       "transactionStatus": "SUCCESS",
       "remark": "",
-      "ai_category": "meal",
-      "ai_reasoning": "午餐时间段的川菜正餐消费",
-      "user_category": "meal",
-      "user_note": "Manual Test Update222",
-      "is_verified": false,
-      "updated_at": "2026-02-16 23:55:18"
+      "ai_reason": "午餐时间段的川菜正餐消费",
+      "user_reason": "Manual Test Update222"
     }
   ],
 
@@ -909,17 +1145,17 @@ ${selfDescriptionSection}${memorySection}`;
 }
 ```
 
-`reference_corrections` 的排序约束：按 `time` 字段升序排列（等价于 `date + time` 升序），确保同一天多条参考案例天然保持时间上下文。
+`reference_corrections` 的排序约束：先按检索命中集合去重，再按完整 `time` 字段升序排列；当前实现中若 `time` 相同，会再按 `created_at` 与 `tx_id` 做稳定排序，但这两个字段属于**存储层稳定性细节**，不进入 Prompt schema。
 
 ### 6.3 关键变更总结
 
 | 变更项             | 旧版                    | 新版                                                        |
 | --------------- | --------------------- | --------------------------------------------------------- |
 | `category_list` | 字符串数组                 | 映射（key → 描述）                                              |
-| `user_rules` 字段 | Markdown 规则文件         | **移除**，被记忆文件替代                                            |
+| `user_rules` 字段 | Markdown 规则文件         | **移除**，被记忆快照替代                                            |
 | `userContext`   | System Prompt 中的静态文本段 | **重命名为 Self-Description**，迁移至独立文件                         |
-| 记忆文件            | 不存在                   | **新增**，注入为 Learned Preferences 段                          |
-| 实例库             | 不存在                   | **新增**，注入为顶层 `reference_corrections`（完整属性，按 date+time 升序） |
+| 记忆快照            | 不存在                   | **新增**，由当前指针指向并注入为 Learned Preferences 段              |
+| 实例库             | 不存在                   | **新增**，按固定 rich schema 注入为顶层 `reference_corrections`（含 `rawClass/paymentMethod/transactionStatus/remark`，按完整 `time` 升序，且 `ai_reason` / `user_reason` 固定存在） |
 | 优先级层次           | 未明确                   | **新增**，四级优先级明确写入 Prompt                                   |
 
 ### 6.4 学习 System Prompt（完整）
@@ -928,8 +1164,34 @@ ${selfDescriptionSection}${memorySection}`;
 export interface LearningPromptConfig {
   /** 当前分类体系（defined_categories 的 JSON） */
   categories: Record<string, string>;
-  /** 当前记忆文件内容（可能为空） */
+  /** 当前快照内容（可能为空） */
   currentMemory?: string;
+}
+
+export interface LearningCorrection {
+  tx_id: string;
+  time: string;
+  source: string;
+  rawClass: string;
+  counterparty: string;
+  description: string;
+  amount: number;
+  direction: 'in' | 'out';
+  paymentMethod: string;
+  transactionStatus: string;
+  remark: string;
+  category: string;
+  ai_reason: string;
+  user_reason: string;
+}
+
+export interface LearningDeltaPayload {
+  mode: 'delta' | 'full_reconcile';
+  from_revision: number;
+  to_revision: number;
+  upserts: LearningCorrection[];
+  deletions: LearningCorrection[];
+  current_examples?: LearningCorrection[];
 }
 
 export const generateLearningSystemPrompt = (config: LearningPromptConfig) => {
@@ -940,7 +1202,7 @@ export const generateLearningSystemPrompt = (config: LearningPromptConfig) => {
   return `You are a pattern analyst for PixelBill, a personal finance app. Your task is to analyze the user's classification corrections and extract generalizable rules and preferences.
 
 ### Your Role
-The user has been correcting the AI classifier's mistakes. Each correction record shows what the AI predicted, what the user changed it to, and optionally why. Your job is to identify patterns in these corrections and update the memory file accordingly.
+The user has been correcting the AI classifier's mistakes. Each correction record shows what the AI predicted, what the user changed it to, and optionally why. Your job is to identify patterns in these corrections and update the current memory snapshot accordingly.
 
 ### Category System
 The following categories are currently defined:
@@ -972,19 +1234,76 @@ You MUST return a strictly valid JSON object. No markdown formatting, no introdu
 3. Prefer MODIFY over DELETE+ADD when updating an existing rule (e.g., changing a threshold).
 4. If corrections contradict an existing memory entry, MODIFY or DELETE it.
 5. Focus on generalizable patterns, not individual transactions. "杨国福 at 45 yuan was meal" is a correction; "Fast food restaurants under 70 yuan during meal hours → meal" is a pattern.
-6. If the corrections don't reveal any new pattern, return an empty operations array: \`{"operations": []}\`
-7. Write entries in the same language the user uses (typically Chinese).
+6. Treat \`deletions\` as explicit evidence that some previously valid example semantics have been withdrawn. If an old memory rule is no longer supported after considering deletions, MODIFY or DELETE it.
+7. If \`mode === "full_reconcile"\`, treat \`current_examples\` as the authoritative current example store and proactively remove stale memory that is no longer supported.
+8. If the changes don't reveal any new pattern, return an empty operations array: \`{"operations": []}\`
+9. Write entries in the same language the user uses (typically Chinese).
 `;
 };
 
-export const buildLearningUserMessage = (corrections: object[]) => {
-  return `以下是用户最近的分类修正记录：
+export const buildLearningUserMessage = (payload: LearningDeltaPayload) => {
+  return `以下是实例库相对上次学习的完整变更：
 
-${JSON.stringify(corrections, null, 2)}
+${JSON.stringify(payload, null, 2)}
 
-请分析这些修正，输出你建议的记忆更新操作。`;
+请注意：
+1. upserts 表示新增或更新后仍然存在的样本；
+2. deletions 表示已从实例库删除的样本；
+3. 若 mode 为 full_reconcile，则应以 current_examples 为准，主动清理与当前实例库不再一致的旧记忆。
+
+请分析这些变更，输出你建议的记忆更新操作。`;
 };
 ```
+
+**学习阶段实例注入 Schema（`LearningDeltaPayload`）**：
+
+```json
+{
+  "mode": "delta",
+  "from_revision": 12,
+  "to_revision": 15,
+  "upserts": [
+    {
+      "tx_id": "abc123",
+      "time": "2026-01-15 19:40:00",
+      "source": "wechat",
+      "rawClass": "商户消费",
+      "counterparty": "面包码头",
+      "description": "芝士面包",
+      "amount": 16.8,
+      "direction": "out",
+      "paymentMethod": "零钱",
+      "transactionStatus": "SUCCESS",
+      "remark": "/",
+      "category": "others",
+      "ai_reason": "",
+      "user_reason": "同时段已吃过杨国福，这是零食"
+    }
+  ],
+  "deletions": [
+    {
+      "tx_id": "old_001",
+      "time": "2026-01-03 12:20:00",
+      "source": "alipay",
+      "rawClass": "餐饮美食",
+      "counterparty": "旧商户",
+      "description": "旧样本",
+      "amount": 32,
+      "direction": "out",
+      "paymentMethod": "花呗",
+      "transactionStatus": "SUCCESS",
+      "remark": "",
+      "category": "meal",
+      "ai_reason": "午餐餐饮",
+      "user_reason": ""
+    }
+  ]
+}
+```
+
+学习阶段同样沿用 2.1.2 的合并语义：学习 AI 看到的是“最终正确类别 + 完整交易上下文 + 固定理由字段”的净变更集，而不是原始分类元数据的并列快照。\
+其中 `upserts` 与 `deletions` 必须同时提供，避免 AI 只看到新增语义、看不到旧语义被撤销，从而导致记忆残留。\
+若系统无法可靠重建 revision 区间变更，则切换到 `full_reconcile` 模式，并补充 `current_examples` 全量注入。
 
 ### 6.5 收编 System Prompt（完整）
 
@@ -992,8 +1311,10 @@ ${JSON.stringify(corrections, null, 2)}
 export interface CompressPromptConfig {
   /** 当前分类体系（defined_categories 的 JSON） */
   categories: Record<string, string>;
-  /** 当前记忆文件内容 */
+  /** 当前快照内容 */
   currentMemory: string;
+  /** 当前实例库全量 */
+  currentExamples: LearningCorrection[];
   /** 当前条目数 */
   currentCount: number;
   /** 压缩目标条目数 */
@@ -1011,10 +1332,11 @@ ${JSON.stringify(config.categories, null, 2)}
 1. The current memory has ${config.currentCount} entries. Compress it to no more than ${config.targetCount} entries.
 2. Merge semantically similar entries into one. For example, multiple merchant-specific rules for the same pattern can be combined.
 3. Preserve ALL key information — thresholds, exceptions, special cases. Do not silently drop rules.
-4. If an entry references a category that does NOT exist in the category system above, it is outdated. Remove it and do not preserve its content.
-5. If an entry is a "tag deleted" marker (e.g., "标签 xxx 已从分类体系中移除..."), check whether that tag now exists again in the category system. If it does, remove only the marker but KEEP any related rules. If it does not, remove both the marker and all related rules.
-6. Each output entry must be a single, self-contained information point.
-7. Write entries in the same language as the input (typically Chinese).
+4. You will also receive the FULL current example store. Use it as the ground truth context to avoid dropping still-valid patterns or preserving outdated ones.
+5. If an entry references a category that does NOT exist in the category system above, it is outdated. Remove it and do not preserve its content.
+6. If an entry is a "tag deleted" marker (e.g., "标签 xxx 已从分类体系中移除..."), check whether that tag now exists again in the category system. If it does, remove only the marker but KEEP any related rules. If it does not, remove both the marker and all related rules.
+7. Each output entry must be a single, self-contained information point.
+8. Write entries in the same language as the input (typically Chinese).
 
 ### Output Format
 Output ONLY the compressed numbered list as plain text, one entry per line, with sequential numbers. No JSON, no markdown fences, no commentary.
@@ -1026,12 +1348,26 @@ Example output:
 `;
 };
 
-export const buildCompressUserMessage = (currentMemory: string) => {
+export const buildCompressUserMessage = (
+  currentMemory: string,
+  currentExamples: LearningCorrection[]
+) => {
   return `以下是当前的分类记忆，请进行压缩：
 
-${currentMemory}`;
+${currentMemory}
+
+以下是当前实例库全量（必须视为仍然有效的现行上下文）：
+
+${JSON.stringify(currentExamples, null, 2)}`;
 };
 ```
+
+**收编阶段实例注入原则**：
+
+- 收编会话必须注入**当前实例库全量**
+- 不能只依赖当前记忆做压缩，否则容易保留已过时规则，或在压缩时误删仍有大量实例支撑的有效规则
+- 全量实例库的字段口径与分类阶段、学习阶段保持一致
+- 若实例库为空，则按空数组注入，而不是省略字段
 
 ***
 
@@ -1103,154 +1439,71 @@ ${currentMemory}`;
 
 ***
 
-## 八、实施优先级
+## 八、代码现状复核与逻辑待办清单
 
-**比赛剩余约 26 天，按递进顺序实施：**
+> **说明**：前文第 1～7 章是 **v6 目标规格**；本章只回答两件事：  
+> 1) 原 P2 规划里，当前代码实际上完成到了哪里；  
+> 2) 放弃旧 P1/P2/P3 迭代口径后，除 UI/UX 外，还剩哪些逻辑与测试待落地。
 
-### P0：实例库自动采集 + 注入（✅ 已完成）
+### 8.1 原 P2 规划复核（基于当前代码）
 
-**实施日期**: 2026-03-16
-**实际工作量**: 约 1 天
+**当前已明确落地的能力**：
 
-**已完成内容**:
+- ✅ 队列已按账本隔离持久化，元素业务语义已冻结为 `{ date }`
+- ✅ 同日去重、空日期防御、重启后恢复、按账本聚合查看均已落地
+- ✅ 消费端已固定为“仅消费当前选中账本”
+- ✅ 消费端已具备循环消费、失败不丢任务、失败任务移到队尾、空任务安全消费
+- ✅ 已落地 CAS 版本校验，避免“消费中同日重入”误删任务
+- ✅ 已落地 AI 写回前 `is_verified` 二次校验，保护运行中新增锁定
+- ✅ CSV 自动触发、确认日期入队、recovery 补偿恢复已落地
+- ✅ 切换账本时会自动恢复 `classify_queue_recovery` 与确认重分类补偿记录
+- ✅ 删除/重命名账本时，`classify_queue` 与 `classify_queue_recovery` 已联动处理
+- ✅ 标签重命名已回归冻结口径：只改名，不重分类，不改锁定
+- ✅ 删除标签时会重置受影响交易并清理对应实例库样本，也会追加记忆失效标记
 
-- ✅ `ExampleStore` 模块：`src/core/services/ExampleStore.ts`
-  - 实例库 CRUD 操作（沙箱 `classify_examples/{ledger}.json`）
-  - 智能检索算法（商户名、品类、金额区间、时段匹配）
-  - 字段重组（区分 AI 分对/分错的情况）
-- ✅ `Arbiter` 集成：用户修正/锁定时自动触发实例库写入
-- ✅ `PromptBuilder` 集成：分类前批量检索案例，注入 `reference_corrections`
-- ✅ `SystemPrompt` 更新：新增四级优先级层次和 reference\_corrections 使用指引
-- ✅ 调试工具：浏览器控制台支持 `window.__DEBUG_TOOLS__.runP0Test()`
+**当前仅部分落地的能力**：
 
-**调试工具**:
+- ⚠ 触发层已存在，但仍以“CSV 自动触发 + 确认日期入队 + recovery”通用接口为主，尚未完全重构为“每个 UI 按钮一个显式接口”
+- ⚠ 标签描述修改与删除后的渐进式重分类交互已存在，但其内部触发职责仍有一部分散落在 UI/服务层，而非完全收敛到 v6 触发层模型
+- ⚠ 设置页与重分类对话框已有相关能力，但“设置页账本区的真全量重分类入口”未在当前代码中形成与 v6 一致的清晰逻辑闭环
 
-```javascript
-// 运行 P0 完整测试
-await window.__DEBUG_TOOLS__.runP0Test()
+**当前尚未落地、且已被 v6 明确定义为目标规格的能力**：
 
-// 查看实例库
-await window.__DEBUG_TOOLS__.listExamples()
+- ❌ `data range` 仅约束消费、不约束生产的调度模型尚未落地
+- ❌ “范围外 backlog 的统一提示”尚未落地
+- ❌ 快照系统尚未重构为 `classify_memory/{ledger}/index.json + current_snapshot_id + 日期时间命名快照`
+- ❌ 实例库 rich schema、学习 revision 变更集、收编全量实例库注入尚未落地
+- ❌ 收编机制本体尚未落地
+- ❌ `classify_confirm_recovery` 的账本重命名/删除联动清理尚未补齐
 
-// 添加测试数据
-await window.__DEBUG_TOOLS__.addTestExample()
+### 8.2 逻辑落实与测试 Checklist（不含 UI/UX）
 
-// 测试检索功能
-await window.__DEBUG_TOOLS__.testRetrieval()
+- [ ] **重构快照存储为 v6 单一事实源**：迁移到 `classify_memory/{ledger}/index.json + snapshots/` 目录结构；创建账本即生成空快照；维护 `current_snapshot_id`
+- [ ] **重写快照生命周期规则**：快照命名改为日期时间；当前快照不可删；GC 改为“删除最旧且非当前”；回退改为仅移动指针
+- [ ] **改造 PromptBuilder 读取路径**：分类、学习、收编统一从 `current_snapshot_id` 读取当前记忆，不再依赖单独 `classify_memory/{ledger}.md`
+- [ ] **升级实例库存储结构**：在当前态文件中加入 `revision`；补充 `classify_example_changes/{ledger}.json` 变更日志
+- [ ] **实现学习基线推进机制**：在快照索引中维护 `last_learned_example_revision`；学习成功后推进，失败不推进
+- [ ] **实现学习变更集构造器**：按 revision 区间生成净变更 `upserts + deletions`；丢日志或区间不可重建时切到 `full_reconcile`
+- [ ] **统一分类/学习/收编实例注入 schema**：落地 rich schema，固定输出 `time/source/rawClass/paymentMethod/transactionStatus/remark/category/ai_reason/user_reason`
+- [ ] **落地收编机制**：实现触发条件、压缩 Prompt、全量实例库注入、快照生成、失败回退策略
+- [ ] **将触发层重构为按钮级接口**：把新增标签、删除标签两种范围、修改描述两种范围、设置页真全量重分类等动作全部收敛到独立触发接口
+- [ ] **补齐 `data range` 调度层**：只约束引擎消费范围，不影响 dirtyDates 生产、队列入队与 recovery
+- [ ] **实现范围内优先消费算法**：支持“在当前账本队列中寻找当前 `data range` 内最早可消费日期”，而不是死守队首
+- [ ] **补齐范围外 backlog 状态输出**：为消费端和状态层提供“当前范围外仍有待处理任务”的统一信号，供后续 UI 统一接入
+- [ ] **补齐 CSV 导入后的 data range 联动口径**：若产品层仍保留“导入后扩大视图范围”的行为，应明确它只是 UI 状态调整，不属于触发层职责
+- [ ] **补齐 `classify_confirm_recovery` 生命周期联动**：账本重命名/删除时同步迁移或清理确认重分类补偿文件
+- [ ] **补齐端到端测试基线**：覆盖快照迁移、revision 变更集、full_reconcile、收编、data range 调度、范围外 backlog、recovery 生命周期
 
-// 清空实例库
-await window.__DEBUG_TOOLS__.clearExamples()
-```
+### 8.3 建议测试顺序
 
-**相关文档**:
-
-- 测试指南：`docs/P0_TEST_GUIDE.md`
-- 实现总结：`docs/P0_IMPLEMENTATION_SUMMARY.md`
-
-**实现细节变更**:
-
-- 实例库存储位置：`Directory.Data/classify_examples/{ledger}.json`
-- 检索策略：每条交易最多 3 条案例，全局去重合并
-- 匹配权重：商户名(50) > 品类相似(20) > 金额区间(15) > 时段(15)
-
-### P1：记忆文件 + 学习会话（✅ 已完成）
-
-**实施日期**: 2026-03-16
-**实际工作量**: 约 1 天
-
-**已完成内容**:
-
-- ✅ `MemoryManager` 模块：`src/core/services/MemoryManager.ts`
-  - 记忆文件读写（Documents/PixelBill/classify\_memory/{ledger}.md）
-  - 增量更新（ADD / MODIFY / DELETE）
-  - 有序列表格式解析与生成
-  - **关键实现**: DELETE/MODIFY 按索引降序执行，避免偏移问题
-- ✅ `SnapshotManager` 模块：`src/core/services/SnapshotManager.ts`
-  - 版本快照（沙箱 memory\_snapshots/{ledger}/）
-  - 上限清理（保留 30 个）
-  - 回退功能（回退前自动拍新快照）
-- ✅ `LearningSession` 模块：`src/core/ai_engine/LearningSession.ts`
-  - 学习 Prompt 生成
-  - LLM 调用与操作指令解析
-  - 自动拍快照后执行更新
-- ✅ `SelfDescriptionManager` 模块：`src/core/services/SelfDescriptionManager.ts`
-  - 自述文件独立管理
-  - 向后兼容旧配置（自动迁移）
-- ✅ `ConfigManager` 更新：`src/core/config/ConfigManager.ts`
-  - `getUserContext()` / `saveUserContext()` / `migrateUserContext()`
-  - 新旧配置兼容
-- ✅ `SettingsPage` 更新：`src/components/mobile/SettingsPage.tsx`
-  - AI 记忆面板（修正计数、学习阈值、立即学习按钮）
-  - 历史版本浏览与回退
-  - 当前记忆内容展示
-  - 自述文件编辑区
-- ✅ `PromptBuilder` 更新：`src/core/llm_service/prompt/PromptBuilder.ts`
-  - 注入记忆文件到 System Prompt
-  - 同时加载自述文件和记忆文件
-
-**调试工具**:
-
-```javascript
-// 运行 P1 完整测试
-await window.__DEBUG_TOOLS__.runP1Test()
-
-// 记忆文件操作
-await window.__DEBUG_TOOLS__.loadMemories()
-await window.__DEBUG_TOOLS__.addMemory('新记忆')
-await window.__DEBUG_TOOLS__.modifyMemory(1, '修改后')
-await window.__DEBUG_TOOLS__.deleteMemory(1)
-
-// 快照操作
-await window.__DEBUG_TOOLS__.listSnapshots()
-await window.__DEBUG_TOOLS__.createSnapshot('测试')
-await window.__DEBUG_TOOLS__.rollbackSnapshot('snap_001')
-
-// 自述文件
-await window.__DEBUG_TOOLS__.loadSelfDesc()
-await window.__DEBUG_TOOLS__.saveSelfDesc('我是西工大学生...')
-
-// 清理数据
-await window.__DEBUG_TOOLS__.clearP1Data()
-```
-
-**相关文档**:
-
-- 测试指南：`docs/P1_TEST_GUIDE.md`
-- 实现总结：`docs/P1_IMPLEMENTATION_SUMMARY.md`
-
-**实现细节变更**:
-
-- 记忆文件位置：`Documents/PixelBill/classify_memory/{ledger}.md`
-- 快照位置：`沙箱/memory_snapshots/{ledger}/`
-- 自述文件位置：`Documents/PixelBill/self_description/user_profile.md`
-- 索引偏移处理：DELETE/MODIFY 操作按索引降序执行
-- 回退机制：回退前先拍新快照，保留完整历史
-
-### P2：标签管理升级 + 分类队列（预估 3-4 天）
-
-- `defined_categories` 升级为映射
-- 标签增删改的连锁处理
-- 分类任务队列基础设施（ClassifyQueue + ClassifyTrigger）
-- 渐进式重分类交互（含各场景的触发逻辑）
-- 账本管理器扩展（删除/重命名时清理关联文件）
-
-### P3：快速修正层——列表页内联修正（预估 1-2 天）
-
-- 列表页直接点击标签触发轮盘（无需进入详情页）
-- 修正后的轻量提示条（文字输入补充理由）
-- 不含语音输入（语音输入延后）
-
-### 延后（比赛后）
-
-- 快速修正层——语音输入（预估 1-2 天额外工作量）
-- 收编（上下文压缩）机制
-- 深度对话层
-- 跨账本学习
-- 收编质量自动检测与回滚
+- [ ] **先测底层存储**：快照迁移、当前指针、GC、账本创建空快照
+- [ ] **再测实例库学习链路**：revision、change log、delta / full_reconcile
+- [ ] **再测分类主链**：Prompt rich schema、`data range` 调度、范围外 backlog
+- [ ] **最后测重分类与恢复链路**：触发层按钮接口、确认补偿、账本生命周期联动、收编回归
 
 ***
 
-## 九、存储位置总览
+## 九、存储位置总览（当前代码现状）
 
 ### 9.1 文件分布
 
@@ -1260,18 +1513,20 @@ await window.__DEBUG_TOOLS__.clearP1Data()
 | `*.pixelbill.json`                | `Documents/PixelBill/`                  | `Directory.Documents` | 按账本 | 账本数据，已有                          |
 | `secure_config.bin`               | 沙箱                                      | `Directory.Data`      | 全局  | 加密配置（API 密钥等），已有                 |
 | `user_profile.md`                 | `Documents/PixelBill/self_description/` | `Directory.Documents` | 全局  | **新增**：自述文件，用户手写偏好，独立目录便于用户识别    |
-| `classify_memory/{ledger}.md`     | `Documents/PixelBill/classify_memory/`  | `Directory.Documents` | 按账本 | **新增**：AI 记忆文件                   |
+| `classify_memory/{ledger}.md`     | `Documents/PixelBill/classify_memory/`  | `Directory.Documents` | 按账本 | **当前实现**：AI 记忆文件 |
 | `classify_examples/{ledger}.json` | 沙箱 `classify_examples/`                 | `Directory.Data`      | 按账本 | **新增**：实例库                       |
-| `memory_snapshots/{ledger}/`      | 沙箱 `memory_snapshots/`                  | `Directory.Data`      | 按账本 | **新增**：记忆文件快照                    |
+| `memory_snapshots/{ledger}/`      | 沙箱 `memory_snapshots/`                  | `Directory.Data`      | 按账本 | **当前实现**：记忆文件快照目录（含 index.json + snap_XXX.md） |
 | `classify_queue/{ledger}.json`    | 沙箱 `classify_queue/`                    | `Directory.Data`      | 按账本 | **新增**：分类任务队列（按账本隔离），App 重启后继续消费 |
+| `classify_queue_recovery/{ledger}.json` | 沙箱 `classify_queue_recovery/`     | `Directory.Data`      | 按账本 | **当前实现**：队列入队失败补偿恢复文件 |
+| `classify_confirm_recovery/{ledger}.json` | 沙箱 `classify_confirm_recovery/` | `Directory.Data`      | 按账本 | **当前实现**：前置改写成功但确认入队未完成时的补偿文件 |
 
 **分布原则**：用户需要直接访问/编辑的 → Documents；纯系统内部维护的 → 沙箱。
 
 ### 9.2 账本管理器连锁变更
 
-现有的账本管理器在创建/删除账本时，只操作 `ledgers.json` 和 `*.pixelbill.json`。新增文件意味着生命周期事件需要扩展：
+现有代码中的账本管理器已经扩展了 AI 相关文件的生命周期处理，但仍是基于**当前实现存储结构**：
 
-**创建账本**：不需要预创建新文件。记忆文件和实例库在首次需要时按需创建（第一次学习会话 / 第一次用户修正时）。
+**创建账本**：当前实现**不会**在创建账本时立即生成空快照；记忆文件、实例库、快照目录、队列文件、recovery 文件都按需创建。
 
 **删除账本**：
 
@@ -1282,6 +1537,8 @@ await window.__DEBUG_TOOLS__.clearP1Data()
   → [新增] 删除 沙箱/classify_examples/{ledger}.json（如存在）
   → [新增] 删除 沙箱/memory_snapshots/{ledger}/ 整个目录（如存在）
   → [新增] 删除 沙箱/classify_queue/{ledger}.json（如存在）
+  → [新增] 删除 沙箱/classify_queue_recovery/{ledger}.json（如存在）
+  → [缺口] classify_confirm_recovery/{ledger}.json 当前代码尚未联动删除
   → [已有] 更新 ledgers.json 索引
 ```
 
@@ -1294,43 +1551,58 @@ await window.__DEBUG_TOOLS__.clearP1Data()
   → [新增] 重命名 classify_examples/{old}.json → classify_examples/{new}.json（如存在）
   → [新增] 重命名 memory_snapshots/{old}/ → memory_snapshots/{new}/（如存在）
   → [新增] 重命名 classify_queue/{old}.json → classify_queue/{new}.json（如存在）
+  → [新增] 重命名 classify_queue_recovery/{old}.json → classify_queue_recovery/{new}.json（如存在）
+  → [缺口] classify_confirm_recovery/{old}.json 当前代码尚未联动重命名
   → [已有] 更新 ledgers.json 索引
 ```
 
-所有新增文件操作都带"如存在"判断——新账本可能尚未产生学习/修正，文件不一定存在。
+所有新增文件操作都带“如存在”判断——当前实现中，新账本可能尚未产生学习/修正，因此相关文件不一定存在。
 
 > **注意**：自述文件（`user_profile.md`）为全局文件，不参与账本级别的生命周期管理。
 
 ***
 
-## 十、与现有架构的兼容性
+## 十、与现有架构的兼容性（当前代码快照）
 
 ### 10.1 已修改/新增模块状态
 
 | 模块                 | 变更内容                                                  | 状态          |
 | ------------------ | ----------------------------------------------------- | ----------- |
-| `PromptBuilder.ts` | 重构 Prompt 拼接逻辑，接入自述、记忆文件和实例库                          | ✅ P0/P1 已完成 |
-| `SystemPrompt.ts`  | 新增 Self-Description / Learned Preferences 动态段、四级优先级层次 | ✅ P0/P1 已完成 |
-| `Arbiter`          | 修正写入时同步更新实例库                                          | ✅ P0 已完成    |
-| `ConfigManager`    | 新增用户上下文接口，支持自述文件迁移                                    | ✅ P1 已完成    |
-| `SettingsPage`     | 新增 AI 记忆面板、历史版本、阈值配置                                  | ✅ P1 已完成    |
-| `LedgerService`    | 新增标签管理 API（增删改 + 连锁处理）；账本创建/删除/重命名扩展                  | 🚧 P2 规划中   |
-| `ClassifyQueue`    | 分类任务队列（按账本隔离持久化、按天去重合并）                               | 🚧 P2 规划中   |
-| `ClassifyTrigger`  | 触发层——各场景的日期筛选、实例库预清理、入队逻辑                             | 🚧 P2 规划中   |
+| `PromptBuilder.ts` | 重构 Prompt 拼接逻辑，接入自述、当前记忆文件和实例库                    | ✅ 已完成 |
+| `SystemPrompt.ts`  | 新增 Self-Description / Learned Preferences 动态段、四级优先级层次 | ✅ 已完成 |
+| `Arbiter`          | 修正写入时同步更新实例库                                          | ✅ 已完成    |
+| `ConfigManager`    | 新增用户上下文接口，支持自述文件迁移                                    | ✅ 已完成    |
+| `SettingsPage`     | 新增 AI 记忆面板、历史版本、阈值配置                                  | ✅ 已完成    |
+| `LedgerService`    | 新增标签管理 API（增删改 + 连锁处理）；确认重分类补偿恢复                        | ✅ 已部分按 v6 落地   |
+| `ClassifyQueue`    | 分类任务队列（按账本隔离持久化、按天去重合并）                               | ✅ P2 已完成   |
+| `ClassifyTrigger`  | 触发层——CSV 自动触发、确认日期入队、recovery 管理                       | ✅ 已部分按 v6 落地   |
 
 ### 10.2 新增模块状态
 
 | 模块                       | 职责                        | 路径                                            | 状态        |
 | ------------------------ | ------------------------- | --------------------------------------------- | --------- |
-| `ExampleStore`           | 实例库的 CRUD + 批量检索逻辑        | `src/core/services/ExampleStore.ts`           | ✅ P0 已完成  |
-| `MemoryManager`          | 记忆文件的读取、增量更新              | `src/core/services/MemoryManager.ts`          | ✅ P1 已完成  |
-| `SnapshotManager`        | 快照的创建、索引维护、回退执行、上限清理      | `src/core/services/SnapshotManager.ts`        | ✅ P1 已完成  |
-| `SelfDescriptionManager` | 自述文件的读取、写入、迁移             | `src/core/services/SelfDescriptionManager.ts` | ✅ P1 已完成  |
-| `LearningSession`        | 学习会话的编排（Prompt 构建、结果执行）   | `src/core/ai_engine/LearningSession.ts`       | ✅ P1 已完成  |
-| `ClassifyQueue`          | 分类任务队列（按账本隔离持久化、按天去重合并）   | -                                             | 🚧 P2 规划中 |
-| `ClassifyTrigger`        | 触发层——各场景的日期筛选、实例库预清理、入队逻辑 | -                                             | 🚧 P2 规划中 |
+| `ExampleStore`           | 实例库的 CRUD + 批量检索逻辑        | `src/core/services/ExampleStore.ts`           | ✅ 已完成  |
+| `MemoryManager`          | 记忆文件的读取、增量更新              | `src/core/services/MemoryManager.ts`          | ✅ 已完成（旧存储模型）  |
+| `SnapshotManager`        | 快照的创建、索引维护、回退执行、上限清理      | `src/core/services/SnapshotManager.ts`        | ✅ 已完成（旧快照模型）  |
+| `SelfDescriptionManager` | 自述文件的读取、写入、迁移             | `src/core/services/SelfDescriptionManager.ts` | ✅ 已完成  |
+| `LearningSession`        | 学习会话的编排（Prompt 构建、结果执行）   | `src/core/ai_engine/LearningSession.ts`       | ✅ 已完成（旧学习模型）  |
+| `ClassifyQueue`          | 分类任务队列（按账本隔离持久化、按天去重合并）   | `src/core/ai_engine/ClassifyQueue.ts`         | ✅ 已完成 |
+| `ClassifyTrigger`        | 触发层——CSV 自动触发、确认日期入队、恢复补偿 | `src/core/ai_engine/ClassifyTrigger.ts`       | ✅ 已完成（未达 v6 按钮级接口） |
 
-### 10.3 不需要修改的模块
+### 10.3 目标规格与当前代码差距
+
+- **快照系统**：当前代码仍是 `classify_memory/{ledger}.md + memory_snapshots/{ledger}/` 双轨结构，尚未升级到前文的“目录内快照 + current 指针”模型
+- **实例注入字段**：当前代码中的分类 Prompt 仍注入 `created_at`，且未提供 `rawClass / paymentMethod / transactionStatus / remark`；尚未收敛到第六章 rich schema
+- **学习变更集**：当前代码尚未维护 `revision + change log + last_learned_example_revision`，因此无法按规格生成“相对上次学习的完整净变更（upserts + deletions）”
+- **收编上下文**：当前代码的收编设计尚未实现“全量实例库注入”，仍缺少利用现行实例库校验旧记忆是否过时的能力
+- **触发层接口形态**：当前 `ClassifyTrigger` 以“CSV 自动触发 + 确认日期入队 + recovery”三类接口为主，尚未完全按前文拆成“每个 UI 按钮一个显式触发接口”
+- **账本创建时空快照**：前文规格要求创建账本立即生成空快照；当前代码尚未落地
+- **快照命名与 GC**：当前代码仍使用 `snap_001` 风格和“保留最近 30 个”，尚未升级为日期时间命名与“删除最旧且非当前”
+- **`data range` 调度层**：当前代码中的 `dateRange` 仍主要是 UI 状态；消费端尚未实现“只约束消费、不约束生产”的 v6 调度模型
+- **范围外 backlog 提示**：当前代码尚未暴露“当前范围外仍有待处理任务”的统一状态信号
+- **确认重分类补偿文件生命周期**：`classify_confirm_recovery/{ledger}.json` 当前尚未在账本重命名/删除时联动迁移或清理
+
+### 10.4 不需要修改的模块
 
 - CSV Parser
 - Mock 层
@@ -1342,6 +1614,28 @@ await window.__DEBUG_TOOLS__.clearP1Data()
 ***
 
 ## 十一、文档更新历史
+
+### v6 (2026-04-05)
+
+- 快照设计正式升版到 v6：单一事实源改为“快照集合 + 当前指针 + 写后快照”，并明确创建账本即生成空快照、当前快照不可删、GC 删除最旧且非当前
+- 第五章补充 `data range` 的高层约束：只约束引擎消费范围，不影响 dirtyDates 生产与队列入队
+- 第五章补充“生产范围超出当前消费范围时的统一提示”规格，并明确全量重分类为例外
+- 第六章将分类、学习、收编的实例注入统一为 rich schema，并新增学习 revision 变更集与收编全量实例库上下文
+- 第八章废弃旧 P1/P2/P3 路线图，改为“原 P2 规划复核 + 非 UI/UX 逻辑待办 checklist”
+- 第九、十章同步到当前代码真实状态，新增 recovery 文件、生命周期联动缺口、`data range` 调度缺口等说明
+
+### v5.2 (2026-04-05)
+
+- 快照设计重定义为“快照集合 + 当前指针 + 写后快照”
+- 第五章补齐触发层设计模式、按钮级接口、副作用总表与“真全量 / 标签下所有交易”的口径区分
+- 第六章修正实例库注入 schema
+
+### v5.1 (2026-03-29)
+
+- 更新状态：P2 已完成，文档口径与实现重新对齐
+- 删除标签交互口径收敛为“前置改写完成后直接进入范围确认”
+- 全量路径补充“锁定交易列表 + 当场解锁”说明
+- 生命周期联动、消费自动衔接、冻结口径回归按实现状态标记完成
 
 ### v4.3 (2026-03-24)
 
@@ -1370,4 +1664,4 @@ await window.__DEBUG_TOOLS__.clearP1Data()
 ***
 
 **文档完成。**
-**下一步**：P2 标签管理升级 + 分类队列实施
+**下一步**：按第八章 checklist 推进非 UI/UX 逻辑实现与测试
