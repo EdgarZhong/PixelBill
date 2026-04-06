@@ -207,10 +207,15 @@ ${JSON.stringify(simplified, null, 2)}
         };
       }
 
-      // 6. 执行操作
+      // 6. 执行操作（v6：自动创建快照）
       if (operations.length > 0) {
         console.log(`[LearningSession] Executing ${operations.length} operations...`);
-        const result = await MemoryManager.applyOperations(ledgerName, operations);
+        const result = await MemoryManager.applyOperations(
+          ledgerName,
+          operations,
+          'ai_learn',
+          `学习会话：基于 ${examples.length} 条修正记录`
+        );
 
         if (!result.success) {
           return {
@@ -222,15 +227,8 @@ ${JSON.stringify(simplified, null, 2)}
         }
       }
 
-      // 7. 学习完成后创建当前快照（与当前记忆一一对应）
-      const latestMemories = await MemoryManager.load(ledgerName);
-      const snapshotId = await SnapshotManager.create(
-        ledgerName,
-        'ai_learn',
-        latestMemories.length > 0
-          ? `学习后快照：基于 ${examples.length} 条修正记录`
-          : '学习后快照：空记忆'
-      );
+      // 7. 获取当前快照 ID（v6：由 applyOperations 自动创建）
+      const snapshotId = await SnapshotManager.getCurrentId(ledgerName);
 
       // 8. 生成摘要
       const summary = this.generateSummary(operations);

@@ -1,8 +1,14 @@
 /**
- * MemoryManager - 记忆文件管理模块
+ * MemoryManager - 记忆文件管理模块（v6 架构）
+ *
+ * v6 核心变更：
+ * 1. 记忆文件路径：Documents/PixelBill/classify_memory/{ledger}/current_snapshot_id.md
+ * 2. 单一事实源：当前记忆始终通过 SnapshotManager.getCurrentId() 获取
+ * 3. 写后快照：每次 save() 后自动创建快照并更新 current_snapshot_id
+ * 4. 读取逻辑：通过 current_snapshot_id 读取对应快照文件
  *
  * 职责：
- * 1. 记忆文件的读写（按账本存储在 Documents/PixelBill/classify_memory/{ledger}.md）
+ * 1. 记忆文件的读写（通过快照系统）
  * 2. 增量更新接口（ADD / MODIFY / DELETE 操作执行）
  * 3. 记忆文件格式：有序列表，每行一个信息点
  * 4. 读取时解析为 string[]，写入时添加序号
@@ -16,6 +22,7 @@
  */
 
 import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
+import { SnapshotManager } from './SnapshotManager';
 
 /**
  * 记忆操作类型
@@ -38,57 +45,71 @@ export class MemoryManager {
   private static readonly BASE_PATH = 'PixelBill/classify_memory';
 
   /**
-   * 获取记忆文件路径
-   */
-  private static getFilePath(ledgerName: string): string {
-    return `${this.BASE_PATH}/${ledgerName}.md`;
-  }
-
-  /**
-   * 读取记忆文件
+   * 读取记忆文件（v6 语义）
+   *
+   * v6 变更：
+   * - 通过 SnapshotManager.getCurrentId() 获取当前快照 ID
+   * - 读取对应的快照文件内容
+   * - 如果没有快照，返回空数组
+   *
    * @param ledgerName 账本名称
-   * @returns 记忆条目数组（去序号后的纯内容），文件不存在时返回空数组
+   * @returns 记忆条目数组（去序号后的纯内容），无快照时返回空数组
    */
   public static async load(ledgerName: string): Promise<string[]> {
-    const filePath = this.getFilePath(ledgerName);
-
     try {
-      const exists = await this.exists(ledgerName);
-      if (!exists) {
+      // 1. 获取当前快照 ID
+      const currentId = await SnapshotManager.getCurrentId(ledgerName);
+      if (!currentId) {
+        // 没有快照，返回空数组
         return [];
       }
 
-      const result = await Filesystem.readFile({
-        path: filePath,
-        directory: Directory.Documents,
-        encoding: Encoding.UTF8
-      });
+      // 2. 读取快照内容
+      const snapshot = await SnapshotManager.read(ledgerName, currentId);
+      if (!snapshot) {
+        console.warn(`[MemoryManager] Current snapshot ${currentId} not found`);
+        return [];
+      }
 
-      const content = result.data as string;
-      return this.parseContent(content);
-    } catch {
-      // 文件不存在或读取失败，返回空数组
+      return snapshot.content;
+    } catch (e) {
+      console.error(`[MemoryManager] Failed to load memory for ${ledgerName}:`, e);
       return [];
     }
   }
 
   /**
-   * 保存记忆文件
+   * 保存记忆文件（v6 语义）
+   *
+   * v6 变更：
+   * - 创建新快照并更新 current_snapshot_id
+   * - 不再直接写入记忆文件，而是通过快照系统
+   * - 自动触发 GC（保留最近 30 个快照）
+   *
    * @param ledgerName 账本名称
    * @param memories 记忆条目数组（纯内容，无需序号）
+   * @param trigger 触发类型（默认 'user_edit'）
+   * @param summary 快照摘要（可选）
    */
-  public static async save(ledgerName: string, memories: string[]): Promise<void> {
-    const filePath = this.getFilePath(ledgerName);
-
+  public static async save(
+    ledgerName: string,
+    memories: string[],
+    trigger: 'ledger_init' | 'ai_learn' | 'ai_compress' | 'user_edit' | 'tag_delete' | 'manual' | 'migration' = 'user_edit',
+    summary?: string
+  ): Promise<void> {
     try {
+      // 1. 格式化内容
       const content = this.formatContent(memories);
-      await Filesystem.writeFile({
-        path: filePath,
-        data: content,
-        directory: Directory.Documents,
-        encoding: Encoding.UTF8,
-        recursive: true
-      });
+
+      // 2. 创建快照（自动更新 current_snapshot_id）
+      await SnapshotManager.create(
+        ledgerName,
+        content,
+        trigger,
+        summary || `${trigger} 触发的记忆更新`
+      );
+
+      console.log(`[MemoryManager] Saved memory for ${ledgerName} (trigger: ${trigger})`);
     } catch (e) {
       console.error(`[MemoryManager] Failed to save memory for ${ledgerName}:`, e);
       throw e;
@@ -96,16 +117,24 @@ export class MemoryManager {
   }
 
   /**
-   * 执行增量更新操作
+   * 执行增量更新操作（v6 语义）
    * 注意：DELETE 和 MODIFY 必须按索引从高到低倒序执行，避免索引偏移
+   *
+   * v6 变更：
+   * - 操作完成后自动创建快照
+   * - 支持指定触发类型和摘要
    *
    * @param ledgerName 账本名称
    * @param operations 操作列表
+   * @param trigger 触发类型（默认 'user_edit'）
+   * @param summary 快照摘要（可选）
    * @returns 操作结果
    */
   public static async applyOperations(
     ledgerName: string,
-    operations: MemoryOperation[]
+    operations: MemoryOperation[],
+    trigger: 'ledger_init' | 'ai_learn' | 'ai_compress' | 'user_edit' | 'tag_delete' | 'manual' | 'migration' = 'user_edit',
+    summary?: string
   ): Promise<MemoryOperationResult> {
     try {
       // 1. 加载当前记忆
@@ -147,8 +176,8 @@ export class MemoryManager {
         memories.push(op.content);
       });
 
-      // 6. 保存
-      await this.save(ledgerName, memories);
+      // 6. 保存（v6：自动创建快照）
+      await this.save(ledgerName, memories, trigger, summary);
 
       return {
         success: true,
@@ -165,31 +194,47 @@ export class MemoryManager {
   }
 
   /**
-   * 添加单条记忆
+   * 添加单条记忆（v6 语义）
    * @param ledgerName 账本名称
    * @param content 记忆内容
+   * @param trigger 触发类型（默认 'user_edit'）
    */
-  public static async add(ledgerName: string, content: string): Promise<void> {
-    await this.applyOperations(ledgerName, [{ type: 'ADD', content }]);
+  public static async add(
+    ledgerName: string,
+    content: string,
+    trigger: 'ledger_init' | 'ai_learn' | 'ai_compress' | 'user_edit' | 'tag_delete' | 'manual' | 'migration' = 'user_edit'
+  ): Promise<void> {
+    await this.applyOperations(ledgerName, [{ type: 'ADD', content }], trigger, `添加记忆: ${content.slice(0, 30)}...`);
   }
 
   /**
-   * 修改单条记忆
+   * 修改单条记忆（v6 语义）
    * @param ledgerName 账本名称
    * @param index 序号（从1开始）
    * @param content 新内容
+   * @param trigger 触发类型（默认 'user_edit'）
    */
-  public static async modify(ledgerName: string, index: number, content: string): Promise<void> {
-    await this.applyOperations(ledgerName, [{ type: 'MODIFY', index, content }]);
+  public static async modify(
+    ledgerName: string,
+    index: number,
+    content: string,
+    trigger: 'ledger_init' | 'ai_learn' | 'ai_compress' | 'user_edit' | 'tag_delete' | 'manual' | 'migration' = 'user_edit'
+  ): Promise<void> {
+    await this.applyOperations(ledgerName, [{ type: 'MODIFY', index, content }], trigger, `修改记忆 #${index}`);
   }
 
   /**
-   * 删除单条记忆
+   * 删除单条记忆（v6 语义）
    * @param ledgerName 账本名称
    * @param index 序号（从1开始）
+   * @param trigger 触发类型（默认 'user_edit'）
    */
-  public static async delete(ledgerName: string, index: number): Promise<void> {
-    await this.applyOperations(ledgerName, [{ type: 'DELETE', index }]);
+  public static async delete(
+    ledgerName: string,
+    index: number,
+    trigger: 'ledger_init' | 'ai_learn' | 'ai_compress' | 'user_edit' | 'tag_delete' | 'manual' | 'migration' = 'user_edit'
+  ): Promise<void> {
+    await this.applyOperations(ledgerName, [{ type: 'DELETE', index }], trigger, `删除记忆 #${index}`);
   }
 
   /**
@@ -223,15 +268,19 @@ export class MemoryManager {
   }
 
   /**
-   * 清空记忆文件
+   * 清空记忆文件（v6 语义）
    * @param ledgerName 账本名称
+   * @param trigger 触发类型（默认 'user_edit'）
    */
-  public static async clear(ledgerName: string): Promise<void> {
-    await this.save(ledgerName, []);
+  public static async clear(
+    ledgerName: string,
+    trigger: 'ledger_init' | 'ai_learn' | 'ai_compress' | 'user_edit' | 'tag_delete' | 'manual' | 'migration' = 'user_edit'
+  ): Promise<void> {
+    await this.save(ledgerName, [], trigger, '清空记忆');
   }
 
   /**
-   * 获取记忆条目数量
+   * 获取记忆条目数量（v6 语义）
    * @param ledgerName 账本名称
    */
   public static async getCount(ledgerName: string): Promise<number> {
@@ -240,18 +289,43 @@ export class MemoryManager {
   }
 
   /**
-   * 检查记忆文件是否存在
+   * 检查记忆文件是否存在（v6 语义）
+   * v6 变更：检查是否有当前快照
+   *
    * @param ledgerName 账本名称
    */
   public static async exists(ledgerName: string): Promise<boolean> {
-    const filePath = this.getFilePath(ledgerName);
     try {
-      await Filesystem.stat({
-        path: filePath,
-        directory: Directory.Documents
-      });
-      return true;
+      const currentId = await SnapshotManager.getCurrentId(ledgerName);
+      return currentId !== '';
     } catch {
+      return false;
+    }
+  }
+
+  /**
+   * 回退到指定快照（v6 新增）
+   * 便捷方法：封装 SnapshotManager.rollback() + save()
+   *
+   * @param ledgerName 账本名称
+   * @param snapshotId 快照 ID
+   * @returns 是否成功
+   */
+  public static async rollbackToSnapshot(ledgerName: string, snapshotId: string): Promise<boolean> {
+    try {
+      // 1. 通过 SnapshotManager 回退（只更新指针）
+      const content = await SnapshotManager.rollback(ledgerName, snapshotId);
+      if (!content) {
+        return false;
+      }
+
+      // 2. 解析内容为数组（移除序号）
+      const memories = this.parseContent(content);
+
+      console.log(`[MemoryManager] Rolled back to snapshot ${snapshotId}, loaded ${memories.length} memories`);
+      return true;
+    } catch (e) {
+      console.error(`[MemoryManager] Failed to rollback to snapshot ${snapshotId}:`, e);
       return false;
     }
   }

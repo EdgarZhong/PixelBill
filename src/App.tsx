@@ -245,27 +245,32 @@ function App() {
         },
 
         /**
-         * 查看快照列表
+         * 查看快照列表（v6）
          * 用法: await window.__DEBUG_TOOLS__.listSnapshots()
          */
         listSnapshots: async (ledgerName = 'default') => {
           const snapshots = await SnapshotManager.list(ledgerName);
+          const currentId = await SnapshotManager.getCurrentId(ledgerName);
           console.log(`[SnapshotManager] 账本 "${ledgerName}" 的快照 (${snapshots.length} 个):`);
+          console.log(`[SnapshotManager] 当前快照: ${currentId || '(无)'}`);
           console.table(snapshots.map(s => ({
             id: s.id,
+            current: s.id === currentId ? '✓' : '',
             trigger: s.trigger,
             summary: s.summary.substring(0, 30) + (s.summary.length > 30 ? '...' : ''),
             timestamp: new Date(s.timestamp).toLocaleString()
           })));
-          return snapshots;
+          return { snapshots, currentId };
         },
 
         /**
-         * 创建手动快照
+         * 创建手动快照（v6）
          * 用法: await window.__DEBUG_TOOLS__.createSnapshot('测试快照')
          */
         createSnapshot: async (summary = '手动测试快照', ledgerName = 'default') => {
-          const id = await SnapshotManager.create(ledgerName, 'manual', summary);
+          const memories = await MemoryManager.load(ledgerName);
+          const content = memories.map((m, i) => `${i + 1}. ${m}`).join('\n');
+          const id = await SnapshotManager.create(ledgerName, content, 'manual', summary);
           console.log(`[SnapshotManager] 已创建快照: ${id}`);
           return id;
         },
@@ -284,24 +289,34 @@ function App() {
         },
 
         /**
-         * 回退到指定快照
-         * 用法: await window.__DEBUG_TOOLS__.rollbackSnapshot('snap_001')
+         * 回退到指定快照（v6）
+         * 用法: await window.__DEBUG_TOOLS__.rollbackSnapshot('2026-03-17_14-30-00-000')
          */
         rollbackSnapshot: async (snapshotId: string, ledgerName = 'default') => {
-          const success = await SnapshotManager.rollback(ledgerName, snapshotId);
-          if (success) {
+          const content = await SnapshotManager.rollback(ledgerName, snapshotId);
+          if (content) {
             console.log(`[SnapshotManager] 已成功回退到 ${snapshotId}`);
+            console.log(`[SnapshotManager] 当前记忆已更新为快照内容`);
+            // 显示回退后的记忆
+            const memories = await MemoryManager.load(ledgerName);
+            console.log(`[MemoryManager] 回退后记忆 (${memories.length} 条):`);
+            memories.forEach((m, i) => console.log(`  ${i + 1}. ${m}`));
           } else {
             console.error(`[SnapshotManager] 回退失败`);
           }
-          return success;
+          return content !== null;
         },
 
         /**
-         * 删除指定快照
-         * 用法: await window.__DEBUG_TOOLS__.deleteSnapshot('snap_001')
+         * 删除指定快照（v6）
+         * 用法: await window.__DEBUG_TOOLS__.deleteSnapshot('2026-03-17_14-30-00-000')
          */
         deleteSnapshot: async (snapshotId: string, ledgerName = 'default') => {
+          const currentId = await SnapshotManager.getCurrentId(ledgerName);
+          if (snapshotId === currentId) {
+            console.error(`[SnapshotManager] 无法删除当前快照 ${snapshotId}`);
+            return false;
+          }
           const success = await SnapshotManager.delete(ledgerName, snapshotId);
           if (success) {
             console.log(`[SnapshotManager] 已删除快照 ${snapshotId}`);
@@ -312,15 +327,34 @@ function App() {
         },
 
         /**
-         * 查找当前记忆匹配的快照
-         * 用法: await window.__DEBUG_TOOLS__.findCurrentSnapshot()
+         * 获取当前快照 ID（v6）
+         * 用法: await window.__DEBUG_TOOLS__.getCurrentSnapshot()
+         */
+        getCurrentSnapshot: async (ledgerName = 'default') => {
+          const currentId = await SnapshotManager.getCurrentId(ledgerName);
+          if (currentId) {
+            console.log(`[SnapshotManager] 当前快照: ${currentId}`);
+            const snapshot = await SnapshotManager.read(ledgerName, currentId);
+            if (snapshot) {
+              console.log(`  触发: ${snapshot.trigger}`);
+              console.log(`  摘要: ${snapshot.summary}`);
+              console.log(`  时间: ${new Date(snapshot.timestamp).toLocaleString()}`);
+              console.log(`  内容: ${snapshot.content.length} 条记忆`);
+            }
+          } else {
+            console.log('[SnapshotManager] 当前无快照（账本未初始化）');
+          }
+          return currentId;
+        },
+
+        /**
+         * 查找当前记忆匹配的快照（v6 废弃，使用 getCurrentSnapshot）
+         * @deprecated 使用 getCurrentSnapshot 替代
          */
         findCurrentSnapshot: async (ledgerName = 'default') => {
-          const snapId = await SnapshotManager.findMatchingSnapshot(ledgerName);
-          if (snapId) {
-            console.log(`[SnapshotManager] 当前记忆匹配的快照: ${snapId}`);
-          } else {
-            console.log('[SnapshotManager] 当前记忆与任何快照都不匹配（可能是编辑后的状态）');
+          console.warn('[SnapshotManager] findCurrentSnapshot() 已废弃，使用 getCurrentSnapshot() 替代');
+          return await debugTools.getCurrentSnapshot(ledgerName);
+        },
           }
           return snapId;
         },
@@ -357,20 +391,58 @@ function App() {
         },
 
         /**
-         * 运行完整的 P1 测试流程
+         * 运行完整的 P1 测试流程（v6）
          * 用法: await window.__DEBUG_TOOLS__.runP1Test()
          */
         runP1Test: async () => {
-          console.log('%c🧪 开始 P1 记忆文件测试...', 'color: #00ff00; font-size: 14px; font-weight: bold');
+          console.log('%c🧪 开始 P1 记忆文件测试 (v6)...', 'color: #00ff00; font-size: 14px; font-weight: bold');
 
           const ledgerName = 'default';
 
-          // Step 1: 测试记忆文件读写
+          // Step 1: 测试记忆文件读写（v6：自动创建快照）
           console.log('\n[Step 1] 测试记忆文件读写');
           await MemoryManager.save(ledgerName, [
             '我是西工大学生，meal只统计双人用餐',
             '单笔餐饮 > 70元视为大餐，归others',
             '便利店消费 > 20元 + 晚间无正餐 → meal'
+          ], 'manual', 'P1 测试初始记忆');
+          const memories = await MemoryManager.load(ledgerName);
+          console.log(`  ✓ 已保存 ${memories.length} 条记忆`);
+
+          // Step 2: 测试快照创建（v6：查看当前快照）
+          console.log('\n[Step 2] 查看当前快照');
+          const currentId = await SnapshotManager.getCurrentId(ledgerName);
+          console.log(`  ✓ 当前快照: ${currentId}`);
+
+          // Step 3: 测试增量更新（v6：自动创建快照）
+          console.log('\n[Step 3] 测试增量更新');
+          await MemoryManager.add(ledgerName, '新增：咖啡店消费归 others', 'manual');
+          await MemoryManager.modify(ledgerName, 2, '单笔餐饮 > 80元视为大餐，归others', 'manual');
+          const updated = await MemoryManager.load(ledgerName);
+          console.log(`  ✓ 更新后记忆: ${updated.length} 条`);
+
+          // Step 4: 测试快照列表（v6：显示当前快照标记）
+          console.log('\n[Step 4] 查看快照列表');
+          await debugTools.listSnapshots(ledgerName);
+
+          // Step 5: 测试快照回退（v6：只更新指针）
+          console.log('\n[Step 5] 测试快照回退');
+          const snapshots = await SnapshotManager.list(ledgerName);
+          if (snapshots.length >= 2) {
+            const targetSnap = snapshots[1]; // 倒数第二个快照
+            await debugTools.rollbackSnapshot(targetSnap.id, ledgerName);
+            const afterRollback = await MemoryManager.load(ledgerName);
+            console.log(`  ✓ 回退后记忆: ${afterRollback.length} 条`);
+          }
+
+          // Step 6: 测试自述文件
+          console.log('\n[Step 6] 测试自述文件');
+          await configManager.setUserContext('我是西工大学生，和女朋友一起生活');
+          const ctx = await configManager.getUserContext();
+          console.log(`  ✓ 自述文件: ${ctx?.substring(0, 30)}...`);
+
+          console.log('%c✅ P1 测试完成 (v6)', 'color: #00ff00; font-weight: bold');
+        },
           ]);
           const memories1 = await MemoryManager.load(ledgerName);
           console.log(`  ✓ 写入 ${memories1.length} 条记忆`);

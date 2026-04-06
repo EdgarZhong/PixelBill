@@ -1,25 +1,25 @@
 /**
- * SnapshotManager - 记忆文件版本快照管理
+ * SnapshotManager - 记忆快照管理（v6 架构）
  *
- * 职责：
- * 1. 快照存储：沙箱目录 memory_snapshots/{ledger}/
- * 2. index.json 索引管理（id, timestamp, trigger, summary）
- * 3. 创建快照：写入记忆文件前自动备份
- * 4. 回退功能：用历史快照覆盖当前记忆文件
- * 5. 上限清理：保留最近 30 个快照
+ * v6 核心变更：
+ * 1. 快照存储：Documents/PixelBill/classify_memory/{ledger}/
+ * 2. 快照命名：日期时间格式 YYYY-MM-DD_HH-mm-ss-SSS
+ * 3. 当前指针：index.json 中的 current_snapshot_id
+ * 4. 单一事实源：当前记忆内容始终通过 current_snapshot_id 获取
+ * 5. GC 规则：保留最近 30 个，删除"最旧且非当前"
+ * 6. 回退操作：只更新 current_snapshot_id，不创建新快照
  *
  * 目录结构：
  * ```
- * sandbox/memory_snapshots/{ledger}/
+ * Documents/PixelBill/classify_memory/{ledger}/
  * ├── index.json
- * ├── snap_001.md
- * ├── snap_002.md
+ * ├── 2026-03-17_14-30-00-000.md
+ * ├── 2026-03-17_15-10-00-000.md
  * └── ...
  * ```
  */
 
 import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
-import { MemoryManager } from './MemoryManager';
 
 /**
  * 快照元数据
@@ -27,14 +27,15 @@ import { MemoryManager } from './MemoryManager';
 export interface SnapshotMeta {
   id: string;
   timestamp: string;
-  trigger: 'ai_learn' | 'ai_compress' | 'user_edit' | 'tag_delete' | 'rollback' | 'manual';
+  trigger: 'ledger_init' | 'ai_learn' | 'ai_compress' | 'user_edit' | 'tag_delete' | 'manual' | 'migration';
   summary: string;
 }
 
 /**
- * 快照索引
+ * 快照索引（v6）
  */
 export interface SnapshotIndex {
+  current_snapshot_id: string;
   snapshots: SnapshotMeta[];
 }
 
@@ -46,11 +47,11 @@ export interface SnapshotContent extends SnapshotMeta {
 }
 
 export class SnapshotManager {
-  private static readonly BASE_PATH = 'memory_snapshots';
+  private static readonly BASE_PATH = 'PixelBill/classify_memory';
   private static readonly MAX_SNAPSHOTS = 30;
 
   /**
-   * 获取账本快照目录路径
+   * 获取账本快照目录路径（v6：Documents 目录）
    */
   private static getLedgerDir(ledgerName: string): string {
     return `${this.BASE_PATH}/${ledgerName}`;
@@ -64,14 +65,24 @@ export class SnapshotManager {
   }
 
   /**
-   * 生成快照文件名
+   * 生成快照 ID（v6：日期时间格式）
+   * 格式：YYYY-MM-DD_HH-mm-ss-SSS
    */
-  private static generateSnapshotId(index: number): string {
-    return `snap_${String(index).padStart(3, '0')}`;
+  private static generateSnapshotId(): string {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    const seconds = String(now.getSeconds()).padStart(2, '0');
+    const ms = String(now.getMilliseconds()).padStart(3, '0');
+
+    return `${year}-${month}-${day}_${hours}-${minutes}-${seconds}-${ms}`;
   }
 
   /**
-   * 读取快照索引
+   * 读取快照索引（v6）
    */
   private static async loadIndex(ledgerName: string): Promise<SnapshotIndex> {
     const indexPath = this.getIndexPath(ledgerName);
@@ -79,23 +90,23 @@ export class SnapshotManager {
     try {
       await Filesystem.stat({
         path: indexPath,
-        directory: Directory.Data
+        directory: Directory.Documents
       });
 
       const result = await Filesystem.readFile({
         path: indexPath,
-        directory: Directory.Data,
+        directory: Directory.Documents,
         encoding: Encoding.UTF8
       });
       return JSON.parse(result.data as string) as SnapshotIndex;
     } catch {
-      // 索引不存在，返回空索引
-      return { snapshots: [] };
+      // 索引不存在，返回空索引（v6：包含空的 current_snapshot_id）
+      return { current_snapshot_id: '', snapshots: [] };
     }
   }
 
   /**
-   * 保存快照索引
+   * 保存快照索引（v6）
    */
   private static async saveIndex(ledgerName: string, index: SnapshotIndex): Promise<void> {
     const indexPath = this.getIndexPath(ledgerName);
@@ -103,85 +114,66 @@ export class SnapshotManager {
     await Filesystem.writeFile({
       path: indexPath,
       data: JSON.stringify(index, null, 2),
-      directory: Directory.Data,
+      directory: Directory.Documents,
       encoding: Encoding.UTF8,
       recursive: true
     });
   }
 
   /**
-   * 创建快照
-   * 在写入记忆文件前调用，备份当前版本
+   * 创建快照（v6 语义）
+   *
+   * v6 变更：
+   * - 接受 content 参数，不再依赖 MemoryManager.load()
+   * - 使用 datetime 格式的快照 ID
+   * - 更新 current_snapshot_id 指针
+   * - GC 规则：删除"最旧的非当前快照"
    *
    * @param ledgerName 账本名称
+   * @param content 快照内容（记忆文件内容）
    * @param trigger 触发类型
    * @param summary 摘要说明
    * @returns 快照 ID
    */
   public static async create(
     ledgerName: string,
+    content: string,
     trigger: SnapshotMeta['trigger'],
     summary: string
   ): Promise<string> {
     try {
-      // 1. 加载当前记忆内容
-      const currentMemories = await MemoryManager.load(ledgerName);
+      // 1. 生成快照 ID（datetime 格式）
+      const snapshotId = this.generateSnapshotId();
 
-      // 2. 加载索引
-      const index = await this.loadIndex(ledgerName);
-
-      // 3. 生成新快照 ID（使用最大序号 + 1，避免删除后重复）
-      const maxIndex = index.snapshots.reduce((max, s) => {
-        const num = parseInt(s.id.split('_')[1], 10);
-        return Math.max(max, isNaN(num) ? 0 : num);
-      }, 0);
-      const newId = this.generateSnapshotId(maxIndex + 1);
-
-      // 4. 创建快照元数据
+      // 2. 创建快照元数据
       const meta: SnapshotMeta = {
-        id: newId,
+        id: snapshotId,
         timestamp: new Date().toISOString(),
         trigger,
         summary
       };
 
-      // 5. 保存快照内容
-      const snapshotPath = `${this.getLedgerDir(ledgerName)}/${newId}.md`;
-      const content = currentMemories.map((m, i) => `${i + 1}. ${m}`).join('\n');
-
+      // 3. 保存快照文件到 Documents/PixelBill/classify_memory/{ledger}/{id}.md
+      const snapshotPath = `${this.getLedgerDir(ledgerName)}/${snapshotId}.md`;
       await Filesystem.writeFile({
         path: snapshotPath,
         data: content,
-        directory: Directory.Data,
+        directory: Directory.Documents,
         encoding: Encoding.UTF8,
         recursive: true
       });
 
-      // 6. 更新索引
+      // 4. 更新索引：添加快照 + 更新 current_snapshot_id
+      const index = await this.loadIndex(ledgerName);
       index.snapshots.push(meta);
-
-      // 7. 清理旧快照（保留最近 MAX_SNAPSHOTS 个）
-      if (index.snapshots.length > this.MAX_SNAPSHOTS) {
-        const toDelete = index.snapshots.slice(0, index.snapshots.length - this.MAX_SNAPSHOTS);
-        for (const old of toDelete) {
-          try {
-            const oldPath = `${this.getLedgerDir(ledgerName)}/${old.id}.md`;
-            await Filesystem.deleteFile({
-              path: oldPath,
-              directory: Directory.Data
-            });
-          } catch (e) {
-            console.warn(`[SnapshotManager] Failed to delete old snapshot ${old.id}:`, e);
-          }
-        }
-        index.snapshots = index.snapshots.slice(-this.MAX_SNAPSHOTS);
-      }
-
-      // 8. 保存索引
+      index.current_snapshot_id = snapshotId;
       await this.saveIndex(ledgerName, index);
 
-      console.log(`[SnapshotManager] Created snapshot ${newId} for ${ledgerName}`);
-      return newId;
+      // 5. GC：保留最多 30 个快照，删除"最旧的非当前快照"
+      await this.gcSnapshots(ledgerName);
+
+      console.log(`[SnapshotManager] Created snapshot ${snapshotId} for ${ledgerName}`);
+      return snapshotId;
     } catch (e) {
       console.error('[SnapshotManager] Failed to create snapshot:', e);
       throw e;
@@ -189,7 +181,59 @@ export class SnapshotManager {
   }
 
   /**
-   * 获取快照列表
+   * GC：删除"最旧的非当前快照"
+   * 保留最近 30 个快照
+   */
+  private static async gcSnapshots(ledgerName: string): Promise<void> {
+    try {
+      const index = await this.loadIndex(ledgerName);
+
+      if (index.snapshots.length <= this.MAX_SNAPSHOTS) {
+        return; // 未超限，无需 GC
+      }
+
+      // 按时间排序（最旧的在前）
+      const sortedSnapshots = [...index.snapshots].sort((a, b) =>
+        new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+      );
+
+      // 计算需要删除的数量
+      const deleteCount = index.snapshots.length - this.MAX_SNAPSHOTS;
+      const toDelete: SnapshotMeta[] = [];
+
+      // 从最旧的开始选择，跳过 current_snapshot_id
+      for (const snap of sortedSnapshots) {
+        if (toDelete.length >= deleteCount) break;
+        if (snap.id !== index.current_snapshot_id) {
+          toDelete.push(snap);
+        }
+      }
+
+      // 删除快照文件
+      for (const snap of toDelete) {
+        try {
+          const snapPath = `${this.getLedgerDir(ledgerName)}/${snap.id}.md`;
+          await Filesystem.deleteFile({
+            path: snapPath,
+            directory: Directory.Documents
+          });
+        } catch (e) {
+          console.warn(`[SnapshotManager] Failed to delete snapshot file ${snap.id}:`, e);
+        }
+      }
+
+      // 从索引中移除
+      index.snapshots = index.snapshots.filter(s => !toDelete.some(d => d.id === s.id));
+      await this.saveIndex(ledgerName, index);
+
+      console.log(`[SnapshotManager] GC deleted ${toDelete.length} snapshots for ${ledgerName}`);
+    } catch (e) {
+      console.error('[SnapshotManager] GC failed:', e);
+    }
+  }
+
+  /**
+   * 获取快照列表（v6 语义）
    * @param ledgerName 账本名称
    * @returns 快照元数据列表（按时间倒序）
    */
@@ -200,7 +244,17 @@ export class SnapshotManager {
   }
 
   /**
-   * 读取快照内容
+   * 获取当前快照 ID（v6 新增）
+   * @param ledgerName 账本名称
+   * @returns 当前快照 ID，无则返回空字符串
+   */
+  public static async getCurrentId(ledgerName: string): Promise<string> {
+    const index = await this.loadIndex(ledgerName);
+    return index.current_snapshot_id;
+  }
+
+  /**
+   * 读取快照内容（v6 语义）
    * @param ledgerName 账本名称
    * @param snapshotId 快照 ID
    * @returns 快照内容
@@ -215,20 +269,21 @@ export class SnapshotManager {
         return null;
       }
 
-      // 2. 读取内容
+      // 2. 读取内容（v6：从 Documents 目录读取）
       const snapshotPath = `${this.getLedgerDir(ledgerName)}/${snapshotId}.md`;
       const result = await Filesystem.readFile({
         path: snapshotPath,
-        directory: Directory.Data,
+        directory: Directory.Documents,
         encoding: Encoding.UTF8
       });
 
-      // 3. 解析内容
+      // 3. 解析内容（按行分割，保留原始格式）
       const lines = (result.data as string)
         .split('\n')
         .map(line => line.trim())
         .filter(line => line.length > 0)
         .map(line => {
+          // 兼容旧格式：移除行号前缀 "1. " 或 "1) "
           const match = line.match(/^\d+[.)]\s*(.+)$/);
           return match ? match[1] : line;
         });
@@ -244,84 +299,62 @@ export class SnapshotManager {
   }
 
   /**
-   * 回退到指定快照
-   * 流程：直接用目标快照内容覆盖当前记忆文件
-   * 注意：不回退前自动创建备份，因为目标快照本身已保存
+   * 回退到指定快照（v6 语义）
+   *
+   * v6 变更：
+   * - 只更新 current_snapshot_id 指针，不创建新快照
+   * - 不再调用 MemoryManager.save()（避免循环依赖）
+   * - 返回快照内容，由调用方负责写入记忆文件
    *
    * @param ledgerName 账本名称
    * @param snapshotId 要回退到的快照 ID
-   * @returns 是否成功
+   * @returns 快照内容（供调用方写入记忆文件），失败返回 null
    */
-  public static async rollback(ledgerName: string, snapshotId: string): Promise<boolean> {
+  public static async rollback(ledgerName: string, snapshotId: string): Promise<string | null> {
     try {
       // 1. 读取目标快照
       const targetSnapshot = await this.read(ledgerName, snapshotId);
       if (!targetSnapshot) {
         console.error(`[SnapshotManager] Cannot rollback: snapshot ${snapshotId} not found`);
-        return false;
+        return null;
       }
 
-      // 2. 用快照内容覆盖当前记忆（不再自动创建备份）
-      await MemoryManager.save(ledgerName, targetSnapshot.content);
+      // 2. 更新 current_snapshot_id 指针
+      const index = await this.loadIndex(ledgerName);
+      index.current_snapshot_id = snapshotId;
+      await this.saveIndex(ledgerName, index);
 
+      // 3. 返回快照内容（由调用方写入记忆文件）
+      const content = targetSnapshot.content.join('\n');
       console.log(`[SnapshotManager] Rolled back ${ledgerName} to ${snapshotId}`);
-      return true;
+      return content;
     } catch (e) {
       console.error('[SnapshotManager] Failed to rollback:', e);
-      return false;
+      return null;
     }
   }
 
   /**
-   * 验证当前记忆是否与指定快照匹配
-   * 用于确认回退是否成功
+   * 验证当前记忆是否与指定快照匹配（v6 废弃）
+   * v6 架构下，当前记忆始终通过 current_snapshot_id 获取，无需验证
+   * 保留此方法仅为兼容性，始终返回 true
    *
-   * @param ledgerName 账本名称
-   * @param snapshotId 快照 ID
-   * @returns 是否匹配
+   * @deprecated v6 架构下不再需要此方法
    */
   public static async verifyMatch(ledgerName: string, snapshotId: string): Promise<boolean> {
-    try {
-      const currentMemories = await MemoryManager.load(ledgerName);
-      const snapshot = await this.read(ledgerName, snapshotId);
-      if (!snapshot) return false;
-
-      return this.arraysEqual(currentMemories, snapshot.content);
-    } catch (e) {
-      console.error(`[SnapshotManager] Failed to verify match with ${snapshotId}:`, e);
-      return false;
-    }
+    console.warn('[SnapshotManager] verifyMatch() is deprecated in v6');
+    return true;
   }
 
   /**
-   * 查找当前记忆内容匹配的快照 ID
-   * 用于显示"当前在哪个快照上"
+   * 查找当前记忆内容匹配的快照 ID（v6 废弃）
+   * v6 架构下，直接使用 getCurrentId() 获取 current_snapshot_id
    *
-   * @param ledgerName 账本名称
-   * @returns 匹配的快照 ID，无匹配返回 null
+   * @deprecated 使用 getCurrentId() 替代
    */
   public static async findMatchingSnapshot(ledgerName: string): Promise<string | null> {
-    try {
-      const currentMemories = await MemoryManager.load(ledgerName);
-      const index = await this.loadIndex(ledgerName);
-
-      // 从最新到最旧查找匹配
-      for (let i = index.snapshots.length - 1; i >= 0; i--) {
-        const snap = index.snapshots[i];
-        const snapContent = await this.read(ledgerName, snap.id);
-        if (!snapContent) continue;
-
-        // 比较内容是否相同
-        if (this.arraysEqual(currentMemories, snapContent.content)) {
-          return snap.id;
-        }
-      }
-
-      return null;
-    } catch (e) {
-      console.error('[SnapshotManager] Failed to find matching snapshot:', e);
-      return null;
-    }
+    console.warn('[SnapshotManager] findMatchingSnapshot() is deprecated in v6, use getCurrentId() instead');
+    return await this.getCurrentId(ledgerName);
   }
 
   /**
@@ -336,68 +369,9 @@ export class SnapshotManager {
   }
 
   /**
-   * 获取最新快照 ID
-   * @param ledgerName 账本名称
-   * @returns 最新快照 ID，无则返回空字符串
-   */
-  public static async getLatestId(ledgerName: string): Promise<string> {
-    const index = await this.loadIndex(ledgerName);
-    if (index.snapshots.length === 0) return '';
-    return index.snapshots[index.snapshots.length - 1].id;
-  }
-
-  /**
-   * 删除单个快照
-   * @param ledgerName 账本名称
-   * @param snapshotId 要删除的快照 ID
-   * @returns 是否成功
-   */
-  public static async delete(ledgerName: string, snapshotId: string): Promise<boolean> {
-    try {
-      const currentSnapshotId = await this.findMatchingSnapshot(ledgerName);
-      if (currentSnapshotId === snapshotId) {
-        console.warn(`[SnapshotManager] Cannot delete current active snapshot ${snapshotId}`);
-        return false;
-      }
-
-      // 1. 加载索引
-      const index = await this.loadIndex(ledgerName);
-
-      // 2. 查找要删除的快照
-      const snapIndex = index.snapshots.findIndex(s => s.id === snapshotId);
-      if (snapIndex === -1) {
-        console.warn(`[SnapshotManager] Snapshot ${snapshotId} not found`);
-        return false;
-      }
-
-      // 3. 删除快照文件
-      const snap = index.snapshots[snapIndex];
-      const snapshotPath = `${this.getLedgerDir(ledgerName)}/${snap.id}.md`;
-      try {
-        await Filesystem.deleteFile({
-          path: snapshotPath,
-          directory: Directory.Data
-        });
-      } catch (e) {
-        console.warn(`[SnapshotManager] Failed to delete snapshot file ${snap.id}:`, e);
-      }
-
-      // 4. 从索引中移除
-      index.snapshots.splice(snapIndex, 1);
-
-      // 5. 保存索引
-      await this.saveIndex(ledgerName, index);
-
-      console.log(`[SnapshotManager] Deleted snapshot ${snapshotId} for ${ledgerName}`);
-      return true;
-    } catch (e) {
-      console.error(`[SnapshotManager] Failed to delete snapshot ${snapshotId}:`, e);
-      return false;
-    }
-  }
-
-  /**
-   * 删除所有快照（谨慎使用）
+   * 删除所有快照（v6 语义）
+   * 谨慎使用：会删除整个账本的快照目录
+   *
    * @param ledgerName 账本名称
    */
   public static async clearAll(ledgerName: string): Promise<void> {
@@ -405,12 +379,23 @@ export class SnapshotManager {
       const ledgerDir = this.getLedgerDir(ledgerName);
       await Filesystem.rmdir({
         path: ledgerDir,
-        directory: Directory.Data,
+        directory: Directory.Documents,
         recursive: true
       });
       console.log(`[SnapshotManager] Cleared all snapshots for ${ledgerName}`);
     } catch (e) {
       console.warn(`[SnapshotManager] Failed to clear snapshots for ${ledgerName}:`, e);
     }
+  }
+
+  /**
+   * 获取最新快照 ID（v6 废弃）
+   * v6 架构下，使用 getCurrentId() 获取当前快照 ID
+   *
+   * @deprecated 使用 getCurrentId() 替代
+   */
+  public static async getLatestId(ledgerName: string): Promise<string> {
+    console.warn('[SnapshotManager] getLatestId() is deprecated in v6, use getCurrentId() instead');
+    return await this.getCurrentId(ledgerName);
   }
 }
