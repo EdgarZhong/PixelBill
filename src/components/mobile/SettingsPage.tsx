@@ -1097,6 +1097,11 @@ const CategoryManagementPanel: React.FC<CategoryManagementPanelProps> = ({ onBac
   const [dialogMode, setDialogMode] = useState<ReclassifyMode>('add');
   const [dialogCategory, setDialogCategory] = useState<string | undefined>(undefined);
   const [dialogAffectedDates, setDialogAffectedDates] = useState<string[]>([]);
+  const [editorMode, setEditorMode] = useState<'rename' | 'edit_desc' | 'delete' | null>(null);
+  const [editorTarget, setEditorTarget] = useState<string>('');
+  const [editorName, setEditorName] = useState('');
+  const [editorDescription, setEditorDescription] = useState('');
+  const [isEditorSubmitting, setIsEditorSubmitting] = useState(false);
 
   const loadCategories = useCallback(async () => {
     const service = LedgerService.getInstance();
@@ -1127,6 +1132,14 @@ const CategoryManagementPanel: React.FC<CategoryManagementPanelProps> = ({ onBac
     }, 2500);
   }, []);
 
+  const closeEditor = useCallback(() => {
+    setEditorMode(null);
+    setEditorTarget('');
+    setEditorName('');
+    setEditorDescription('');
+    setIsEditorSubmitting(false);
+  }, []);
+
   /**
    * 新增标签：先完成标签写入，再弹出范围确认对话框
    */
@@ -1134,7 +1147,7 @@ const CategoryManagementPanel: React.FC<CategoryManagementPanelProps> = ({ onBac
     const service = LedgerService.getInstance();
     const result = await service.addCategory(newName, newDescription);
     if (!result.success) {
-      showStatus('error', '新增标签失败，请检查名称格式（仅小写字母/数字/下划线）');
+      showStatus('error', '新增标签失败，请检查名称格式（支持中文/小写字母/数字/下划线）');
       return;
     }
     await triggerHaptic(HapticFeedbackLevel.MEDIUM);
@@ -1152,71 +1165,76 @@ const CategoryManagementPanel: React.FC<CategoryManagementPanelProps> = ({ onBac
   /**
    * 重命名标签：v5.1 冻结口径 —— 只改名，不触发重分类，不弹范围确认
    */
-  const handleRename = useCallback(async (oldName: string) => {
-    const newCategoryName = window.prompt('请输入新的标签名称（仅支持小写字母、数字、下划线）', oldName);
-    if (!newCategoryName || newCategoryName === oldName) {
+  const handleRename = useCallback(async () => {
+    if (!editorTarget || !editorName.trim()) {
       return;
     }
+    setIsEditorSubmitting(true);
     const service = LedgerService.getInstance();
-    const result = await service.renameCategory(oldName, newCategoryName);
+    const result = await service.renameCategory(editorTarget, editorName);
     if (!result.success) {
+      setIsEditorSubmitting(false);
       showStatus('error', '重命名失败，请检查名称格式或是否重复');
       return;
     }
     await triggerHaptic(HapticFeedbackLevel.MEDIUM);
     await loadCategories();
-    // 重命名不触发重分类（冻结口径），直接给结果反馈
-    showStatus('success', `已将 [${oldName}] 重命名为 [${newCategoryName.toLowerCase().trim()}]`);
-  }, [loadCategories, showStatus]);
+    showStatus('success', `已将 [${editorTarget}] 重命名为 [${editorName.toLowerCase().trim()}]`);
+    closeEditor();
+  }, [closeEditor, editorName, editorTarget, loadCategories, showStatus]);
 
   /**
    * 修改标签描述：先完成描述写入，再弹出范围确认对话框
    */
-  const handleUpdateDescription = useCallback(async (name: string, currentDescription: string) => {
-    const nextDescription = window.prompt('请输入新的标签说明', currentDescription);
-    if (nextDescription === null || nextDescription === currentDescription) {
+  const handleUpdateDescription = useCallback(async () => {
+    if (!editorTarget) {
       return;
     }
+    setIsEditorSubmitting(true);
     const service = LedgerService.getInstance();
-    const result = await service.updateCategoryDescription(name, nextDescription);
+    const result = await service.updateCategoryDescription(editorTarget, editorDescription);
     if (!result.success) {
+      setIsEditorSubmitting(false);
       showStatus('error', '更新说明失败，请稍后重试');
       return;
     }
     await triggerHaptic(HapticFeedbackLevel.LIGHT);
     await loadCategories();
-    showStatus('success', `标签 [${name}] 说明已更新`);
-    // 弹出范围确认对话框（模式：修改描述）
+    showStatus('success', `标签 [${editorTarget}] 说明已更新`);
+    const updatedCategory = editorTarget;
+    closeEditor();
     setDialogMode('update_desc');
-    setDialogCategory(name);
+    setDialogCategory(updatedCategory);
     setDialogAffectedDates([]);
     setDialogOpen(true);
-  }, [loadCategories, showStatus]);
+  }, [closeEditor, editorDescription, editorTarget, loadCategories, showStatus]);
 
   /**
    * 删除标签：先完成删除与前置改写，再弹出范围确认对话框
    * 前置改写（重置分类+解锁+清理实例库）在 deleteCategory 内部同步完成。
    */
-  const handleDelete = useCallback(async (name: string) => {
-    const confirmed = window.confirm(`确定删除标签 "${name}" 吗？该标签下交易会被重置为未分类。`);
-    if (!confirmed) {
+  const handleDelete = useCallback(async () => {
+    if (!editorTarget) {
       return;
     }
+    setIsEditorSubmitting(true);
     const service = LedgerService.getInstance();
-    const result = await service.deleteCategory(name);
+    const result = await service.deleteCategory(editorTarget);
     if (!result.success) {
+      setIsEditorSubmitting(false);
       showStatus('error', '删除失败，请稍后重试');
       return;
     }
     await triggerHaptic(HapticFeedbackLevel.HEAVY);
     await loadCategories();
     showStatus('success', `标签已删除，受影响交易 ${result.affectedTxIds.length} 条`);
-    // 弹出范围确认对话框（模式 B：删除标签，直接选范围）
+    const deletedCategory = editorTarget;
+    closeEditor();
     setDialogMode('delete');
-    setDialogCategory(name);
+    setDialogCategory(deletedCategory);
     setDialogAffectedDates(result.dirtyDates);
     setDialogOpen(true);
-  }, [loadCategories, showStatus]);
+  }, [closeEditor, editorTarget, loadCategories, showStatus]);
 
   return (
     <motion.div
@@ -1240,7 +1258,8 @@ const CategoryManagementPanel: React.FC<CategoryManagementPanelProps> = ({ onBac
           type="text"
           value={newName}
           onChange={(e) => setNewName(e.target.value)}
-          placeholder="标签名（仅小写字母/数字/下划线）"
+          maxLength={LedgerService.CATEGORY_NAME_MAX_LENGTH}
+          placeholder="标签名（支持中文/小写字母/数字/下划线）"
           className="w-full px-4 py-3 bg-black/30 border border-gray-700 rounded
             text-xs font-mono text-gray-200 placeholder:text-gray-600
             focus:border-pixel-green focus:outline-none"
@@ -1249,6 +1268,7 @@ const CategoryManagementPanel: React.FC<CategoryManagementPanelProps> = ({ onBac
           type="text"
           value={newDescription}
           onChange={(e) => setNewDescription(e.target.value)}
+          maxLength={LedgerService.CATEGORY_DESCRIPTION_MAX_LENGTH}
           placeholder="标签说明（可选）"
           className="w-full px-4 py-3 bg-black/30 border border-gray-700 rounded
             text-xs font-mono text-gray-200 placeholder:text-gray-600
@@ -1263,6 +1283,80 @@ const CategoryManagementPanel: React.FC<CategoryManagementPanelProps> = ({ onBac
           [ADD]
         </button>
       </div>
+
+      {editorMode && (
+        <div className="mb-6 p-4 bg-zinc-950 border border-pixel-green/30 rounded space-y-3">
+          <div className="text-[10px] text-pixel-green font-mono tracking-wider">
+            {editorMode === 'rename' ? '[RENAME_CATEGORY]' : editorMode === 'edit_desc' ? '[EDIT_CATEGORY_DESC]' : '[DELETE_CATEGORY]'}
+          </div>
+          <div className="text-[11px] font-mono text-dim break-all">
+            当前标签：[{editorTarget}]
+          </div>
+
+          {editorMode === 'rename' && (
+            <input
+              type="text"
+              value={editorName}
+              onChange={(e) => setEditorName(e.target.value)}
+              maxLength={LedgerService.CATEGORY_NAME_MAX_LENGTH}
+              placeholder="新标签名（支持中文/小写字母/数字/下划线）"
+              className="w-full px-4 py-3 bg-black/30 border border-gray-700 rounded text-xs font-mono text-gray-200 placeholder:text-gray-600 focus:border-pixel-green focus:outline-none"
+            />
+          )}
+
+          {editorMode === 'edit_desc' && (
+            <textarea
+              value={editorDescription}
+              onChange={(e) => setEditorDescription(e.target.value)}
+              maxLength={LedgerService.CATEGORY_DESCRIPTION_MAX_LENGTH}
+              placeholder="新的标签说明"
+              rows={4}
+              className="w-full px-4 py-3 bg-black/30 border border-gray-700 rounded text-xs font-mono text-gray-200 placeholder:text-gray-600 focus:border-pixel-green focus:outline-none resize-none"
+            />
+          )}
+
+          {editorMode === 'delete' && (
+            <div className="text-[11px] font-mono text-expense-red leading-relaxed">
+              删除后，该标签下条目会被重置为未分类，并在下一步由你决定是否立即重新分类。
+            </div>
+          )}
+
+          <div className="flex gap-2">
+            <button
+              onClick={closeEditor}
+              disabled={isEditorSubmitting}
+              className="flex-1 py-2 border border-gray-700 rounded text-[11px] font-mono text-dim hover:border-gray-500 transition-colors disabled:opacity-40"
+            >
+              [CANCEL]
+            </button>
+            <button
+              onClick={() => {
+                if (editorMode === 'rename') {
+                  void handleRename();
+                  return;
+                }
+                if (editorMode === 'edit_desc') {
+                  void handleUpdateDescription();
+                  return;
+                }
+                void handleDelete();
+              }}
+              disabled={
+                isEditorSubmitting ||
+                (editorMode === 'rename' && !editorName.trim()) ||
+                (editorMode === 'edit_desc' && editorDescription === undefined)
+              }
+              className={`flex-1 py-2 border rounded text-[11px] font-mono transition-colors disabled:opacity-40 ${
+                editorMode === 'delete'
+                  ? 'border-expense-red/40 text-expense-red hover:bg-expense-red/10'
+                  : 'border-pixel-green/40 text-pixel-green hover:bg-pixel-green/10'
+              }`}
+            >
+              {editorMode === 'rename' ? '[SAVE_RENAME]' : editorMode === 'edit_desc' ? '[SAVE_DESC]' : '[CONFIRM_DELETE]'}
+            </button>
+          </div>
+        </div>
+      )}
 
       {status.text && (
         <div className={`mb-4 px-3 py-2 rounded text-xs font-mono ${
@@ -1289,19 +1383,34 @@ const CategoryManagementPanel: React.FC<CategoryManagementPanelProps> = ({ onBac
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   <button
-                    onClick={() => void handleRename(item.name)}
+                    onClick={() => {
+                      setEditorMode('rename');
+                      setEditorTarget(item.name);
+                      setEditorName(item.name);
+                      setEditorDescription('');
+                    }}
                     className="px-2 py-1.5 border border-gray-700 rounded text-[10px] font-mono text-gray-300 hover:border-gray-500"
                   >
                     [RENAME]
                   </button>
                   <button
-                    onClick={() => void handleUpdateDescription(item.name, item.description)}
+                    onClick={() => {
+                      setEditorMode('edit_desc');
+                      setEditorTarget(item.name);
+                      setEditorName('');
+                      setEditorDescription(item.description);
+                    }}
                     className="px-2 py-1.5 border border-gray-700 rounded text-[10px] font-mono text-gray-300 hover:border-gray-500"
                   >
                     [EDIT_DESC]
                   </button>
                   <button
-                    onClick={() => void handleDelete(item.name)}
+                    onClick={() => {
+                      setEditorMode('delete');
+                      setEditorTarget(item.name);
+                      setEditorName('');
+                      setEditorDescription('');
+                    }}
                     disabled={item.name === 'others'}
                     className="px-2 py-1.5 border rounded text-[10px] font-mono transition-colors
                       text-expense-red border-expense-red/30 hover:bg-expense-red/10
@@ -1320,8 +1429,8 @@ const CategoryManagementPanel: React.FC<CategoryManagementPanelProps> = ({ onBac
         <div className="text-[10px] text-dim font-mono leading-relaxed">
           <span className="text-alipay-blue">[CATEGORY_POLICY]</span>
           <br />
-          删除标签后，关联交易会被重置为未分类并强制解锁；标签名仅支持小写字母、数字和下划线。
-          重命名标签不触发重分类。
+          删除标签后，关联交易会被重置为未分类并强制解锁；标签名支持中文、小写字母、数字和下划线；others 会固定排在最后。
+          修改标签说明后，可选择暂不重分类，或立即对该标签下所有未锁定条目执行重置与入队。
         </div>
       </div>
 
@@ -1418,11 +1527,7 @@ const AIMemoryPanel: React.FC<AIMemoryPanelProps> = ({
     await triggerHaptic(HapticFeedbackLevel.LIGHT);
 
     try {
-      // 获取当前分类体系（简化版，实际需要传入）
-      const categories: Record<string, string> = {
-        meal: '日常正餐支出',
-        others: '其他支出'
-      };
+      const categories = LedgerService.getInstance().getCategories();
 
       const result = await LearningSession.run(ledgerName, categories);
 

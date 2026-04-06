@@ -1,6 +1,7 @@
 import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
 import type { LedgerMemory } from '../../../types/metadata';
 import { DEFAULT_MEMORY } from '../../../utils/fs-storage';
+import { LedgerService } from '../../services/LedgerService';
 
 export class LedgerLoader {
   private static readonly LEDGER_PATH_PREFIX = 'PixelBill';
@@ -14,20 +15,12 @@ export class LedgerLoader {
       });
 
       const memory = JSON.parse(result.data as string) as LedgerMemory;
-      const categories = memory.defined_categories || DEFAULT_MEMORY.defined_categories;
-
-      if (Array.isArray(categories)) {
-        const migrated: Record<string, string> = {};
-        for (const cat of categories) {
-          migrated[cat] = `${cat} related spending`;
-        }
-        return migrated;
-      }
-
-      return categories;
+      return LedgerService.normalizeCategoryDefinitions(
+        memory.defined_categories || DEFAULT_MEMORY.defined_categories
+      );
     } catch (e) {
       console.warn(`[LedgerLoader] Failed to load ledger(${ledgerName}), using default categories.`, e);
-      return DEFAULT_MEMORY.defined_categories;
+      return LedgerService.normalizeCategoryDefinitions(DEFAULT_MEMORY.defined_categories);
     }
   }
 }

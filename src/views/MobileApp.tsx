@@ -36,10 +36,11 @@ export function MobileApp() {
     updateCategory,
     setUserNote,
     setVerification,
-    ledgerMemory,
     totalExpense,
     totalIncome,
-    TABS
+    TABS,
+    uiNotice,
+    clearUiNotice
   } = useAppLogic();
 
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
@@ -655,7 +656,7 @@ export function MobileApp() {
             color: { duration: 0.3 }
           }}
           onClick={() => handleTabChangeWithCenter(f, index)}
-          className="pb-2 px-3 text-[10px] relative font-pixel tracking-tight whitespace-nowrap flex-shrink-0"
+          className={`pb-2 px-3 relative whitespace-nowrap flex-shrink-0 ${/^[A-Z0-9_]+$/.test(f) ? 'text-[10px] font-pixel tracking-tight' : 'text-[11px] font-mono'}`}
         >
           {f.toUpperCase()}
           {isSelected && (
@@ -781,6 +782,34 @@ export function MobileApp() {
                 </div>
                 <button
                   onClick={() => setAiError(null)}
+                  className="text-dim hover:text-white"
+                >
+                  ×
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <AnimatePresence>
+          {uiNotice && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className={`mb-3 p-3 rounded border ${
+                uiNotice.type === 'error'
+                  ? 'bg-expense-red/10 border-expense-red/30'
+                  : 'bg-alipay-blue/10 border-alipay-blue/30'
+              }`}
+            >
+              <div className="flex items-start gap-2">
+                <span className={uiNotice.type === 'error' ? 'text-expense-red text-lg' : 'text-alipay-blue text-lg'}>◎</span>
+                <div className="flex-1 text-xs font-mono text-gray-200 leading-relaxed">
+                  {uiNotice.text}
+                </div>
+                <button
+                  onClick={clearUiNotice}
                   className="text-dim hover:text-white"
                 >
                   ×
@@ -998,7 +1027,7 @@ export function MobileApp() {
         {selectedTransaction && (
           <DetailPage
             transaction={selectedTransaction}
-            categories={ledgerMemory ? Object.keys(ledgerMemory.defined_categories || {}) : []}
+            categories={TABS.filter((tab) => tab !== 'ALL' && tab !== 'uncategorized')}
             onClose={() => handleTransactionSelect(null)}
             onUpdate={(updatedTransaction) => {
               if (updatedTransaction.id) {

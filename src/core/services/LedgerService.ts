@@ -5,6 +5,7 @@ import {
   writeMemoryFile,
   DEFAULT_MEMORY
 } from '../../utils/fs-storage';
+import { Directory, Encoding, Filesystem } from '@capacitor/filesystem';
 import type { StorageHandle, StorageDirHandle } from '../../utils/fs-storage';
 import type { Transaction } from '../../types';
 import type { LedgerMemory, FullTransactionRecord } from '../../types/metadata';
@@ -12,6 +13,7 @@ import { globalArbiter, type PersistencePatch } from '../arbiter/Arbiter';
 import { RegexRulePlugin, UserMetaPlugin, AIEnginePlugin } from '../plugin';
 import { PersistenceManager } from './PersistenceManager';
 import { ExampleStore } from './ExampleStore';
+import { MemoryManager } from './MemoryManager';
 import { format, parse, startOfDay, endOfDay } from 'date-fns';
 import { classifyTrigger } from '../ai_engine/ClassifyTrigger';
 import { normalizeToDateKey } from '../ai_engine/DateNormalizer';
@@ -28,6 +30,40 @@ export interface LedgerState {
   memoryFileHandle: StorageHandle | null;
 }
 
+export interface LockedTransactionPreview extends Transaction {
+  readonly is_verified: boolean;
+}
+
+type PendingReclassifyMutation =
+  | {
+      kind: 'reset_to_uncategorized';
+      txIds: string[];
+      forceUnlock: boolean;
+      cleanupExamples: boolean;
+    }
+  | {
+      kind: 'unlock_only';
+      txIds: string[];
+      cleanupExamples: boolean;
+    };
+
+interface PendingReclassifyRecovery {
+  version: string;
+  ledger: string;
+  reason: string;
+  dirtyDates: string[];
+  phase: 'prepared' | 'mutated';
+  mutation: PendingReclassifyMutation;
+  updatedAt: number;
+}
+
+interface AtomicReclassifyResult {
+  success: boolean;
+  affectedTxIds: string[];
+  dirtyDates: string[];
+  enqueueSuccess: boolean;
+}
+
 const DEFAULT_STATE: LedgerState = {
   rawTransactions: [],
   ledgerMemory: null,
@@ -42,6 +78,11 @@ const DEFAULT_STATE: LedgerState = {
 
 export class LedgerService {
   private static instance: LedgerService;
+  public static readonly CATEGORY_NAME_MAX_LENGTH = 50;
+  public static readonly CATEGORY_DESCRIPTION_MAX_LENGTH = 120;
+  private static readonly RESERVED_CATEGORY_KEYS = new Set(['__proto__', 'prototype', 'constructor']);
+  private static readonly PENDING_RECLASSIFY_DIR = 'classify_confirm_recovery';
+  private static readonly PENDING_RECLASSIFY_VERSION = '1.0';
   private state: LedgerState = { ...DEFAULT_STATE };
   private listeners: Set<() => void> = new Set();
   private beforePatchListeners: Set<() => void> = new Set();
@@ -386,11 +427,9 @@ export class LedgerService {
     const defaultTabs = ['ALL', 'uncategorized'];
     if (!memory) return defaultTabs;
 
-    // 防御式读取：确保标签列表永远来自语义分类名而不是数组索引
     const defined = Object.keys(this.getDefinedCategoriesMap(memory));
     const tabs = ['ALL', ...defined];
 
-    // 如果定义的标签中不包含 'others'，则自动添加作为兜底
     if (defined.length > 0 && !defined.includes('others')) {
       tabs.push('others');
     }
@@ -630,6 +669,65 @@ export class LedgerService {
     return Array.from(dates).sort();
   }
 
+  public getLockedTransactions(): LockedTransactionPreview[] {
+    return this.state.computedTransactions
+      .filter((tx): tx is LockedTransactionPreview => !!tx.is_verified)
+      .sort((a, b) => b.originalDate.getTime() - a.originalDate.getTime());
+  }
+
+  public async unlockTransactions(txIds: string[]): Promise<{ success: boolean; unlockedCount: number; dirtyDates: string[] }> {
+    if (!this.memoryFileHandle || !this.state.ledgerMemory || txIds.length === 0) {
+      return { success: false, unlockedCount: 0, dirtyDates: [] };
+    }
+
+    const uniqueIds = Array.from(new Set(txIds));
+    const updatedRecords = { ...this.state.ledgerMemory.records };
+    const dirtyDates = new Set<string>();
+    let unlockedCount = 0;
+
+    for (const txId of uniqueIds) {
+      const record = updatedRecords[txId];
+      if (!record?.is_verified) {
+        continue;
+      }
+
+      updatedRecords[txId] = {
+        ...record,
+        is_verified: false,
+        updated_at: format(new Date(), 'yyyy-MM-dd HH:mm:ss')
+      };
+      dirtyDates.add(normalizeToDateKey(record.time));
+      unlockedCount++;
+    }
+
+    if (unlockedCount === 0) {
+      return { success: true, unlockedCount: 0, dirtyDates: [] };
+    }
+
+    const newMemory: LedgerMemory = {
+      ...this.state.ledgerMemory,
+      records: updatedRecords,
+      last_sync: format(new Date(), 'yyyy-MM-dd HH:mm:ss')
+    };
+
+    await writeMemoryFile(this.memoryFileHandle, newMemory);
+
+    this.transactionCache.clear();
+    const computed = this.recomputeTransactions(this.state.rawTransactions, newMemory);
+
+    this.setState({
+      ledgerMemory: newMemory,
+      computedTransactions: computed,
+      TABS: this.computeTabs(newMemory)
+    });
+
+    return {
+      success: true,
+      unlockedCount,
+      dirtyDates: Array.from(dirtyDates).sort()
+    };
+  }
+
   private async syncWithLedger(
     parsedData: Transaction[],
     memoryHandle: StorageHandle | null,
@@ -718,27 +816,6 @@ export class LedgerService {
   // 数据迁移辅助方法
   // ============================================
 
-  /**
-   * 获取分类的默认描述
-   * 用于数据迁移时从旧格式（数组）转换到新格式（映射）
-   */
-  private getDefaultCategoryDescription(category: string): string {
-    const descriptions: Record<string, string> = {
-      meal: '日常正餐支出（早午晚），如快餐、正餐、工作餐',
-      snack: '零食、饮品、小吃等非正餐食品',
-      transport: '公共交通、打车、加油、停车等出行费用',
-      entertainment: '电影、游戏、演出、会员订阅等娱乐消费',
-      feast: '聚餐、大餐、宴请、高档餐厅等特殊餐饮',
-      health: '医疗、药品、保健品、健身器材等健康支出',
-      shopping: '日用品、服装、电子产品、网购等购物消费',
-      education: '书籍、课程、培训、考试等教育支出',
-      housing: '房租、水电煤、物业、维修等居住费用',
-      travel: '旅游、酒店、机票、景点门票等旅行支出',
-      others: '其他未分类支出'
-    };
-    return descriptions[category] || `${category} 相关支出`;
-  }
-
   // ============================================
   // 标签管理 API - Category Management
   // ============================================
@@ -750,6 +827,82 @@ export class LedgerService {
   public getCategories(): Record<string, string> {
     if (!this.state.ledgerMemory) return {};
     return this.getDefinedCategoriesMap(this.state.ledgerMemory);
+  }
+
+  public async confirmCategoryDescriptionReclassify(name: string): Promise<AtomicReclassifyResult> {
+    if (!this.memoryFileHandle || !this.state.ledgerMemory) {
+      return { success: false, affectedTxIds: [], dirtyDates: [], enqueueSuccess: false };
+    }
+
+    const affectedTxIds = this.collectTxIdsByPredicate(
+      (record) => !record.is_verified && record.category === name
+    );
+
+    if (affectedTxIds.length === 0) {
+      return { success: true, affectedTxIds: [], dirtyDates: [], enqueueSuccess: true };
+    }
+
+    const dirtyDates = this.collectDirtyDatesForTxIds(affectedTxIds);
+    return this.executeAtomicReclassify({
+      dirtyDates,
+      reason: 'reclassify_update_desc_confirmed',
+      mutation: {
+        kind: 'reset_to_uncategorized',
+        txIds: affectedTxIds,
+        forceUnlock: false,
+        cleanupExamples: true
+      }
+    });
+  }
+
+  public async unlockTransactionsAndReclassify(
+    txIds: string[],
+    additionalDirtyDates: string[],
+    reason: string
+  ): Promise<{ success: boolean; unlockedCount: number; dirtyDates: string[]; enqueueSuccess: boolean }> {
+    if (!this.memoryFileHandle || !this.state.ledgerMemory) {
+      return { success: false, unlockedCount: 0, dirtyDates: [], enqueueSuccess: false };
+    }
+
+    const uniqueIds = Array.from(new Set(txIds));
+    const lockedTxIds = uniqueIds.filter((txId) => !!this.state.ledgerMemory?.records[txId]?.is_verified);
+    const dirtyDates = Array.from(
+      new Set([
+        ...additionalDirtyDates,
+        ...this.collectDirtyDatesForTxIds(lockedTxIds)
+      ])
+    ).sort();
+
+    if (dirtyDates.length === 0) {
+      return { success: true, unlockedCount: 0, dirtyDates: [], enqueueSuccess: true };
+    }
+
+    if (lockedTxIds.length === 0) {
+      const enqueueSuccess = await this.enqueueReclassifyForConfirmedDates(dirtyDates, reason);
+      return {
+        success: true,
+        unlockedCount: 0,
+        dirtyDates,
+        enqueueSuccess
+      };
+    }
+
+    const result = await this.executeAtomicReclassify({
+      dirtyDates,
+      reason,
+      mutation: {
+        kind: 'unlock_only',
+        txIds: lockedTxIds,
+        cleanupExamples: true
+      }
+    });
+
+    return {
+      success: result.success,
+      unlockedCount: result.affectedTxIds.length,
+      dirtyDates: result.dirtyDates,
+      enqueueSuccess: result.enqueueSuccess
+    };
   }
 
   /**
@@ -772,17 +925,16 @@ export class LedgerService {
     }
 
     // 检查是否已存在
-    const currentCategories = this.state.ledgerMemory.defined_categories;
-    if (currentCategories[sanitizedName]) {
+    const currentCategories = this.getDefinedCategoriesMap(this.state.ledgerMemory);
+    if (this.hasOwnCategory(currentCategories, sanitizedName)) {
       console.error('[LedgerService] Category already exists:', sanitizedName);
       return { success: false, dirtyDates: [], enqueueSuccess: false };
     }
 
-    // 更新 defined_categories
-    const newCategories = {
+    const newCategories = this.orderDefinedCategories({
       ...currentCategories,
-      [sanitizedName]: description || `${sanitizedName} 相关支出`
-    };
+      [sanitizedName]: LedgerService.sanitizeCategoryDescription(description, sanitizedName)
+    });
 
     const newMemory: LedgerMemory = {
       ...this.state.ledgerMemory,
@@ -826,61 +978,39 @@ export class LedgerService {
     }
 
     // 检查标签是否存在
-    const currentCategories = this.state.ledgerMemory.defined_categories;
-    if (!currentCategories[name]) {
+    const currentCategories = this.getDefinedCategoriesMap(this.state.ledgerMemory);
+    if (!this.hasOwnCategory(currentCategories, name)) {
       console.error('[LedgerService] Category not found:', name);
       return { success: false, affectedTxIds: [], dirtyDates: [], enqueueSuccess: false };
     }
 
-    // 收集受影响的交易
-    const affectedTxIds: string[] = [];
-    const updatedRecords = { ...this.state.ledgerMemory.records };
-
-    Object.entries(updatedRecords).forEach(([txId, record]) => {
-      if (record.category === name) {
-        affectedTxIds.push(txId);
-        // 重置为未分类，强制解锁
-        updatedRecords[txId] = {
-          ...record,
-          category: 'uncategorized',
-          ai_category: '',
-          ai_reasoning: '',
-          user_category: '',
-          user_note: '',
-          is_verified: false,
-          updated_at: format(new Date(), 'yyyy-MM-dd HH:mm:ss')
-        };
-      }
+    const affectedTxIds = this.collectTxIdsByPredicate((record) => record.category === name);
+    const resetResult = this.buildResetRecords(this.state.ledgerMemory.records, affectedTxIds, {
+      nextCategory: 'uncategorized',
+      forceUnlock: true
     });
 
-    // 从 defined_categories 中删除
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { [name]: _removed, ...remainingCategories } = currentCategories;
+    const remainingCategories = { ...currentCategories };
+    delete remainingCategories[name];
 
-    // 构建新内存状态
     const newMemory: LedgerMemory = {
       ...this.state.ledgerMemory,
-      defined_categories: remainingCategories,
-      records: updatedRecords,
+      defined_categories: this.orderDefinedCategories(remainingCategories),
+      records: resetResult.updatedRecords,
       last_sync: format(new Date(), 'yyyy-MM-dd HH:mm:ss')
     };
 
-    // 清理实例库中相关记录
     const ledgerName = this.getCurrentLedgerName();
+    await this.cleanupExamplesByTxIds(resetResult.affectedTxIds);
     if (ledgerName) {
-      const { ExampleStore } = await import('./ExampleStore');
-      const examples = await ExampleStore.load(ledgerName);
-      const filteredExamples = examples.filter(ex => ex.category !== name);
-      if (filteredExamples.length !== examples.length) {
-        await ExampleStore.save(ledgerName, filteredExamples);
-        console.log(`[LedgerService] Removed ${examples.length - filteredExamples.length} examples for category ${name}`);
+      const invalidationNotice = `标签 "${name}" 已从分类体系中移除，涉及该标签的规则不再适用`;
+      const memories = await MemoryManager.load(ledgerName);
+      if (!memories.includes(invalidationNotice)) {
+        await MemoryManager.save(ledgerName, [...memories, invalidationNotice]);
       }
     }
 
-    // 保存到文件
     await writeMemoryFile(this.memoryFileHandle, newMemory);
-
-    // 清空缓存并更新状态
     this.transactionCache.clear();
     const computed = this.recomputeTransactions(this.state.rawTransactions, newMemory);
 
@@ -890,17 +1020,11 @@ export class LedgerService {
       TABS: this.computeTabs(newMemory)
     });
 
-    /**
-     * v5.1 冻结口径：删除标签后，前置改写（重置分类+解锁+清理实例库）已同步完成。
-     * 不自动入队重分类，由 UI 层渐进式范围确认对话框负责：用户选择范围后当场入队并启动消费。
-     * affectedTxIds 供 UI 层展示受影响规模并用于"仅受影响"路径的 dirtyDates 计算。
-     */
-    const affectedDirtyDates = this.collectDirtyDatesForTxIds(affectedTxIds);
     console.log('[LedgerService] Deleted category:', name, {
-      affectedCount: affectedTxIds.length,
-      affectedDirtyDates
+      affectedCount: resetResult.affectedTxIds.length,
+      affectedDirtyDates: resetResult.dirtyDates
     });
-    return { success: true, affectedTxIds, dirtyDates: affectedDirtyDates, enqueueSuccess: true };
+    return { success: true, affectedTxIds: resetResult.affectedTxIds, dirtyDates: resetResult.dirtyDates, enqueueSuccess: true };
   }
 
   /**
@@ -923,40 +1047,39 @@ export class LedgerService {
     }
 
     // 检查旧标签是否存在
-    const currentCategories = this.state.ledgerMemory.defined_categories;
-    if (!currentCategories[oldName]) {
+    const currentCategories = this.getDefinedCategoriesMap(this.state.ledgerMemory);
+    if (!this.hasOwnCategory(currentCategories, oldName)) {
       console.error('[LedgerService] Old category not found:', oldName);
       return { success: false, affectedTxIds: [], dirtyDates: [], enqueueSuccess: false };
     }
 
     // 检查新名称是否已存在
-    if (currentCategories[sanitizedNewName] && oldName !== sanitizedNewName) {
+    if (this.hasOwnCategory(currentCategories, sanitizedNewName) && oldName !== sanitizedNewName) {
       console.error('[LedgerService] New category name already exists:', sanitizedNewName);
       return { success: false, affectedTxIds: [], dirtyDates: [], enqueueSuccess: false };
     }
 
-    // 更新 defined_categories
-    const { [oldName]: oldDesc, ...restCategories } = currentCategories;
-    const newCategories = {
-      ...restCategories,
-      [sanitizedNewName]: oldDesc
-    };
+    const oldDesc = currentCategories[oldName];
+    const renamedEntries = Object.entries(currentCategories).map(([key, value]) =>
+      key === oldName ? [sanitizedNewName, value] as const : [key, value] as const
+    );
+    const newCategories = this.orderDefinedCategories(Object.fromEntries(renamedEntries.length > 0 ? renamedEntries : [[sanitizedNewName, oldDesc]]));
 
-    // 批量更新交易记录
     const affectedTxIds: string[] = [];
     const updatedRecords = { ...this.state.ledgerMemory.records };
     Object.entries(updatedRecords).forEach(([txId, record]) => {
+      let nextRecord = updatedRecords[txId];
       if (record.category === oldName) {
         affectedTxIds.push(txId);
-        updatedRecords[txId] = { ...record, category: sanitizedNewName };
+        nextRecord = { ...nextRecord, category: sanitizedNewName };
       }
-      // 同时更新元数据中的分类字段
       if (record.ai_category === oldName) {
-        updatedRecords[txId] = { ...updatedRecords[txId], ai_category: sanitizedNewName };
+        nextRecord = { ...nextRecord, ai_category: sanitizedNewName };
       }
       if (record.user_category === oldName) {
-        updatedRecords[txId] = { ...updatedRecords[txId], user_category: sanitizedNewName };
+        nextRecord = { ...nextRecord, user_category: sanitizedNewName };
       }
+      updatedRecords[txId] = nextRecord;
     });
 
     const newMemory: LedgerMemory = {
@@ -1016,17 +1139,16 @@ export class LedgerService {
     }
 
     // 检查标签是否存在
-    const currentCategories = this.state.ledgerMemory.defined_categories;
-    if (!currentCategories[name]) {
+    const currentCategories = this.getDefinedCategoriesMap(this.state.ledgerMemory);
+    if (!this.hasOwnCategory(currentCategories, name)) {
       console.error('[LedgerService] Category not found:', name);
       return { success: false, dirtyDates: [], enqueueSuccess: false };
     }
 
-    // 更新描述
-    const newCategories = {
+    const newCategories = this.orderDefinedCategories({
       ...currentCategories,
-      [name]: description
-    };
+      [name]: LedgerService.sanitizeCategoryDescription(description, name)
+    });
 
     const newMemory: LedgerMemory = {
       ...this.state.ledgerMemory,
@@ -1057,13 +1179,16 @@ export class LedgerService {
     }
 
     const trimmed = name.trim().toLowerCase();
-    if (trimmed.length > 50) {
+    if (trimmed.length > LedgerService.CATEGORY_NAME_MAX_LENGTH) {
       return null;
     }
 
-    // 仅允许小写字母、数字、下划线
-    const validPattern = /^[a-z0-9_]+$/;
+    const validPattern = /^[\u4e00-\u9fa5a-z0-9_]+$/;
     if (!validPattern.test(trimmed)) {
+      return null;
+    }
+
+    if (LedgerService.RESERVED_CATEGORY_KEYS.has(trimmed)) {
       return null;
     }
 
@@ -1130,6 +1255,46 @@ export class LedgerService {
     return this.normalizeLedgerMemoryForRuntime(memory);
   }
 
+  public async recoverPendingAtomicReclassify(): Promise<{ attempted: number; enqueued: number; failedDates: string[] }> {
+    const ledgerName = this.getCurrentLedgerName();
+    if (!ledgerName || !this.memoryFileHandle || !this.state.ledgerMemory) {
+      return { attempted: 0, enqueued: 0, failedDates: [] };
+    }
+
+    const recovery = await this.readPendingReclassifyRecovery(ledgerName);
+    if (!recovery || recovery.dirtyDates.length === 0) {
+      return { attempted: 0, enqueued: 0, failedDates: [] };
+    }
+
+    if (recovery.phase === 'prepared') {
+      await this.applyPendingMutation(recovery.mutation);
+      await this.writePendingReclassifyRecovery({
+        ...recovery,
+        phase: 'mutated',
+        updatedAt: Date.now()
+      });
+    }
+
+    const enqueueResult = await classifyTrigger.enqueueConfirmedDates(
+      ledgerName,
+      recovery.dirtyDates,
+      recovery.reason
+    );
+
+    if (enqueueResult.failedDates.length === 0) {
+      await this.clearPendingReclassifyRecovery(ledgerName);
+    } else {
+      await this.writePendingReclassifyRecovery({
+        ...recovery,
+        phase: 'mutated',
+        dirtyDates: enqueueResult.failedDates,
+        updatedAt: Date.now()
+      });
+    }
+
+    return enqueueResult;
+  }
+
   /**
    * 提取并标准化分类映射
    * - 输入是映射：直接返回
@@ -1140,29 +1305,382 @@ export class LedgerService {
     definedCategories: LedgerMemory['defined_categories'] | string[] | null | undefined
   ): { categories: Record<string, string>; migrated: boolean } {
     if (Array.isArray(definedCategories)) {
-      const migratedCategories: Record<string, string> = {};
-      for (const rawCategory of definedCategories) {
-        const category = (rawCategory || '').trim();
-        if (!category) continue;
-        migratedCategories[category] = this.getDefaultCategoryDescription(category);
-      }
-      if (Object.keys(migratedCategories).length === 0) {
+      const normalized = LedgerService.normalizeCategoryDefinitions(definedCategories);
+      if (Object.keys(normalized).length === 0) {
         return { categories: { ...DEFAULT_MEMORY.defined_categories }, migrated: true };
       }
-      return { categories: migratedCategories, migrated: true };
+      return { categories: normalized, migrated: true };
     }
 
     if (definedCategories && typeof definedCategories === 'object') {
-      const normalizedEntries = Object.entries(definedCategories)
-        .filter(([key]) => key.trim().length > 0)
-        .map(([key, value]) => [key, value || this.getDefaultCategoryDescription(key)] as const);
-      if (normalizedEntries.length === 0) {
+      const normalizedCategories = LedgerService.normalizeCategoryDefinitions(definedCategories);
+      if (Object.keys(normalizedCategories).length === 0) {
         return { categories: { ...DEFAULT_MEMORY.defined_categories }, migrated: false };
       }
-      return { categories: Object.fromEntries(normalizedEntries), migrated: false };
+      const originalOrder = Object.keys(definedCategories);
+      const orderedKeys = Object.keys(normalizedCategories);
+      const orderChanged = originalOrder.join('\u0000') !== orderedKeys.join('\u0000');
+      const contentChanged = JSON.stringify(definedCategories) !== JSON.stringify(normalizedCategories);
+      return { categories: normalizedCategories, migrated: orderChanged || contentChanged };
     }
 
     return { categories: { ...DEFAULT_MEMORY.defined_categories }, migrated: true };
+  }
+
+  private orderDefinedCategories(categories: Record<string, string>): Record<string, string> {
+    const entries = Object.entries(categories);
+    const otherEntries = entries.filter(([key]) => key === 'others');
+    const regularEntries = entries.filter(([key]) => key !== 'others');
+    return LedgerService.createCategoryMap([...regularEntries, ...otherEntries]);
+  }
+
+  public static normalizeCategoryDefinitions(
+    definedCategories: LedgerMemory['defined_categories'] | string[] | null | undefined
+  ): Record<string, string> {
+    const normalizedEntries: Array<[string, string]> = [];
+
+    if (Array.isArray(definedCategories)) {
+      for (const rawCategory of definedCategories) {
+        const sanitizedName = LedgerService.sanitizeCategoryNameInput(rawCategory);
+        if (!sanitizedName) {
+          continue;
+        }
+        normalizedEntries.push([
+          sanitizedName,
+          LedgerService.sanitizeCategoryDescription(undefined, sanitizedName)
+        ]);
+      }
+      return LedgerService.createOrderedCategoryMap(normalizedEntries);
+    }
+
+    if (!definedCategories || typeof definedCategories !== 'object') {
+      return LedgerService.createOrderedCategoryMap(Object.entries(DEFAULT_MEMORY.defined_categories));
+    }
+
+    for (const [rawName, rawDescription] of Object.entries(definedCategories)) {
+      const sanitizedName = LedgerService.sanitizeCategoryNameInput(rawName);
+      if (!sanitizedName) {
+        continue;
+      }
+      normalizedEntries.push([
+        sanitizedName,
+        LedgerService.sanitizeCategoryDescription(typeof rawDescription === 'string' ? rawDescription : undefined, sanitizedName)
+      ]);
+    }
+
+    return LedgerService.createOrderedCategoryMap(normalizedEntries);
+  }
+
+  private static createOrderedCategoryMap(entries: Array<[string, string]>): Record<string, string> {
+    const otherEntries = entries.filter(([key]) => key === 'others');
+    const regularEntries = entries.filter(([key]) => key !== 'others');
+    return LedgerService.createCategoryMap([...regularEntries, ...otherEntries]);
+  }
+
+  private static createCategoryMap(entries: Array<[string, string]>): Record<string, string> {
+    const map = Object.create(null) as Record<string, string>;
+    for (const [key, value] of entries) {
+      map[key] = value;
+    }
+    return map;
+  }
+
+  private static sanitizeCategoryNameInput(name: string | null | undefined): string | null {
+    if (!name || name.trim().length === 0) {
+      return null;
+    }
+
+    const trimmed = name.trim().toLowerCase();
+    if (trimmed.length > LedgerService.CATEGORY_NAME_MAX_LENGTH) {
+      return null;
+    }
+
+    if (!/^[\u4e00-\u9fa5a-z0-9_]+$/.test(trimmed)) {
+      return null;
+    }
+
+    if (LedgerService.RESERVED_CATEGORY_KEYS.has(trimmed)) {
+      return null;
+    }
+
+    return trimmed;
+  }
+
+  public static sanitizeCategoryDescription(description: string | undefined, categoryName: string): string {
+    const normalized = (description || '')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .slice(0, LedgerService.CATEGORY_DESCRIPTION_MAX_LENGTH);
+
+    if (normalized.length > 0) {
+      return normalized;
+    }
+
+    const fallback = {
+      meal: '日常正餐支出（早午晚），如快餐、正餐、工作餐',
+      snack: '零食、饮品、小吃等非正餐食品',
+      transport: '公共交通、打车、加油、停车等出行费用',
+      entertainment: '电影、游戏、演出、会员订阅等娱乐消费',
+      feast: '聚餐、大餐、宴请、高档餐厅等特殊餐饮',
+      health: '医疗、药品、保健品、健身器材等健康支出',
+      shopping: '日用品、服装、电子产品、网购等购物消费',
+      education: '书籍、课程、培训、考试等教育支出',
+      housing: '房租、水电煤、物业、维修等居住费用',
+      travel: '旅游、酒店、机票、景点门票等旅行支出',
+      others: '其他未分类支出'
+    } as Record<string, string>;
+
+    return fallback[categoryName] || `${categoryName} 相关支出`;
+  }
+
+  private hasOwnCategory(categories: Record<string, string>, name: string): boolean {
+    return Object.prototype.hasOwnProperty.call(categories, name);
+  }
+
+  private collectTxIdsByPredicate(predicate: (record: FullTransactionRecord) => boolean): string[] {
+    if (!this.state.ledgerMemory) {
+      return [];
+    }
+    return Object.entries(this.state.ledgerMemory.records)
+      .filter(([, record]) => predicate(record))
+      .map(([txId]) => txId);
+  }
+
+  private buildResetRecords(
+    records: LedgerMemory['records'],
+    txIds: string[],
+    options: { nextCategory: string; forceUnlock: boolean }
+  ): { updatedRecords: LedgerMemory['records']; affectedTxIds: string[]; dirtyDates: string[] } {
+    const updatedRecords = { ...records };
+    const dirtyDates = new Set<string>();
+    const affectedTxIds: string[] = [];
+
+    for (const txId of Array.from(new Set(txIds))) {
+      const record = updatedRecords[txId];
+      if (!record) {
+        continue;
+      }
+
+      affectedTxIds.push(txId);
+      updatedRecords[txId] = {
+        ...record,
+        category: options.nextCategory,
+        ai_category: '',
+        ai_reasoning: '',
+        user_category: '',
+        user_note: '',
+        is_verified: options.forceUnlock ? false : record.is_verified,
+        updated_at: format(new Date(), 'yyyy-MM-dd HH:mm:ss')
+      };
+
+      if (record.time) {
+        dirtyDates.add(normalizeToDateKey(record.time));
+      }
+    }
+
+    return {
+      updatedRecords,
+      affectedTxIds,
+      dirtyDates: Array.from(dirtyDates).sort()
+    };
+  }
+
+  private async cleanupExamplesByTxIds(txIds: string[]): Promise<void> {
+    const ledgerName = this.getCurrentLedgerName();
+    if (!ledgerName || txIds.length === 0) {
+      return;
+    }
+    await ExampleStore.deleteByTxIds(ledgerName, new Set(txIds));
+  }
+
+  private async executeAtomicReclassify(params: {
+    dirtyDates: string[];
+    reason: string;
+    mutation: PendingReclassifyMutation;
+  }): Promise<AtomicReclassifyResult> {
+    const ledgerName = this.getCurrentLedgerName();
+    if (!ledgerName || !this.memoryFileHandle || !this.state.ledgerMemory) {
+      return { success: false, affectedTxIds: [], dirtyDates: [], enqueueSuccess: false };
+    }
+
+    const dirtyDates = Array.from(new Set(params.dirtyDates)).sort();
+    if (dirtyDates.length === 0) {
+      return { success: true, affectedTxIds: [], dirtyDates: [], enqueueSuccess: true };
+    }
+
+    const recovery: PendingReclassifyRecovery = {
+      version: LedgerService.PENDING_RECLASSIFY_VERSION,
+      ledger: ledgerName,
+      reason: params.reason,
+      dirtyDates,
+      phase: 'prepared',
+      mutation: params.mutation,
+      updatedAt: Date.now()
+    };
+
+    await this.writePendingReclassifyRecovery(recovery);
+    const mutationResult = await this.applyPendingMutation(params.mutation);
+    await this.writePendingReclassifyRecovery({
+      ...recovery,
+      phase: 'mutated',
+      updatedAt: Date.now()
+    });
+
+    const enqueueResult = await classifyTrigger.enqueueConfirmedDates(
+      ledgerName,
+      dirtyDates,
+      params.reason
+    );
+
+    if (enqueueResult.failedDates.length === 0) {
+      await this.clearPendingReclassifyRecovery(ledgerName);
+    } else {
+      await this.writePendingReclassifyRecovery({
+        ...recovery,
+        phase: 'mutated',
+        dirtyDates: enqueueResult.failedDates,
+        updatedAt: Date.now()
+      });
+    }
+
+    return {
+      success: true,
+      affectedTxIds: mutationResult.affectedTxIds,
+      dirtyDates,
+      enqueueSuccess: enqueueResult.failedDates.length === 0
+    };
+  }
+
+  private async applyPendingMutation(mutation: PendingReclassifyMutation): Promise<{ affectedTxIds: string[] }> {
+    if (!this.memoryFileHandle || !this.state.ledgerMemory) {
+      return { affectedTxIds: [] };
+    }
+
+    if (mutation.kind === 'unlock_only') {
+      const result = this.buildUnlockRecords(this.state.ledgerMemory.records, mutation.txIds);
+      if (result.affectedTxIds.length === 0) {
+        return { affectedTxIds: [] };
+      }
+
+      const newMemory: LedgerMemory = {
+        ...this.state.ledgerMemory,
+        records: result.updatedRecords,
+        last_sync: format(new Date(), 'yyyy-MM-dd HH:mm:ss')
+      };
+
+      if (mutation.cleanupExamples) {
+        await this.cleanupExamplesByTxIds(result.affectedTxIds);
+      }
+      await writeMemoryFile(this.memoryFileHandle, newMemory);
+      this.transactionCache.clear();
+      const computed = this.recomputeTransactions(this.state.rawTransactions, newMemory);
+      this.setState({
+        ledgerMemory: newMemory,
+        computedTransactions: computed,
+        TABS: this.computeTabs(newMemory)
+      });
+      return { affectedTxIds: result.affectedTxIds };
+    }
+
+    const result = this.buildResetRecords(this.state.ledgerMemory.records, mutation.txIds, {
+      nextCategory: 'uncategorized',
+      forceUnlock: mutation.forceUnlock
+    });
+    if (result.affectedTxIds.length === 0) {
+      return { affectedTxIds: [] };
+    }
+
+    const newMemory: LedgerMemory = {
+      ...this.state.ledgerMemory,
+      records: result.updatedRecords,
+      last_sync: format(new Date(), 'yyyy-MM-dd HH:mm:ss')
+    };
+
+    if (mutation.cleanupExamples) {
+      await this.cleanupExamplesByTxIds(result.affectedTxIds);
+    }
+    await writeMemoryFile(this.memoryFileHandle, newMemory);
+    this.transactionCache.clear();
+    const computed = this.recomputeTransactions(this.state.rawTransactions, newMemory);
+    this.setState({
+      ledgerMemory: newMemory,
+      computedTransactions: computed,
+      TABS: this.computeTabs(newMemory)
+    });
+    return { affectedTxIds: result.affectedTxIds };
+  }
+
+  private buildUnlockRecords(
+    records: LedgerMemory['records'],
+    txIds: string[]
+  ): { updatedRecords: LedgerMemory['records']; affectedTxIds: string[] } {
+    const updatedRecords = { ...records };
+    const affectedTxIds: string[] = [];
+
+    for (const txId of Array.from(new Set(txIds))) {
+      const record = updatedRecords[txId];
+      if (!record?.is_verified) {
+        continue;
+      }
+
+      affectedTxIds.push(txId);
+      updatedRecords[txId] = {
+        ...record,
+        is_verified: false,
+        updated_at: format(new Date(), 'yyyy-MM-dd HH:mm:ss')
+      };
+    }
+
+    return { updatedRecords, affectedTxIds };
+  }
+
+  private getPendingReclassifyPath(ledger: string): string {
+    return `${LedgerService.PENDING_RECLASSIFY_DIR}/${ledger}.json`;
+  }
+
+  private async readPendingReclassifyRecovery(ledger: string): Promise<PendingReclassifyRecovery | null> {
+    try {
+      const result = await Filesystem.readFile({
+        path: this.getPendingReclassifyPath(ledger),
+        directory: Directory.Data,
+        encoding: Encoding.UTF8
+      });
+      const parsed = JSON.parse(result.data as string) as PendingReclassifyRecovery;
+      if (!Array.isArray(parsed.dirtyDates) || !parsed.mutation) {
+        return null;
+      }
+      return {
+        ...parsed,
+        ledger,
+        dirtyDates: Array.from(new Set(parsed.dirtyDates)).sort(),
+        phase: parsed.phase === 'prepared' ? 'prepared' : 'mutated',
+        version: parsed.version || LedgerService.PENDING_RECLASSIFY_VERSION,
+        updatedAt: Number.isFinite(parsed.updatedAt) ? parsed.updatedAt : Date.now()
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  private async writePendingReclassifyRecovery(data: PendingReclassifyRecovery): Promise<void> {
+    await Filesystem.writeFile({
+      path: this.getPendingReclassifyPath(data.ledger),
+      directory: Directory.Data,
+      encoding: Encoding.UTF8,
+      recursive: true,
+      data: JSON.stringify(data, null, 2)
+    });
+  }
+
+  private async clearPendingReclassifyRecovery(ledger: string): Promise<void> {
+    try {
+      await Filesystem.deleteFile({
+        path: this.getPendingReclassifyPath(ledger),
+        directory: Directory.Data
+      });
+    } catch {
+      return;
+    }
   }
 
   /**

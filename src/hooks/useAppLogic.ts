@@ -1,6 +1,7 @@
 import { 
   useMemo,
-  useRef
+  useRef,
+  useState
 } from 'react';
 import { useLedger } from './useLedger';
 import { useFileWatcher, type FileChangeInfo } from './useFileWatcher';
@@ -27,6 +28,7 @@ export function useAppLogic() {
   } = useLedger();
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uiNotice, setUiNotice] = useState<{ type: 'error' | 'info'; text: string } | null>(null);
   
   // Note: we can't easily access the internal memoryFileHandle from service via state 
   // for the watcher, unless we expose it.
@@ -90,7 +92,7 @@ export function useAppLogic() {
         
         const files = await scanForCSVFiles(dirHandle);
         if (files.length === 0) {
-          alert('No CSV files found in the selected directory.');
+          setUiNotice({ type: 'info', text: '所选目录中未发现 CSV 账单文件' });
           return;
         }
         
@@ -100,7 +102,7 @@ export function useAppLogic() {
       } catch (error) {
         if ((error as Error).name !== 'AbortError') {
           console.error('Directory access error:', error);
-          alert('Failed to load data. See console.');
+          setUiNotice({ type: 'error', text: '目录读取失败，请检查权限或查看控制台日志' });
         }
       }
     } else {
@@ -210,6 +212,8 @@ export function useAppLogic() {
     handleImportData: () => fileInputRef.current?.click(),
     totalExpense,
     totalIncome,
-    TABS
+    TABS,
+    uiNotice,
+    clearUiNotice: () => setUiNotice(null)
   };
 }

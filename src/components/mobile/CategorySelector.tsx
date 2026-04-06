@@ -21,6 +21,7 @@ export const CategorySelector: React.FC<CategorySelectorProps> = ({
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [tempCategory, setTempCategory] = useState(category);
+  const usePixelFont = /^[a-z0-9_]+$/i.test(category);
 
   // Sync tempCategory when opening
   useEffect(() => {
@@ -60,7 +61,7 @@ export const CategorySelector: React.FC<CategorySelectorProps> = ({
         `}
       >
          <div className="flex items-center justify-between w-full px-2">
-            <span className={`font-pixel text-sm ${
+            <span className={`${usePixelFont ? 'font-pixel text-sm tracking-wider' : 'font-mono text-xs'} ${
               !isLocked 
                 ? 'text-pixel-green animate-pulse [animation-duration:4s]' // Unlocked: Green Breathing (4s)
                 : 'text-pixel-green' // Locked: Green Solid

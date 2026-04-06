@@ -208,6 +208,7 @@ export const VerticalCategoryPicker: React.FC<VerticalCategoryPickerProps> = ({
         
         {extendedCategories.map((cat, index) => {
           const isSelected = cat === visualCategory;
+          const usePixelFont = /^[a-z0-9_]+$/i.test(cat);
           
           return (
             <motion.div
@@ -231,7 +232,7 @@ export const VerticalCategoryPicker: React.FC<VerticalCategoryPickerProps> = ({
                 duration: 0.2
               }}
             >
-              <span className={`text-sm font-pixel tracking-wider font-bold ${isSelected ? 'text-pixel-green' : 'text-dim'}`}>
+              <span className={`${usePixelFont ? 'text-sm font-pixel tracking-wider' : 'text-xs font-mono'} font-bold ${isSelected ? 'text-pixel-green' : 'text-dim'}`}>
                 {cat.toUpperCase()}
               </span>
             </motion.div>

@@ -258,6 +258,14 @@ export class LedgerManager {
 
     // 调用 LedgerService 加载数据
     this.ledgerService.loadFromHandle(handle, normalized.memory);
+    const atomicRecoveryResult = await this.ledgerService.recoverPendingAtomicReclassify();
+    if (atomicRecoveryResult.attempted > 0) {
+      console.log('[LedgerManager] Recovered atomic reclassify mutation:', {
+        ledger: this.activeLedgerName,
+        attempted: atomicRecoveryResult.attempted,
+        failed: atomicRecoveryResult.failedDates.length
+      });
+    }
     const recoveryResult = await classifyTrigger.recoverPending(this.activeLedgerName);
     if (recoveryResult.attempted > 0) {
       console.log('[LedgerManager] Recovered pending classify dates:', {
@@ -354,6 +362,14 @@ export class LedgerManager {
         await writeMemoryFile(newHandle, normalized.memory);
       }
       this.ledgerService.loadFromHandle(newHandle, normalized.memory);
+      const atomicRecoveryResult = await this.ledgerService.recoverPendingAtomicReclassify();
+      if (atomicRecoveryResult.attempted > 0) {
+        console.log('[LedgerManager] Recovered atomic reclassify mutation on switch:', {
+          ledger: ledgerName,
+          attempted: atomicRecoveryResult.attempted,
+          failed: atomicRecoveryResult.failedDates.length
+        });
+      }
 
       /**
        * 切换账本后自动恢复目标账本的补偿入队记录。
