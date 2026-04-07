@@ -321,6 +321,51 @@ export interface IHapticsAdapter {
 
 ---
 
+## 十、Moni UI 整合（Phase 7，已完成）
+
+**完成时间**: 2026-04-08  
+**分支**: `feat/moni-integration`（基于 `feat/frontend-separation`）  
+**提交**: e53465b
+
+### 背景
+
+PixelBill 品牌升级为 Moni，引入 Memphis 风格 UI 替代 Cyber-Zen 像素风。本阶段将 Moni-UI-Prototype 的前端原型迁移为 TSX 并接入 core 后端逻辑。
+
+### 新增文件
+
+```
+src/
+├── pages/MoniHome.tsx                    # 首页主容器（完整整合，替换 MobileApp 入口）
+├── features/moni-home/
+│   ├── components.tsx                    # 所有 UI 组件（Decor/Logo/DisplayBoard/DayCard 等）
+│   ├── config.ts                         # 颜色常量、分类配置（C、FILTERS 等）
+│   └── helpers.ts                        # 工具函数（getRange/isInRange/buildOverview 等）
+├── platform/haptics.ts                   # 触觉反馈（HapticsService 适配器封装）
+├── hooks/useMoniHomeData.ts              # 首页聚合读模型 Hook（LedgerService + BudgetManager）
+├── core/services/BudgetManager.ts        # 预算管理服务（持久化 + 月度/分类预算计算）
+└── components/moni/
+    └── OnboardingBanner.tsx              # 预算引导横幅
+```
+
+### 已完成的联调
+
+| 任务 | 说明 |
+|------|------|
+| 真实账本数据接入 | LedgerService 状态 → useMoniHomeData → MoniHome |
+| 拖拽分类写回 | LedgerService.updateCategory + ReasonDialog |
+| AI 控制条 | BatchProcessor.run/stop + 状态订阅 |
+| 预算系统 | BudgetManager（独立持久化，联动标签操作） |
+| 账本初始化 | LedgerManager.init() 在 MoniHome 挂载时触发 |
+
+### 待完成的联调
+
+- BottomNav 左侧设置按钮 → 接入 SettingsPage
+- BottomNav 右侧记账按钮 → 接入 CSV 导入流程
+- 账本切换 → 接入 LedgerManager.switchLedger
+- 历史数据时间范围默认值优化（当前默认"本月"可能为空）
+
+---
+
 ### 3.2 迁移模式
 
 每个文件的迁移遵循以下模式：
