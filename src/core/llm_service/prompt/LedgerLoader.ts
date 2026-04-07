@@ -1,4 +1,5 @@
-import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
+import { FilesystemService } from '../../adapters/FilesystemService';
+import { AdapterDirectory, AdapterEncoding } from '../../adapters/IFilesystemAdapter';
 import type { LedgerMemory } from '../../../types/metadata';
 import { DEFAULT_MEMORY } from '../../../utils/fs-storage';
 import { LedgerService } from '../../services/LedgerService';
@@ -8,13 +9,12 @@ export class LedgerLoader {
 
   public static async loadCategories(ledgerName: string = 'default'): Promise<Record<string, string>> {
     try {
-      const result = await Filesystem.readFile({
+      const fs = FilesystemService.getInstance();
+      const memory = JSON.parse(await fs.readFile({
         path: `${this.LEDGER_PATH_PREFIX}/${ledgerName}.pixelbill.json`,
-        directory: Directory.Documents,
-        encoding: Encoding.UTF8
-      });
-
-      const memory = JSON.parse(result.data as string) as LedgerMemory;
+        directory: AdapterDirectory.Documents,
+        encoding: AdapterEncoding.UTF8
+      })) as LedgerMemory;
       return LedgerService.normalizeCategoryDefinitions(
         memory.defined_categories || DEFAULT_MEMORY.defined_categories
       );

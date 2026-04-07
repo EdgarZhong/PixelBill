@@ -1,4 +1,5 @@
-import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
+import { FilesystemService } from '../../adapters/FilesystemService';
+import { AdapterDirectory, AdapterEncoding } from '../../adapters/IFilesystemAdapter';
 
 export class RuleLoader {
   private static readonly BASE_PATH = 'PixelBill/classify_rules';
@@ -14,13 +15,12 @@ export class RuleLoader {
 
     try {
       // 尝试读取规则文件
-      const result = await Filesystem.readFile({
+      const fs = FilesystemService.getInstance();
+      return await fs.readFile({
         path: fullPath,
-        directory: Directory.Documents,
-        encoding: Encoding.UTF8
+        directory: AdapterDirectory.Documents,
+        encoding: AdapterEncoding.UTF8
       });
-
-      return result.data as string;
     } catch {
       console.warn(`[RuleLoader] Rules not found for ${ledgerName}, using empty rules.`);
       // 如果文件不存在，返回空字符串，或者可以返回默认的内置规则
@@ -36,11 +36,12 @@ export class RuleLoader {
     const fullPath = `${this.BASE_PATH}/${fileName}`;
 
     try {
-      await Filesystem.writeFile({
+      const fs = FilesystemService.getInstance();
+      await fs.writeFile({
         path: fullPath,
         data: content,
-        directory: Directory.Documents,
-        encoding: Encoding.UTF8,
+        directory: AdapterDirectory.Documents,
+        encoding: AdapterEncoding.UTF8,
         recursive: true // 确保目录存在
       });
     } catch (e) {

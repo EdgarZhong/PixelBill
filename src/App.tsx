@@ -702,16 +702,17 @@ function App() {
 
         viewQueueRecovery: async (ledger?: string) => {
           const { LedgerManager } = await import('./core/services/LedgerManager');
-          const { Filesystem, Directory, Encoding } = await import('@capacitor/filesystem');
+          const { FilesystemService } = await import('./core/adapters/FilesystemService');
+          const { AdapterDirectory, AdapterEncoding } = await import('./core/adapters/IFilesystemAdapter');
           const manager = LedgerManager.getInstance();
           const targetLedger = ledger || manager.getActiveLedgerName();
           try {
-            const result = await Filesystem.readFile({
+            const fs = FilesystemService.getInstance();
+            const parsed = JSON.parse(await fs.readFile({
               path: `classify_queue_recovery/${targetLedger}.json`,
-              directory: Directory.Data,
-              encoding: Encoding.UTF8
-            });
-            const parsed = JSON.parse(result.data as string);
+              directory: AdapterDirectory.Data,
+              encoding: AdapterEncoding.UTF8
+            }));
             console.log(`[ClassifyTrigger] recovery(${targetLedger}):`, parsed);
             return parsed;
           } catch {

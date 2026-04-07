@@ -8,7 +8,8 @@
  * 4. App 重启后恢复队列状态
  */
 
-import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
+import { FilesystemService } from '../adapters/FilesystemService';
+import { AdapterDirectory, AdapterEncoding } from '../adapters/IFilesystemAdapter';
 
 /**
  * 分类任务结构
@@ -91,24 +92,18 @@ export class ClassifyQueue {
   }
 
   /**
-   * 读取目录项名称（兼容不同平台返回值）
-   */
-  private getEntryName(entry: { name: string } | string): string {
-    return typeof entry === 'string' ? entry : entry.name;
-  }
-
-  /**
    * 获取当前存在队列文件的账本名列表
    */
   private async listLedgersWithQueueFile(): Promise<string[]> {
     try {
-      const result = await Filesystem.readdir({
+      const fs = FilesystemService.getInstance();
+      const files = await fs.readdir({
         path: QUEUE_DIR,
-        directory: Directory.Data
+        directory: AdapterDirectory.Data
       });
 
-      return result.files
-        .map(file => this.getEntryName(file))
+      return files
+        .map(file => file.name)
         .filter(fileName => fileName.endsWith('.json'))
         .map(fileName => fileName.slice(0, -5));
     } catch {
@@ -124,13 +119,12 @@ export class ClassifyQueue {
 
     const queuePath = this.getLedgerQueuePath(ledger);
     try {
-      const result = await Filesystem.readFile({
+      const fs = FilesystemService.getInstance();
+      const data = JSON.parse(await fs.readFile({
         path: queuePath,
-        directory: Directory.Data,
-        encoding: Encoding.UTF8
-      });
-
-      const data = JSON.parse(result.data as string) as QueueData;
+        directory: AdapterDirectory.Data,
+        encoding: AdapterEncoding.UTF8
+      })) as QueueData;
       /**
        * v5.1 收口：队列任务业务语义仅保留 { date }。
        * 这里对历史数据做向后兼容迁移，丢弃旧的 type/tag 字段。
@@ -186,11 +180,12 @@ export class ClassifyQueue {
     };
 
     try {
-      await Filesystem.writeFile({
+      const fs = FilesystemService.getInstance();
+      await fs.writeFile({
         path: this.getLedgerQueuePath(ledger),
         data: JSON.stringify(data, null, 2),
-        directory: Directory.Data,
-        encoding: Encoding.UTF8,
+        directory: AdapterDirectory.Data,
+        encoding: AdapterEncoding.UTF8,
         recursive: true
       });
     } catch (e) {
@@ -204,9 +199,10 @@ export class ClassifyQueue {
    */
   private async deleteLedgerFile(ledger: string): Promise<void> {
     try {
-      await Filesystem.deleteFile({
+      const fs = FilesystemService.getInstance();
+      await fs.deleteFile({
         path: this.getLedgerQueuePath(ledger),
-        directory: Directory.Data
+        directory: AdapterDirectory.Data
       });
     } catch {
       // 队列文件不存在时静默忽略
@@ -228,9 +224,10 @@ export class ClassifyQueue {
 
   private async hasLedgerQueueFile(ledger: string): Promise<boolean> {
     try {
-      await Filesystem.stat({
+      const fs = FilesystemService.getInstance();
+      await fs.stat({
         path: this.getLedgerQueuePath(ledger),
-        directory: Directory.Data
+        directory: AdapterDirectory.Data
       });
       return true;
     } catch {

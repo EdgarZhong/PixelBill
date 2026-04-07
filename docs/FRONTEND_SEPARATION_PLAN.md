@@ -204,23 +204,23 @@ export interface IHapticsAdapter {
 #### Phase 2: 核心服务迁移（2-3天）
 - [x] 迁移 `SnapshotManager` - ✅ 已完成
 - [x] 迁移 `MemoryManager` - ✅ 已完成（无直接 Capacitor 依赖）
-- [ ] 迁移 `LedgerManager`
-- [ ] 迁移 `LedgerService`
-- [ ] 迁移 `ExampleStore`
-- [ ] 迁移 `SelfDescriptionManager`
-- [ ] 迁移 `MigrationManager`
-- [ ] 迁移 `ConfigManager`
+- [x] 迁移 `LedgerManager` - ✅ 已完成（9处调用）
+- [x] 迁移 `LedgerService` - ✅ 已完成（3处调用）
+- [x] 迁移 `ExampleStore` - ✅ 已完成（3处调用）
+- [x] 迁移 `SelfDescriptionManager` - ✅ 已完成（4处调用）
+- [x] 迁移 `MigrationManager` - ✅ 已完成（7处调用）
+- [x] 迁移 `ConfigManager` - ✅ 已完成（2处调用）
 
 #### Phase 3: AI 引擎迁移（1-2天）
-- [ ] 迁移 `ClassifyQueue`
-- [ ] 迁移 `ClassifyTrigger`
-- [ ] 迁移 `LedgerLoader`
-- [ ] 迁移 `RuleLoader`
+- [x] 迁移 `ClassifyQueue`
+- [x] 迁移 `ClassifyTrigger`
+- [x] 迁移 `LedgerLoader`
+- [x] 迁移 `RuleLoader`
 
 #### Phase 4: 工具层迁移（1天）
-- [ ] 迁移 `RawLogger`
-- [ ] 迁移 `haptics` 工具
-- [ ] 重构 `fs-storage` 工具
+- [x] 迁移 `RawLogger`
+- [x] 迁移 `haptics` 工具（改为调用 HapticsService）
+- [ ] 重构 `fs-storage` 工具（部分 Capacitor 调用仍保留，待评估）
 
 #### Phase 5: UI 层适配（1天）
 - [ ] 迁移 `useFileWatcher`
@@ -258,17 +258,54 @@ export interface IHapticsAdapter {
 
 ### Phase 2-6: 待开始
 
-**Phase 2: 核心服务迁移** - 🚧 进行中
+### Phase 2: 核心服务迁移 ✅ 已完成
 
-**开始时间**: 2026-04-07  
+**完成时间**: 2026-04-07  
 **已完成文件**:
 - `src/core/services/SnapshotManager.ts` - ✅ 已迁移（7处 Capacitor API 调用）
 - `src/core/services/MemoryManager.ts` - ✅ 已迁移（仅更新 import，无直接依赖）
+- `src/core/services/LedgerManager.ts` - ✅ 已迁移（9处调用：rmdir×2, deleteFile×2, readdir×1, readFile×1, writeFile×1）
+- `src/core/services/LedgerService.ts` - ✅ 已迁移（3处调用：readFile, writeFile, deleteFile）
+- `src/core/services/ExampleStore.ts` - ✅ 已迁移（3处调用：stat, readFile, writeFile）
+- `src/core/services/SelfDescriptionManager.ts` - ✅ 已迁移（4处调用：readFile, writeFile, stat, deleteFile）
+- `src/core/services/MigrationManager.ts` - ✅ 已迁移（7处调用：stat, readFile, deleteFile, readdir, rmdir）
+- `src/core/config/ConfigManager.ts` - ✅ 已迁移（2处调用：readFile, writeFile）
 
-**进行中**:
-- 剩余 6 个核心服务文件待迁移
+**附带修复**:
+- `IFilesystemAdapter.ts`：将 `enum` 改为 `const` 对象 + 类型联合（兼容 `erasableSyntaxOnly`）
+- `IHapticsAdapter.ts`：同上
+- `CapacitorFilesystemAdapter.ts`：修复 `ctime` 类型兼容性（`?? mtime` fallback）
+- `MemoryManager.ts`：移除未使用的 import 和 `BASE_PATH` 常量
+- `MigrationManager.ts`：移除未使用的 `SnapshotManager` import
+- `SnapshotManager.ts`：修复 deprecated 方法参数命名 + 删除未使用的 `arraysEqual` 方法
+- `SettingsPage.tsx`：修复 `SnapshotManager.create()` 少传 `content` 参数的旧 Bug
 
-**Phase 3-6**: 待开始
+### Phase 3: AI 引擎迁移 ✅ 已完成
+
+**完成时间**: 2026-04-07  
+**已完成文件**:
+- `src/core/ai_engine/ClassifyQueue.ts` - ✅ 已迁移（5处调用：readdir, readFile, writeFile, deleteFile, stat）
+- `src/core/ai_engine/ClassifyTrigger.ts` - ✅ 已迁移（3处调用：readFile, writeFile, deleteFile）
+- `src/core/llm_service/prompt/LedgerLoader.ts` - ✅ 已迁移（1处调用：readFile）
+- `src/core/llm_service/prompt/RuleLoader.ts` - ✅ 已迁移（2处调用：readFile, writeFile）
+
+**附带清理**:
+- `ClassifyQueue.ts`：移除已不再使用的 `getEntryName()` 辅助方法
+
+### Phase 4: 工具层迁移 ✅ 已完成（部分）
+
+**完成时间**: 2026-04-07  
+**已完成文件**:
+- `src/core/logging/RawLogger.ts` - ✅ 已迁移（移除 `isNativePlatform()` 分支，统一走 FilesystemService）
+- `src/utils/haptics.ts` - ✅ 已迁移（改为调用 HapticsService，`selectionStart` 降级为 vibrate(10)）
+- `src/App.tsx` - ✅ 调试工具中的直接调用已迁移到 FilesystemService
+
+**待处理**:
+- `src/utils/fs-storage.ts` - 仍有 Capacitor 调用，但该文件同时含有大量非 Capacitor 的 Web File API 代码（双路实现），需评估是否纳入 Phase 5 重构范围或保持现状
+
+**总体进度**: 约 75% 完成（Phase 1-4 主体完成）
+
+### Phase 5-6: 待开始
 
 ---
 

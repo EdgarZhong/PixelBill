@@ -1,4 +1,5 @@
-import { Haptics, ImpactStyle, NotificationType } from '@capacitor/haptics';
+import { HapticsService } from '../core/adapters/HapticsService';
+import { HapticImpactStyle, HapticNotificationType } from '../core/adapters/IHapticsAdapter';
 
 /**
  * Haptics feedback levels for different interaction intensities
@@ -39,14 +40,14 @@ export async function triggerHaptic(
   level: HapticFeedbackLevelType = HapticFeedbackLevel.MEDIUM
 ): Promise<void> {
   try {
-    // Map our feedback levels to Capacitor's ImpactStyle
-    const styleMap: Record<HapticFeedbackLevelType, ImpactStyle> = {
-      [HapticFeedbackLevel.LIGHT]: ImpactStyle.Light,
-      [HapticFeedbackLevel.MEDIUM]: ImpactStyle.Medium,
-      [HapticFeedbackLevel.HEAVY]: ImpactStyle.Heavy
+    // 将本地强度级别映射到适配器接口的 HapticImpactStyle
+    const styleMap: Record<HapticFeedbackLevelType, HapticImpactStyle> = {
+      [HapticFeedbackLevel.LIGHT]: HapticImpactStyle.Light,
+      [HapticFeedbackLevel.MEDIUM]: HapticImpactStyle.Medium,
+      [HapticFeedbackLevel.HEAVY]: HapticImpactStyle.Heavy
     };
 
-    await Haptics.impact({ style: styleMap[level] });
+    await HapticsService.getInstance().impact(styleMap[level]);
   } catch (error) {
     // Silently fail on unsupported devices or web browsers
     // This is expected behavior - haptics are a progressive enhancement
@@ -65,7 +66,7 @@ export async function triggerHaptic(
  */
 export async function triggerHapticNotification(): Promise<void> {
   try {
-    await Haptics.notification({ type: NotificationType.Success });
+    await HapticsService.getInstance().notification(HapticNotificationType.Success);
   } catch (error) {
     if (process.env.NODE_ENV === 'development') {
       console.debug('Haptic notification unavailable:', error);
@@ -82,7 +83,8 @@ export async function triggerHapticNotification(): Promise<void> {
  */
 export async function triggerHapticSelection(): Promise<void> {
   try {
-    await Haptics.selectionStart();
+    // 使用轻度震动模拟选择反馈（接口层不暴露 selectionStart）
+    await HapticsService.getInstance().vibrate(10);
   } catch (error) {
     if (process.env.NODE_ENV === 'development') {
       console.debug('Haptic selection unavailable:', error);

@@ -1,5 +1,5 @@
-import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
-import { isNativePlatform } from '../../utils/fs-storage';
+import { FilesystemService } from '../adapters/FilesystemService';
+import { AdapterDirectory, AdapterEncoding } from '../adapters/IFilesystemAdapter';
 import { format } from 'date-fns';
 
 export interface LogEntry {
@@ -51,28 +51,24 @@ export class RawLogger {
     const content = JSON.stringify(fullEntry, null, 2);
 
     try {
-      if (isNativePlatform()) {
-        // Ensure dir exists
-        try {
-          await Filesystem.mkdir({
-            path: LOG_DIR,
-            directory: Directory.Data,
-            recursive: true
-          });
-        } catch {
-          // Ignore if exists
-        }
-
-        await Filesystem.writeFile({
-          path: `${LOG_DIR}/${fileName}`,
-          data: content,
-          directory: Directory.Data,
-          encoding: Encoding.UTF8
+      const fs = FilesystemService.getInstance();
+      // 确保目录存在
+      try {
+        await fs.mkdir({
+          path: LOG_DIR,
+          directory: AdapterDirectory.Data,
+          recursive: true
         });
-      } else {
-        console.log(`[RawLogger] (Web Mock) Writing to ${fileName}`, fullEntry);
-        // Web 环境下可选：写入 localStorage 或仅 Console
+      } catch {
+        // 目录已存在时忽略
       }
+
+      await fs.writeFile({
+        path: `${LOG_DIR}/${fileName}`,
+        data: content,
+        directory: AdapterDirectory.Data,
+        encoding: AdapterEncoding.UTF8
+      });
 
       // 触发轮替清理 (Fire and Forget)
       this.rotateLogs().catch(e => console.error('[RawLogger] Rotate failed:', e));
@@ -86,21 +82,17 @@ export class RawLogger {
    * 日志轮替：保留最新的 N 个文件
    */
   private static async rotateLogs() {
-    if (!isNativePlatform()) return;
-
     try {
-      const result = await Filesystem.readdir({
+      const fs = FilesystemService.getInstance();
+      const files = await fs.readdir({
         path: LOG_DIR,
-        directory: Directory.Data
+        directory: AdapterDirectory.Data
       });
 
-      const files = result.files;
       if (files.length <= MAX_LOG_FILES) return;
 
-      // Sort by name (which includes timestamp) descending
-      // name format: yyyyMMdd_HHmmss_BATCHID.json
-      // so default string sort is actually chronological
-      // We want to delete the OLDEST, so sort Ascending
+      // 按文件名升序排列（文件名包含时间戳，升序即时间从旧到新）
+      // 格式：yyyyMMdd_HHmmss_BATCHID.json
       files.sort((a, b) => a.name.localeCompare(b.name));
 
       const deleteCount = files.length - MAX_LOG_FILES;
@@ -109,9 +101,9 @@ export class RawLogger {
       console.log(`[RawLogger] Rotating logs: deleting ${deleteCount} old files.`);
 
       for (const file of toDelete) {
-        await Filesystem.deleteFile({
+        await fs.deleteFile({
           path: `${LOG_DIR}/${file.name}`,
-          directory: Directory.Data
+          directory: AdapterDirectory.Data
         });
       }
 

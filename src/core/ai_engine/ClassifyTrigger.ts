@@ -1,4 +1,5 @@
-import { Directory, Encoding, Filesystem } from '@capacitor/filesystem';
+import { FilesystemService } from '../adapters/FilesystemService';
+import { AdapterDirectory, AdapterEncoding } from '../adapters/IFilesystemAdapter';
 import type { LedgerMemory } from '../../types/metadata';
 import { classifyQueue } from './ClassifyQueue';
 import { normalizeToDateKey, uniqueSortedDateKeys } from './DateNormalizer';
@@ -36,12 +37,12 @@ export class ClassifyTrigger {
 
   private async readRecovery(ledger: string): Promise<QueueRecoveryData | null> {
     try {
-      const result = await Filesystem.readFile({
+      const fs = FilesystemService.getInstance();
+      const parsed = JSON.parse(await fs.readFile({
         path: this.getRecoveryPath(ledger),
-        directory: Directory.Data,
-        encoding: Encoding.UTF8
-      });
-      const parsed = JSON.parse(result.data as string) as QueueRecoveryData;
+        directory: AdapterDirectory.Data,
+        encoding: AdapterEncoding.UTF8
+      })) as QueueRecoveryData;
       if (!Array.isArray(parsed.dates)) {
         return null;
       }
@@ -58,10 +59,11 @@ export class ClassifyTrigger {
   }
 
   private async writeRecovery(data: QueueRecoveryData): Promise<void> {
-    await Filesystem.writeFile({
+    const fs = FilesystemService.getInstance();
+    await fs.writeFile({
       path: this.getRecoveryPath(data.ledger),
-      directory: Directory.Data,
-      encoding: Encoding.UTF8,
+      directory: AdapterDirectory.Data,
+      encoding: AdapterEncoding.UTF8,
       recursive: true,
       data: JSON.stringify(data, null, 2)
     });
@@ -69,9 +71,10 @@ export class ClassifyTrigger {
 
   private async clearRecovery(ledger: string): Promise<void> {
     try {
-      await Filesystem.deleteFile({
+      const fs = FilesystemService.getInstance();
+      await fs.deleteFile({
         path: this.getRecoveryPath(ledger),
-        directory: Directory.Data
+        directory: AdapterDirectory.Data
       });
     } catch {
       return;
