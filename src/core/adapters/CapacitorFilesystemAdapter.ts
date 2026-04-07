@@ -69,7 +69,7 @@ export class CapacitorFilesystemAdapter implements IFilesystemAdapter {
     type: string;
     size: number;
     mtime: number;
-    ctime: number;
+    ctime?: number;
     uri?: string;
   }): FileInfo {
     return {
@@ -77,7 +77,7 @@ export class CapacitorFilesystemAdapter implements IFilesystemAdapter {
       type: file.type === 'directory' ? 'directory' : 'file',
       size: file.size,
       mtime: file.mtime,
-      ctime: file.ctime,
+      ctime: file.ctime ?? file.mtime,
       uri: file.uri
     };
   }

@@ -20,8 +20,10 @@ import type { LedgerMemory } from '../../types/metadata';
 import { format } from 'date-fns';
 import { classifyQueue } from '../ai_engine/ClassifyQueue';
 import { classifyTrigger } from '../ai_engine/ClassifyTrigger';
-import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
+import { FilesystemService } from '../adapters/FilesystemService';
+import { AdapterDirectory, AdapterEncoding } from '../adapters/IFilesystemAdapter';
 import { MemoryManager } from './MemoryManager';
+import { BudgetManager } from './BudgetManager';
 
 /**
  * LedgerManager - 账本管理器（决策层）
@@ -650,9 +652,10 @@ export class LedgerManager {
     // 1. 删除快照目录（v6：Documents/PixelBill/classify_memory/{ledger}/）
     const snapshotDir = `PixelBill/classify_memory/${ledgerName}`;
     try {
-      await Filesystem.rmdir({
+      const fs = FilesystemService.getInstance();
+      await fs.rmdir({
         path: snapshotDir,
-        directory: Directory.Documents,
+        directory: AdapterDirectory.Documents,
         recursive: true
       });
       console.log(`[LedgerManager] Deleted snapshot directory for: ${ledgerName}`);
@@ -662,9 +665,10 @@ export class LedgerManager {
 
     // 2. 删除自述文件（Documents）
     try {
-      await Filesystem.deleteFile({
+      const fs = FilesystemService.getInstance();
+      await fs.deleteFile({
         path: `PixelBill/self_description/user_profile.md`,
-        directory: Directory.Documents
+        directory: AdapterDirectory.Documents
       });
       console.log(`[LedgerManager] Deleted self-description file`);
     } catch {
@@ -673,11 +677,20 @@ export class LedgerManager {
 
     // 3. 删除实例库文件（沙箱）
     try {
-      await Filesystem.deleteFile({
+      const fs = FilesystemService.getInstance();
+      await fs.deleteFile({
         path: `classify_examples/${ledgerName}.json`,
-        directory: Directory.Data
+        directory: AdapterDirectory.Data
       });
       console.log(`[LedgerManager] Deleted examples file for: ${ledgerName}`);
+    } catch {
+      // 文件不存在时静默忽略
+    }
+
+    // 4. 删除预算配置文件（沙箱）
+    try {
+      await BudgetManager.getInstance().deleteBudgetConfig(ledgerName);
+      console.log(`[LedgerManager] Deleted budget config for: ${ledgerName}`);
     } catch {
       // 文件不存在时静默忽略
     }
@@ -696,23 +709,24 @@ export class LedgerManager {
     const oldSnapshotDir = `PixelBill/classify_memory/${oldName}`;
     const newSnapshotDir = `PixelBill/classify_memory/${newName}`;
     try {
-      const result = await Filesystem.readdir({
+      const fs = FilesystemService.getInstance();
+      const result = await fs.readdir({
         path: oldSnapshotDir,
-        directory: Directory.Documents
+        directory: AdapterDirectory.Documents
       });
-      for (const entry of result.files) {
-        const fileName = typeof entry === 'string' ? entry : entry.name;
+      for (const entry of result) {
+        const fileName = entry.name;
         try {
-          const fileResult = await Filesystem.readFile({
+          const fileContent = await fs.readFile({
             path: `${oldSnapshotDir}/${fileName}`,
-            directory: Directory.Documents,
-            encoding: Encoding.UTF8
+            directory: AdapterDirectory.Documents,
+            encoding: AdapterEncoding.UTF8
           });
-          await Filesystem.writeFile({
+          await fs.writeFile({
             path: `${newSnapshotDir}/${fileName}`,
-            data: fileResult.data as string,
-            directory: Directory.Documents,
-            encoding: Encoding.UTF8,
+            data: fileContent,
+            directory: AdapterDirectory.Documents,
+            encoding: AdapterEncoding.UTF8,
             recursive: true
           });
         } catch (e) {
@@ -720,9 +734,9 @@ export class LedgerManager {
         }
       }
       // 删除旧目录
-      await Filesystem.rmdir({
+      await fs.rmdir({
         path: oldSnapshotDir,
-        directory: Directory.Documents,
+        directory: AdapterDirectory.Documents,
         recursive: true
       });
       console.log(`[LedgerManager] Migrated snapshot directory: ${oldName} -> ${newName}`);
@@ -732,25 +746,34 @@ export class LedgerManager {
 
     // 2. 迁移实例库文件（沙箱）
     try {
-      const exResult = await Filesystem.readFile({
+      const fs = FilesystemService.getInstance();
+      const exContent = await fs.readFile({
         path: `classify_examples/${oldName}.json`,
-        directory: Directory.Data,
-        encoding: Encoding.UTF8
+        directory: AdapterDirectory.Data,
+        encoding: AdapterEncoding.UTF8
       });
-      await Filesystem.writeFile({
+      await fs.writeFile({
         path: `classify_examples/${newName}.json`,
-        data: exResult.data as string,
-        directory: Directory.Data,
-        encoding: Encoding.UTF8,
+        data: exContent,
+        directory: AdapterDirectory.Data,
+        encoding: AdapterEncoding.UTF8,
         recursive: true
       });
-      await Filesystem.deleteFile({
+      await fs.deleteFile({
         path: `classify_examples/${oldName}.json`,
-        directory: Directory.Data
+        directory: AdapterDirectory.Data
       });
       console.log(`[LedgerManager] Migrated examples file: ${oldName} -> ${newName}`);
     } catch {
       // 源文件不存在时静默忽略
+    }
+
+    // 3. 迁移预算配置文件（沙箱）
+    try {
+      await BudgetManager.getInstance().renameBudgetConfig(oldName, newName);
+      console.log(`[LedgerManager] Migrated budget config: ${oldName} -> ${newName}`);
+    } catch {
+      // 文件不存在时静默忽略
     }
   }
 

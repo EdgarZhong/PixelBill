@@ -1,0 +1,9 @@
+{
+  "version": "1.1",
+  "revision": 4,
+  "metrics": {
+    "emptyTaskConsumedCount": 0,
+    "lastEmptyTaskDate": null
+  },
+  "tasks": []
+}

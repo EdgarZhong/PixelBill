@@ -9,7 +9,8 @@
  * 存储位置：沙箱目录 classify_examples/{ledger}.json
  */
 
-import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
+import { FilesystemService } from '../adapters/FilesystemService';
+import { AdapterDirectory, AdapterEncoding } from '../adapters/IFilesystemAdapter';
 import type { FullTransactionRecord } from '../../types/metadata';
 
 /**
@@ -87,9 +88,10 @@ export class ExampleStore {
   public static async exists(ledgerName: string): Promise<boolean> {
     const filePath = this.getFilePath(ledgerName);
     try {
-      await Filesystem.stat({
+      const fs = FilesystemService.getInstance();
+      await fs.stat({
         path: filePath,
-        directory: Directory.Data
+        directory: AdapterDirectory.Data
       });
       return true;
     } catch {
@@ -111,13 +113,13 @@ export class ExampleStore {
         return [];
       }
 
-      const result = await Filesystem.readFile({
+      const result = await FilesystemService.getInstance().readFile({
         path: filePath,
-        directory: Directory.Data,
-        encoding: Encoding.UTF8
+        directory: AdapterDirectory.Data,
+        encoding: AdapterEncoding.UTF8
       });
 
-      return JSON.parse(result.data as string) as ExampleEntry[];
+      return JSON.parse(result) as ExampleEntry[];
     } catch {
       // 文件不存在或读取失败，返回空数组
       return [];
@@ -133,11 +135,11 @@ export class ExampleStore {
     const filePath = this.getFilePath(ledgerName);
 
     try {
-      await Filesystem.writeFile({
+      await FilesystemService.getInstance().writeFile({
         path: filePath,
         data: JSON.stringify(examples, null, 2),
-        directory: Directory.Data,
-        encoding: Encoding.UTF8,
+        directory: AdapterDirectory.Data,
+        encoding: AdapterEncoding.UTF8,
         recursive: true
       });
     } catch (e) {

@@ -352,7 +352,7 @@ export class SnapshotManager {
    *
    * @deprecated v6 架构下不再需要此方法
    */
-  public static async verifyMatch(ledgerName: string, snapshotId: string): Promise<boolean> {
+  public static async verifyMatch(_ledgerName: string, _snapshotId: string): Promise<boolean> {
     console.warn('[SnapshotManager] verifyMatch() is deprecated in v6');
     return true;
   }
@@ -366,17 +366,6 @@ export class SnapshotManager {
   public static async findMatchingSnapshot(ledgerName: string): Promise<string | null> {
     console.warn('[SnapshotManager] findMatchingSnapshot() is deprecated in v6, use getCurrentId() instead');
     return await this.getCurrentId(ledgerName);
-  }
-
-  /**
-   * 比较两个字符串数组是否相等
-   */
-  private static arraysEqual(a: string[], b: string[]): boolean {
-    if (a.length !== b.length) return false;
-    for (let i = 0; i < a.length; i++) {
-      if (a[i] !== b[i]) return false;
-    }
-    return true;
   }
 
   /**

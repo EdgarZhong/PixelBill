@@ -1,18 +1,18 @@
 {
-  "version": "1.0",
+  "version": "1.1",
   "last_sync": "2026-02-22 18:35:53",
-  "defined_categories": [
-    "meal",
-    "snack",
-    "transport",
-    "entertainment",
-    "feast",
-    "health",
-    "shopping",
-    "education",
-    "housing",
-    "travel"
-  ],
+  "defined_categories": {
+    "meal": "日常正餐支出（早午晚），如快餐、正餐、工作餐",
+    "snack": "零食、饮品、小吃等非正餐食品",
+    "transport": "公共交通、打车、加油、停车等出行费用",
+    "entertainment": "电影、游戏、演出、会员订阅等娱乐消费",
+    "feast": "聚餐、大餐、宴请、高档餐厅等特殊餐饮",
+    "health": "医疗、药品、保健品、健身器材等健康支出",
+    "shopping": "日用品、服装、电子产品、网购等购物消费",
+    "education": "书籍、课程、培训、考试等教育支出",
+    "housing": "房租、水电煤、物业、维修等居住费用",
+    "travel": "旅游、酒店、机票、景点门票等旅行支出"
+  },
   "records": {
     "5110f45d20aab6c3": {
       "id": "5110f45d20aab6c3",
@@ -28,19 +28,19 @@
       "paymentMethod": "广发银行信用卡(6885)",
       "transactionStatus": "SUCCESS",
       "remark": "/",
-      "ai_category": "",
-      "ai_reasoning": "",
+      "ai_category": "meal",
+      "ai_reasoning": "根据用户之前的纠正，袁记肉夹馍西工大店被归类为正餐支出。",
       "user_category": "shopping",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-03-15T05:07:52.959Z"
+      "updated_at": "2026-04-07T03:04:11.183Z"
     },
     "d4db723dbb333a5a": {
       "id": "d4db723dbb333a5a",
       "originalId": "2026010522001485081435081052",
       "time": "2026-01-05 14:03:25",
       "sourceType": "alipay",
-      "category": "uncategorized",
+      "category": "meal",
       "rawClass": "餐饮美食",
       "counterparty": "水之源川菜",
       "product": "水之源川菜",
@@ -49,12 +49,12 @@
       "paymentMethod": "花呗",
       "transactionStatus": "SUCCESS",
       "remark": "",
-      "ai_category": "",
-      "ai_reasoning": "",
+      "ai_category": "meal",
+      "ai_reasoning": "用户之前将水之源川菜的交易归类为健康支出，但根据描述和商户名称，这应该是正餐支出。",
       "user_category": "",
       "user_note": "",
       "is_verified": false,
-      "updated_at": "2026-02-22 18:35:53"
+      "updated_at": "2026-04-07T03:04:11.183Z"
     },
     "c971f228f8207480": {
       "id": "c971f228f8207480",
@@ -1747,7 +1747,7 @@
       "product": "收钱码收款",
       "amount": 5,
       "direction": "out",
-      "paymentMethod": "北京银行储蓄卡(6453)",
+      "paymentMethod": "北京银行��蓄卡(6453)",
       "transactionStatus": "SUCCESS",
       "remark": "",
       "ai_category": "",
@@ -8824,7 +8824,7 @@
       "product": "支付宝支付0514",
       "amount": 8.2,
       "direction": "out",
-      "paymentMethod": "工商银行储蓄卡(3625)",
+      "paymentMethod": "工商银行储蓄���(3625)",
       "transactionStatus": "SUCCESS",
       "remark": "",
       "ai_category": "",

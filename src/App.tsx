@@ -1,5 +1,5 @@
 import { DesktopApp } from './views/DesktopApp';
-import { MobileApp } from './views/MobileApp';
+import MoniHome from './pages/MoniHome';
 import { useState, useEffect } from 'react';
 import { configManager } from './core/config/ConfigManager';
 import { FetchClient } from './core/network/FetchClient';
@@ -1084,7 +1084,7 @@ function App() {
         {/* 1. Main App Layer (Base Layer) */}
         {/* It is always rendered in the background to ensure "No Flash" when splash exits */}
         <div className="absolute inset-0 z-0">
-          {isMobile ? <MobileApp /> : <DesktopApp />}
+          {isMobile ? <MoniHome /> : <DesktopApp />}
         </div>
 
         {/* 2. Splash Screen Overlay Layer */}

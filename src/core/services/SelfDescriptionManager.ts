@@ -12,7 +12,8 @@
  * - 迁移成功后，可选：清空旧配置的 userContext 字段
  */
 
-import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
+import { FilesystemService } from '../adapters/FilesystemService';
+import { AdapterDirectory, AdapterEncoding } from '../adapters/IFilesystemAdapter';
 
 const FILE_PATH = 'PixelBill/self_description/user_profile.md';
 
@@ -28,12 +29,13 @@ export class SelfDescriptionManager {
         return '';
       }
 
-      const result = await Filesystem.readFile({
+      const fs = FilesystemService.getInstance();
+      const data = await fs.readFile({
         path: FILE_PATH,
-        directory: Directory.Documents,
-        encoding: Encoding.UTF8
+        directory: AdapterDirectory.Documents,
+        encoding: AdapterEncoding.UTF8
       });
-      return result.data as string;
+      return data;
     } catch {
       // 文件不存在，返回空字符串
       return '';
@@ -46,11 +48,12 @@ export class SelfDescriptionManager {
    */
   public static async save(content: string): Promise<void> {
     try {
-      await Filesystem.writeFile({
+      const fs = FilesystemService.getInstance();
+      await fs.writeFile({
         path: FILE_PATH,
         data: content,
-        directory: Directory.Documents,
-        encoding: Encoding.UTF8,
+        directory: AdapterDirectory.Documents,
+        encoding: AdapterEncoding.UTF8,
         recursive: true
       });
     } catch (e) {
@@ -64,9 +67,10 @@ export class SelfDescriptionManager {
    */
   public static async exists(): Promise<boolean> {
     try {
-      await Filesystem.stat({
+      const fs = FilesystemService.getInstance();
+      await fs.stat({
         path: FILE_PATH,
-        directory: Directory.Documents
+        directory: AdapterDirectory.Documents
       });
       return true;
     } catch {
@@ -106,9 +110,10 @@ export class SelfDescriptionManager {
    */
   public static async delete(): Promise<void> {
     try {
-      await Filesystem.deleteFile({
+      const fs = FilesystemService.getInstance();
+      await fs.deleteFile({
         path: FILE_PATH,
-        directory: Directory.Documents
+        directory: AdapterDirectory.Documents
       });
     } catch (e) {
       console.warn('[SelfDescriptionManager] Failed to delete:', e);

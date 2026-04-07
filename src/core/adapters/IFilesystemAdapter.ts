@@ -9,25 +9,29 @@
  */
 
 /**
- * 目录类型枚举
+ * 目录类型常量
  */
-export enum AdapterDirectory {
+export const AdapterDirectory = {
   /** 用户文档目录 - 存储账本数据、记忆文件等用户可见数据 */
-  Documents = 'DOCUMENTS',
+  Documents: 'DOCUMENTS',
   /** 应用数据目录 - 存储索引、队列、实例库等应用内部数据 */
-  Data = 'DATA',
+  Data: 'DATA',
   /** 缓存目录 - 存储临时数据、日志等可清理数据 */
-  Cache = 'CACHE'
-}
+  Cache: 'CACHE'
+} as const;
+
+export type AdapterDirectory = typeof AdapterDirectory[keyof typeof AdapterDirectory];
 
 /**
- * 编码类型枚举
+ * 编码类型常量
  */
-export enum AdapterEncoding {
-  UTF8 = 'utf8',
-  ASCII = 'ascii',
-  UTF16 = 'utf16'
-}
+export const AdapterEncoding = {
+  UTF8: 'utf8',
+  ASCII: 'ascii',
+  UTF16: 'utf16'
+} as const;
+
+export type AdapterEncoding = typeof AdapterEncoding[keyof typeof AdapterEncoding];
 
 /**
  * 读取文件选项

@@ -1,0 +1,60 @@
+[
+  {
+    "tx_id": "c971f228f8207480",
+    "created_at": "2026-03-16T08:22:39.652Z",
+    "counterparty": "美团",
+    "description": "益禾堂-美团App-26010411100400001306048035259624",
+    "amount": 4.99,
+    "direction": "out",
+    "time": "19:28:23",
+    "source": "wechat",
+    "category": "meal"
+  },
+  {
+    "tx_id": "d4db723dbb333a5a",
+    "created_at": "2026-03-16T08:23:06.653Z",
+    "counterparty": "水之源川菜",
+    "description": "水之源川菜",
+    "amount": 50,
+    "direction": "out",
+    "time": "14:03:25",
+    "source": "alipay",
+    "category": "health",
+    "user_reason": "123"
+  },
+  {
+    "tx_id": "13e306bcb7b5c0df",
+    "created_at": "2026-03-16T08:26:19.392Z",
+    "counterparty": "巴蜀人家",
+    "description": "美团收银909700205572927810",
+    "amount": 58,
+    "direction": "out",
+    "time": "20:11:49",
+    "source": "alipay",
+    "category": "meal"
+  },
+  {
+    "tx_id": "f9c423269bb6789c",
+    "created_at": "2026-03-17T03:10:33.566Z",
+    "counterparty": "李记烤炉鸡蛋灌饼",
+    "description": "收款方备注:二维码收款",
+    "amount": 5,
+    "direction": "out",
+    "time": "10:33:06",
+    "source": "wechat",
+    "category": "meal",
+    "user_reason": "名称是鸡蛋灌饼 金额也符合\n"
+  },
+  {
+    "tx_id": "5110f45d20aab6c3",
+    "created_at": "2026-03-17T03:25:22.586Z",
+    "counterparty": "袁记肉夹馍西工大店",
+    "description": "袁记肉夹馍西工大店",
+    "amount": 40,
+    "direction": "out",
+    "time": "19:08:17",
+    "source": "wechat",
+    "category": "meal",
+    "user_reason": "名称是肉夹馍 价格也合适"
+  }
+]

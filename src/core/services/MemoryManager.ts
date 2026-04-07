@@ -21,8 +21,6 @@
  * ```
  */
 
-import { FilesystemService } from '../adapters/FilesystemService';
-import { AdapterDirectory, AdapterEncoding } from '../adapters/IFilesystemAdapter';
 import { SnapshotManager } from './SnapshotManager';
 
 /**
@@ -43,7 +41,6 @@ export interface MemoryOperationResult {
 }
 
 export class MemoryManager {
-  private static readonly BASE_PATH = 'PixelBill/classify_memory';
 
   /**
    * 读取记忆文件（v6 语义）

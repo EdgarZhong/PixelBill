@@ -13,8 +13,8 @@
  * - 创建 index.json 并设置 current_snapshot_id
  */
 
-import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
-import { SnapshotManager } from './SnapshotManager';
+import { FilesystemService } from '../adapters/FilesystemService';
+import { AdapterDirectory, AdapterEncoding } from '../adapters/IFilesystemAdapter';
 import { MemoryManager } from './MemoryManager';
 
 export class MigrationManager {
@@ -26,9 +26,10 @@ export class MigrationManager {
   public static async needsMigration(ledgerName: string): Promise<boolean> {
     try {
       // 检查是否存在 v5 记忆文件（Documents/PixelBill/classify_memory/{ledger}.md）
-      await Filesystem.stat({
+      const fs = FilesystemService.getInstance();
+      await fs.stat({
         path: `PixelBill/classify_memory/${ledgerName}.md`,
-        directory: Directory.Documents
+        directory: AdapterDirectory.Documents
       });
       return true;
     } catch {
@@ -48,12 +49,12 @@ export class MigrationManager {
     try {
       // 1. 读取 v5 记忆文件内容
       const v5MemoryPath = `PixelBill/classify_memory/${ledgerName}.md`;
-      const v5MemoryResult = await Filesystem.readFile({
+      const fs = FilesystemService.getInstance();
+      const v5Content = await fs.readFile({
         path: v5MemoryPath,
-        directory: Directory.Documents,
-        encoding: Encoding.UTF8
+        directory: AdapterDirectory.Documents,
+        encoding: AdapterEncoding.UTF8
       });
-      const v5Content = v5MemoryResult.data as string;
 
       // 2. 创建初始快照（migration 触发）
       await MemoryManager.save(
@@ -67,9 +68,9 @@ export class MigrationManager {
       await this.migrateV5Snapshots(ledgerName);
 
       // 4. 删除 v5 记忆文件
-      await Filesystem.deleteFile({
+      await fs.deleteFile({
         path: v5MemoryPath,
-        directory: Directory.Documents
+        directory: AdapterDirectory.Documents
       });
 
       console.log(`[MigrationManager] Migration completed for: ${ledgerName}`);
@@ -89,40 +90,40 @@ export class MigrationManager {
 
     try {
       // 读取 v5 快照目录
-      const result = await Filesystem.readdir({
+      const fs = FilesystemService.getInstance();
+      const result = await fs.readdir({
         path: v5SnapshotDir,
-        directory: Directory.Data
+        directory: AdapterDirectory.Data
       });
 
       // 读取 v5 index.json
       let v5Snapshots: any[] = [];
       try {
-        const indexResult = await Filesystem.readFile({
+        const indexContent = await fs.readFile({
           path: `${v5SnapshotDir}/index.json`,
-          directory: Directory.Data,
-          encoding: Encoding.UTF8
+          directory: AdapterDirectory.Data,
+          encoding: AdapterEncoding.UTF8
         });
-        const v5Index = JSON.parse(indexResult.data as string);
+        const v5Index = JSON.parse(indexContent);
         v5Snapshots = v5Index.snapshots || [];
       } catch {
         console.warn(`[MigrationManager] No v5 index.json found for ${ledgerName}`);
       }
 
       // 迁移每个快照文件
-      for (const entry of result.files) {
-        const fileName = typeof entry === 'string' ? entry : entry.name;
+      for (const entry of result) {
+        const fileName = entry.name;
 
         // 跳过 index.json
         if (fileName === 'index.json') continue;
 
         try {
           // 读取 v5 快照内容
-          const v5SnapshotResult = await Filesystem.readFile({
+          const v5SnapshotContent = await fs.readFile({
             path: `${v5SnapshotDir}/${fileName}`,
-            directory: Directory.Data,
-            encoding: Encoding.UTF8
+            directory: AdapterDirectory.Data,
+            encoding: AdapterEncoding.UTF8
           });
-          const v5SnapshotContent = v5SnapshotResult.data as string;
 
           // 查找对应的元数据
           const snapshotId = fileName.replace('.md', '');
@@ -143,9 +144,9 @@ export class MigrationManager {
       }
 
       // 删除 v5 快照目录
-      await Filesystem.rmdir({
+      await fs.rmdir({
         path: v5SnapshotDir,
-        directory: Directory.Data,
+        directory: AdapterDirectory.Data,
         recursive: true
       });
 

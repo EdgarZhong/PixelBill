@@ -71,7 +71,7 @@ const PREDEFINED_MODELS: Record<string, string[]> = {
   custom: [],
 };
 
-type PanelView = 'main' | 'ai-config' | 'theme' | 'user-context' | 'ai-memory' | 'manage-categories';
+type PanelView = 'main' | 'ai-config' | 'theme' | 'user-context' | 'ai-memory' | 'manage-categories' | 'budget';
 
 /**
  * [设置页面] 组件
@@ -171,6 +171,13 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
         onClick: () => setCurrentView('manage-categories')
       },
       {
+        id: 'budget',
+        icon: <PixelIcon color="pixel-green" />,
+        label: 'BUDGET_SETTINGS',
+        value: 'CONFIGURE',
+        onClick: () => setCurrentView('budget')
+      },
+      {
         id: 'clear',
         icon: <PixelIcon color="expense-red" />,
         label: 'CLEAR_LEDGER',
@@ -237,7 +244,8 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                  currentView === 'theme' ? '[THEME]' :
                  currentView === 'user-context' ? '[SELF_DESCRIPTION]' :
                  currentView === 'manage-categories' ? '[MANAGE_CATEGORIES]' :
-                 currentView === 'ai-memory' ? '[AI_MEMORY]' : '[SETTINGS]'}
+                 currentView === 'ai-memory' ? '[AI_MEMORY]' :
+                 currentView === 'budget' ? '[BUDGET_SETTINGS]' : '[SETTINGS]'}
               </div>
               <button
                 onClick={handleClose}
@@ -296,6 +304,14 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                 {currentView === 'manage-categories' && (
                   <CategoryManagementPanel
                     key="manage-categories"
+                    onBack={() => setCurrentView('main')}
+                    transition={panelTransition}
+                  />
+                )}
+                {currentView === 'budget' && (
+                  <BudgetConfigPanel
+                    key="budget"
+                    ledgerName={activeLedger}
                     onBack={() => setCurrentView('main')}
                     transition={panelTransition}
                   />
@@ -1490,6 +1506,7 @@ const AIMemoryPanel: React.FC<AIMemoryPanelProps> = ({
     if (!finalCurrentSnapshotId) {
       const baselineId = await SnapshotManager.create(
         ledgerName,
+        mems.map((m, i) => `${i + 1}. ${m}`).join('\n'),
         'manual',
         mems.length > 0 ? `基线快照：${mems.length} 条记忆` : '基线快照：空记忆'
       );
@@ -1632,6 +1649,7 @@ const AIMemoryPanel: React.FC<AIMemoryPanelProps> = ({
       await MemoryManager.save(ledgerName, normalized);
       const newSnapshotId = await SnapshotManager.create(
         ledgerName,
+        normalized.map((m, i) => `${i + 1}. ${m}`).join('\n'),
         'user_edit',
         normalized.length > 0 ? `手动编辑记忆：${normalized.length} 条` : '手动编辑记忆：空记忆'
       );
@@ -2042,6 +2060,222 @@ const SettingItemRow: React.FC<SettingItemRowProps> = ({
         </span>
       )}
     </motion.button>
+  );
+};
+
+/**
+ * 预算配置面板组件
+ *
+ * 提供月度总预算配置 + 分类预算配置（按规格 §7.2/7.3）。
+ * 保存后立即通过 BudgetManager 写入沙箱 budget_config/{ledger}.json。
+ */
+interface BudgetConfigPanelProps {
+  ledgerName: string;
+  onBack: () => void;
+  transition: Transition;
+}
+
+const BudgetConfigPanel: React.FC<BudgetConfigPanelProps> = ({ ledgerName, onBack, transition }) => {
+  const { BudgetManager } = React.useMemo(() => {
+    // 动态导入避免循环依赖
+    const { BudgetManager: BM } = require('../../core/services/BudgetManager') as typeof import('../../core/services/BudgetManager');
+    return { BudgetManager: BM };
+  }, []);
+
+  const service = LedgerService.getInstance();
+
+  // ── 月度总预算 ────────────────────────────────
+  const [monthlyAmountInput, setMonthlyAmountInput] = useState('');
+  const [monthlySaving, setMonthlySaving] = useState(false);
+  const [monthlySaved, setMonthlySaved] = useState(false);
+
+  // ── 分类预算 ──────────────────────────────────
+  // key = 分类键名，value = 输入框字符串
+  const [categoryAmounts, setCategoryAmounts] = useState<Record<string, string>>({});
+  const [categorySaving, setCategorySaving] = useState(false);
+  const [categorySaved, setCategorySaved] = useState(false);
+  const [categoryBudgetInvalidated, setCategoryBudgetInvalidated] = useState(false);
+
+  // 当前账本的分类列表
+  const categories = React.useMemo(() => {
+    const catMap = service.getState().ledgerMemory?.defined_categories ?? {};
+    return Object.keys(catMap);
+  }, [service]);
+
+  // 初始化：从 BudgetManager 读取现有配置
+  useEffect(() => {
+    let cancelled = false;
+    BudgetManager.getInstance().loadBudgetConfig(ledgerName).then((config) => {
+      if (cancelled) return;
+      if (config?.monthly?.amount && config.monthly.amount > 0) {
+        setMonthlyAmountInput(String(config.monthly.amount));
+      }
+      if (config?.categoryBudgets) {
+        const initial: Record<string, string> = {};
+        for (const [key, entry] of Object.entries(config.categoryBudgets)) {
+          initial[key] = String(entry.amount);
+        }
+        setCategoryAmounts(initial);
+      } else if (config?.categoryBudgets === null && config?.categoryBudgetSchemaVersion > 0) {
+        // null 且 schemaVersion > 0 表示曾经配置过但已因标签变更失效
+        setCategoryBudgetInvalidated(true);
+      }
+    });
+    return () => { cancelled = true; };
+  }, [BudgetManager, ledgerName]);
+
+  // 保存月度总预算
+  const handleSaveMonthly = async () => {
+    const amount = parseFloat(monthlyAmountInput);
+    const budget = isNaN(amount) || amount <= 0 ? null : { amount, currency: 'CNY' };
+    setMonthlySaving(true);
+    try {
+      await BudgetManager.getInstance().saveMonthlyBudget(ledgerName, budget);
+      await triggerHaptic(HapticFeedbackLevel.LIGHT);
+      setMonthlySaved(true);
+      setTimeout(() => setMonthlySaved(false), 2000);
+    } finally {
+      setMonthlySaving(false);
+    }
+  };
+
+  // 保存分类预算
+  const handleSaveCategoryBudgets = async () => {
+    // 总额校验：所有分类预算之和不超过月度总预算（若已设置）
+    const monthlyAmount = parseFloat(monthlyAmountInput);
+    const categoryEntries: Record<string, { amount: number }> = {};
+    let categorySum = 0;
+    for (const [key, val] of Object.entries(categoryAmounts)) {
+      const amt = parseFloat(val);
+      if (!isNaN(amt) && amt > 0) {
+        categoryEntries[key] = { amount: amt };
+        categorySum += amt;
+      }
+    }
+
+    if (!isNaN(monthlyAmount) && monthlyAmount > 0 && categorySum > monthlyAmount) {
+      alert(`分类预算合计 ¥${categorySum.toFixed(0)} 超过月度总预算 ¥${monthlyAmount.toFixed(0)}，请调整。`);
+      return;
+    }
+
+    const config = await BudgetManager.getInstance().loadBudgetConfig(ledgerName);
+    const schemaVersion = (config?.categoryBudgetSchemaVersion ?? 0);
+
+    setCategorySaving(true);
+    try {
+      await BudgetManager.getInstance().saveCategoryBudgets(
+        ledgerName,
+        Object.keys(categoryEntries).length > 0 ? categoryEntries : null,
+        schemaVersion
+      );
+      await triggerHaptic(HapticFeedbackLevel.LIGHT);
+      setCategoryBudgetInvalidated(false);
+      setCategorySaved(true);
+      setTimeout(() => setCategorySaved(false), 2000);
+    } finally {
+      setCategorySaving(false);
+    }
+  };
+
+  return (
+    <motion.div
+      initial={{ x: 50, opacity: 0 }}
+      animate={{ x: 0, opacity: 1 }}
+      exit={{ x: 50, opacity: 0 }}
+      transition={transition}
+      className="absolute inset-0 overflow-y-auto p-6"
+    >
+      {/* 返回按钮 */}
+      <button
+        onClick={onBack}
+        className="flex items-center gap-2 text-xs font-mono text-pixel-green mb-6"
+      >
+        ‹ BACK
+      </button>
+
+      {/* 月度总预算区块 */}
+      <div className="mb-8">
+        <div className="text-[10px] font-mono text-dim mb-3 tracking-wider">MONTHLY_TOTAL_BUDGET</div>
+        <div className="flex gap-2 items-center">
+          <span className="text-gray-400 font-mono text-sm">¥</span>
+          <input
+            type="number"
+            min="0"
+            step="100"
+            placeholder="留空表示不设置"
+            value={monthlyAmountInput}
+            onChange={(e) => setMonthlyAmountInput(e.target.value)}
+            className="flex-1 bg-card/50 border border-gray-700 rounded px-3 py-2 text-sm font-mono text-gray-100 placeholder-gray-600 focus:outline-none focus:border-pixel-green/60"
+          />
+          <motion.button
+            onClick={handleSaveMonthly}
+            disabled={monthlySaving}
+            whileTap={{ scale: 0.97 }}
+            className={`px-4 py-2 text-xs font-mono rounded border transition-colors ${
+              monthlySaved
+                ? 'border-pixel-green text-pixel-green bg-pixel-green/10'
+                : 'border-gray-600 text-gray-300 hover:border-pixel-green/60 hover:text-pixel-green'
+            }`}
+          >
+            {monthlySaved ? 'SAVED' : monthlySaving ? '...' : 'SAVE'}
+          </motion.button>
+        </div>
+        <div className="text-[10px] text-dim/60 font-mono mt-2">
+          预算卡始终表达当前自然月，不跟随数据范围改变
+        </div>
+      </div>
+
+      {/* 分类预算区块 */}
+      <div>
+        <div className="text-[10px] font-mono text-dim mb-3 tracking-wider">CATEGORY_BUDGETS</div>
+
+        {/* 失效提示 */}
+        {categoryBudgetInvalidated && (
+          <div className="mb-4 p-3 bg-expense-red/10 border border-expense-red/30 rounded text-xs font-mono text-expense-red">
+            标签结构已变更，分类预算已重置，请重新配置
+          </div>
+        )}
+
+        {categories.length === 0 ? (
+          <div className="text-xs font-mono text-dim/60">当前账本暂无分类</div>
+        ) : (
+          <>
+            <div className="space-y-3 mb-4">
+              {categories.map((cat) => (
+                <div key={cat} className="flex items-center gap-2">
+                  <span className="text-xs font-mono text-gray-400 w-20 flex-shrink-0 truncate">{cat}</span>
+                  <span className="text-gray-500 font-mono text-sm">¥</span>
+                  <input
+                    type="number"
+                    min="0"
+                    step="50"
+                    placeholder="不限"
+                    value={categoryAmounts[cat] ?? ''}
+                    onChange={(e) => setCategoryAmounts((prev) => ({ ...prev, [cat]: e.target.value }))}
+                    className="flex-1 bg-card/50 border border-gray-700 rounded px-3 py-1.5 text-sm font-mono text-gray-100 placeholder-gray-600 focus:outline-none focus:border-pixel-green/60"
+                  />
+                </div>
+              ))}
+            </div>
+            <motion.button
+              onClick={handleSaveCategoryBudgets}
+              disabled={categorySaving}
+              whileTap={{ scale: 0.97 }}
+              className={`w-full py-2 text-xs font-mono rounded border transition-colors ${
+                categorySaved
+                  ? 'border-pixel-green text-pixel-green bg-pixel-green/10'
+                  : 'border-gray-600 text-gray-300 hover:border-pixel-green/60 hover:text-pixel-green'
+              }`}
+            >
+              {categorySaved ? 'SAVED' : categorySaving ? '...' : 'SAVE_CATEGORY_BUDGETS'}
+            </motion.button>
+            <div className="text-[10px] text-dim/60 font-mono mt-2">
+              分类预算之和不超过月度总预算；标签新增/删除后分类预算会自动重置
+            </div>
+          </>
+        )}
+      </div>
+    </motion.div>
   );
 };
 

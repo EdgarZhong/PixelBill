@@ -1,0 +1,9 @@
+{
+  "monthly": {
+    "amount": 1000,
+    "currency": "CNY"
+  },
+  "categoryBudgets": null,
+  "categoryBudgetSchemaVersion": 0,
+  "updatedAt": "2026-04-07T17:48:44.692Z"
+}

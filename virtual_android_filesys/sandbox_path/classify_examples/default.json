@@ -1,0 +1,26 @@
+[
+  {
+    "tx_id": "d4db723dbb333a5a",
+    "created_at": "2026-03-16T08:27:15.721Z",
+    "counterparty": "水之源川菜",
+    "description": "水之源川菜",
+    "amount": 50,
+    "direction": "out",
+    "time": "14:03:25",
+    "source": "alipay",
+    "category": "meal",
+    "user_reason": "Manual Test Update222"
+  },
+  {
+    "tx_id": "77429dd8481d257f",
+    "created_at": "2026-03-16T08:28:39.372Z",
+    "counterparty": "西北工业大学",
+    "description": "一卡通支付_527",
+    "amount": 5,
+    "direction": "out",
+    "time": "10:29:22",
+    "source": "wechat",
+    "category": "meal",
+    "ai_reason": "西工大一卡通支付通常为食堂消费"
+  }
+]

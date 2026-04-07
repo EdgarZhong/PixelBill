@@ -5,7 +5,8 @@ import {
   writeMemoryFile,
   DEFAULT_MEMORY
 } from '../../utils/fs-storage';
-import { Directory, Encoding, Filesystem } from '@capacitor/filesystem';
+import { FilesystemService } from '../adapters/FilesystemService';
+import { AdapterDirectory, AdapterEncoding } from '../adapters/IFilesystemAdapter';
 import type { StorageHandle, StorageDirHandle } from '../../utils/fs-storage';
 import type { Transaction } from '../../types';
 import type { LedgerMemory, FullTransactionRecord } from '../../types/metadata';
@@ -17,6 +18,7 @@ import { MemoryManager } from './MemoryManager';
 import { format, parse, startOfDay, endOfDay } from 'date-fns';
 import { classifyTrigger } from '../ai_engine/ClassifyTrigger';
 import { normalizeToDateKey } from '../ai_engine/DateNormalizer';
+import { BudgetManager } from './BudgetManager';
 
 export interface LedgerState {
   rawTransactions: Transaction[];
@@ -956,6 +958,11 @@ export class LedgerService {
      * 入队时机由 UI 层渐进式范围确认对话框负责：用户选择范围后当场入队并自动启动消费。
      * 返回 dirtyDates 供 UI 层参考受影响规模，但不执行实际入队。
      */
+    // 标签新增：整体失效分类预算配置（规格 §4.1）
+    const ledgerNameForBudget = this.getCurrentLedgerName();
+    if (ledgerNameForBudget) {
+      await BudgetManager.getInstance().invalidateCategoryBudgets(ledgerNameForBudget);
+    }
     console.log('[LedgerService] Added category:', sanitizedName);
     return { success: true, dirtyDates: [], enqueueSuccess: true };
   }
@@ -1024,6 +1031,11 @@ export class LedgerService {
       affectedCount: resetResult.affectedTxIds.length,
       affectedDirtyDates: resetResult.dirtyDates
     });
+    // 标签删除：整体失效分类预算配置（规格 §4.1）
+    const ledgerNameForBudget = this.getCurrentLedgerName();
+    if (ledgerNameForBudget) {
+      await BudgetManager.getInstance().invalidateCategoryBudgets(ledgerNameForBudget);
+    }
     return { success: true, affectedTxIds: resetResult.affectedTxIds, dirtyDates: resetResult.dirtyDates, enqueueSuccess: true };
   }
 
@@ -1122,6 +1134,11 @@ export class LedgerService {
     console.log('[LedgerService] Renamed category:', oldName, '->', sanitizedNewName, {
       affectedCount: affectedTxIds.length
     });
+    // 重命名标签：迁移对应预算条目（规格 §4.1）
+    const ledgerNameForBudget = this.getCurrentLedgerName();
+    if (ledgerNameForBudget) {
+      await BudgetManager.getInstance().migrateCategoryBudgetKey(ledgerNameForBudget, oldName, sanitizedNewName);
+    }
     // 不入队重分类，dirtyDates 恒为空（冻结口径）
     return { success: true, affectedTxIds, dirtyDates: [], enqueueSuccess: true };
   }
@@ -1640,12 +1657,13 @@ export class LedgerService {
 
   private async readPendingReclassifyRecovery(ledger: string): Promise<PendingReclassifyRecovery | null> {
     try {
-      const result = await Filesystem.readFile({
+      const fs = FilesystemService.getInstance();
+      const data = await fs.readFile({
         path: this.getPendingReclassifyPath(ledger),
-        directory: Directory.Data,
-        encoding: Encoding.UTF8
+        directory: AdapterDirectory.Data,
+        encoding: AdapterEncoding.UTF8
       });
-      const parsed = JSON.parse(result.data as string) as PendingReclassifyRecovery;
+      const parsed = JSON.parse(data) as PendingReclassifyRecovery;
       if (!Array.isArray(parsed.dirtyDates) || !parsed.mutation) {
         return null;
       }
@@ -1663,10 +1681,10 @@ export class LedgerService {
   }
 
   private async writePendingReclassifyRecovery(data: PendingReclassifyRecovery): Promise<void> {
-    await Filesystem.writeFile({
+    await FilesystemService.getInstance().writeFile({
       path: this.getPendingReclassifyPath(data.ledger),
-      directory: Directory.Data,
-      encoding: Encoding.UTF8,
+      directory: AdapterDirectory.Data,
+      encoding: AdapterEncoding.UTF8,
       recursive: true,
       data: JSON.stringify(data, null, 2)
     });
@@ -1674,9 +1692,9 @@ export class LedgerService {
 
   private async clearPendingReclassifyRecovery(ledger: string): Promise<void> {
     try {
-      await Filesystem.deleteFile({
+      await FilesystemService.getInstance().deleteFile({
         path: this.getPendingReclassifyPath(ledger),
-        directory: Directory.Data
+        directory: AdapterDirectory.Data
       });
     } catch {
       return;

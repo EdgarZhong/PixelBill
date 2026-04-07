@@ -1,5 +1,6 @@
 import { CryptoUtils } from '../../utils/crypto';
-import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
+import { FilesystemService } from '../adapters/FilesystemService';
+import { AdapterDirectory, AdapterEncoding } from '../adapters/IFilesystemAdapter';
 import { isNativePlatform } from '../../utils/fs-storage';
 import { SelfDescriptionManager } from '../services/SelfDescriptionManager';
 
@@ -237,12 +238,13 @@ export class ConfigManager {
   private async readFromDisk(): Promise<string | null> {
     if (isNativePlatform()) {
       try {
-        const result = await Filesystem.readFile({
+        const fs = FilesystemService.getInstance();
+        const data = await fs.readFile({
           path: CONFIG_FILE_NAME,
-          directory: Directory.Data, // 使用 Data 目录，映射到 virtual_android_filesys/sandbox_path
-          encoding: Encoding.UTF8
+          directory: AdapterDirectory.Data, // 使用 Data 目录，映射到 virtual_android_filesys/sandbox_path
+          encoding: AdapterEncoding.UTF8
         });
-        return result.data as string;
+        return data;
       } catch {
         return null; // File not found
       }
@@ -257,11 +259,12 @@ export class ConfigManager {
 
   private async writeToDisk(data: string): Promise<void> {
     if (isNativePlatform()) {
-      await Filesystem.writeFile({
+      const fs = FilesystemService.getInstance();
+      await fs.writeFile({
         path: CONFIG_FILE_NAME,
         data: data,
-        directory: Directory.Data,
-        encoding: Encoding.UTF8
+        directory: AdapterDirectory.Data,
+        encoding: AdapterEncoding.UTF8
       });
     } else {
       localStorage.setItem('pixelbill_secure_config', data);

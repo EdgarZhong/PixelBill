@@ -8,28 +8,32 @@
  */
 
 /**
- * 触觉反馈强度
+ * 触觉反馈强度常量
  */
-export enum HapticImpactStyle {
+export const HapticImpactStyle = {
   /** 轻度反馈 */
-  Light = 'LIGHT',
+  Light: 'LIGHT',
   /** 中度反馈 */
-  Medium = 'MEDIUM',
+  Medium: 'MEDIUM',
   /** 重度反馈 */
-  Heavy = 'HEAVY'
-}
+  Heavy: 'HEAVY'
+} as const;
+
+export type HapticImpactStyle = typeof HapticImpactStyle[keyof typeof HapticImpactStyle];
 
 /**
- * 触觉通知类型
+ * 触觉通知类型常量
  */
-export enum HapticNotificationType {
+export const HapticNotificationType = {
   /** 成功通知 */
-  Success = 'SUCCESS',
+  Success: 'SUCCESS',
   /** 警告通知 */
-  Warning = 'WARNING',
+  Warning: 'WARNING',
   /** 错误通知 */
-  Error = 'ERROR'
-}
+  Error: 'ERROR'
+} as const;
+
+export type HapticNotificationType = typeof HapticNotificationType[keyof typeof HapticNotificationType];
 
 /**
  * 触觉反馈适配器接口
