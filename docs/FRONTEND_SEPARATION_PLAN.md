@@ -223,8 +223,8 @@ export interface IHapticsAdapter {
 - [ ] 重构 `fs-storage` 工具（部分 Capacitor 调用仍保留，待评估）
 
 #### Phase 5: UI 层适配（1天）
-- [ ] 迁移 `useFileWatcher`
-- [ ] 更新相关组件
+- [x] 迁移 `useFileWatcher`
+- [ ] 更新相关组件（无需改动）
 
 #### Phase 6: 测试与验证（1-2天）
 - [ ] 端到端测试（Capacitor 环境）
@@ -300,12 +300,24 @@ export interface IHapticsAdapter {
 - `src/utils/haptics.ts` - ✅ 已迁移（改为调用 HapticsService，`selectionStart` 降级为 vibrate(10)）
 - `src/App.tsx` - ✅ 调试工具中的直接调用已迁移到 FilesystemService
 
-**待处理**:
-- `src/utils/fs-storage.ts` - 仍有 Capacitor 调用，但该文件同时含有大量非 Capacitor 的 Web File API 代码（双路实现），需评估是否纳入 Phase 5 重构范围或保持现状
+### Phase 4-5 补充迁移 ✅ 已完成（2026-04-07）
 
-**总体进度**: 约 75% 完成（Phase 1-4 主体完成）
+**附加迁移文件**:
+- `src/core/ai_engine/BatchProcessor.ts` - ✅ 已迁移（替换旧文件句柄读取模式，改为直接路径读取）
+- `src/utils/fs-storage.ts` - ✅ 已迁移（替换所有 FilesystemImpl 内部调用为 FilesystemService）
+  - 合并了冗余的 native/web 同逻辑分支（getLedgersIndexHandle）
+  - `_setFilesystemImpl` 标记 @deprecated，指向 FilesystemService.setAdapter()
+- `src/hooks/useFileWatcher.ts` - ✅ 已迁移（1处 Filesystem.stat）
 
-### Phase 5-6: 待开始
+**最终状态**：业务代码层零 `@capacitor/filesystem` / `@capacitor/haptics` 直接依赖  
+仅以下 3 个文件保留 Capacitor 引用（适配器层，合理）：
+- `src/core/adapters/CapacitorFilesystemAdapter.ts`
+- `src/core/adapters/CapacitorHapticsAdapter.ts`
+- `src/mocks/capacitor-filesystem.ts`
+
+**总体进度**: 约 90% 完成（Phase 1-5 全部完成，仅剩 Phase 6 测试）
+
+### Phase 6: 待开始
 
 ---
 
