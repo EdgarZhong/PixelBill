@@ -369,6 +369,59 @@ export class SnapshotManager {
   }
 
   /**
+   * 删除指定快照（v6 语义）
+   *
+   * 规则：
+   * - 不能删除 current_snapshot_id 指向的快照
+   * - 删除快照文件和索引中的元数据
+   *
+   * @param ledgerName 账本名称
+   * @param snapshotId 快照 ID
+   * @returns 是否删除成功
+   */
+  public static async delete(ledgerName: string, snapshotId: string): Promise<boolean> {
+    try {
+      // 1. 读取索引
+      const index = await this.loadIndex(ledgerName);
+
+      // 2. 检查是否为当前快照
+      if (index.current_snapshot_id === snapshotId) {
+        console.warn(`[SnapshotManager] Cannot delete current snapshot: ${snapshotId}`);
+        return false;
+      }
+
+      // 3. 检查快照是否存在
+      const meta = index.snapshots.find(s => s.id === snapshotId);
+      if (!meta) {
+        console.warn(`[SnapshotManager] Snapshot ${snapshotId} not found`);
+        return false;
+      }
+
+      // 4. 删除快照文件
+      const snapshotPath = `${this.getLedgerDir(ledgerName)}/${snapshotId}.md`;
+      try {
+        await Filesystem.deleteFile({
+          path: snapshotPath,
+          directory: Directory.Documents
+        });
+      } catch (e) {
+        console.warn(`[SnapshotManager] Failed to delete snapshot file ${snapshotId}:`, e);
+        // 即使文件删除失败，也继续从索引中移除
+      }
+
+      // 5. 从索引中移除
+      index.snapshots = index.snapshots.filter(s => s.id !== snapshotId);
+      await this.saveIndex(ledgerName, index);
+
+      console.log(`[SnapshotManager] Deleted snapshot ${snapshotId} for ${ledgerName}`);
+      return true;
+    } catch (e) {
+      console.error(`[SnapshotManager] Failed to delete snapshot ${snapshotId}:`, e);
+      return false;
+    }
+  }
+
+  /**
    * 删除所有快照（v6 语义）
    * 谨慎使用：会删除整个账本的快照目录
    *
