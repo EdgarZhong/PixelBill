@@ -1,5 +1,6 @@
 import { Capacitor } from '@capacitor/core';
-import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
+import { FilesystemService } from '../core/adapters/FilesystemService';
+import { AdapterDirectory, AdapterEncoding } from '../core/adapters/IFilesystemAdapter';
 import { format } from 'date-fns';
 import type { LedgerMemory } from '../types/metadata';
 
@@ -50,13 +51,15 @@ export const DEFAULT_MEMORY: LedgerMemory = {
 // --- Platform Check ---
 
 let isNativeOverride: boolean | null = null;
-let FilesystemImpl = Filesystem;
 
 export const isNativePlatform = () => isNativeOverride ?? Capacitor.isNativePlatform();
 
 // Test Helpers
 export const _setNativePlatform = (val: boolean) => { isNativeOverride = val; };
-export const _setFilesystemImpl = (impl: unknown) => { FilesystemImpl = impl as typeof Filesystem; };
+/** @deprecated 请使用 FilesystemService.setAdapter() 进行测试注入 */
+export const _setFilesystemImpl = (_impl: unknown) => {
+  console.warn('[fs-storage] _setFilesystemImpl is deprecated. Use FilesystemService.setAdapter() instead.');
+};
 
 export const isFileSystemSupported = () => {
   if (isNativePlatform()) return true;
@@ -68,21 +71,24 @@ export const isFileSystemSupported = () => {
 export const getAutoDirectoryHandle = async (): Promise<StorageDirHandle> => {
   if (isNativePlatform()) {
     try {
-      const status = await FilesystemImpl.requestPermissions();
-      if (status.publicStorage !== 'granted') {
-        console.warn('Storage permission might be denied:', status);
+      const fs = FilesystemService.getInstance();
+      if (fs.requestPermissions) {
+        const status = await fs.requestPermissions();
+        if (status.publicStorage !== 'granted') {
+          console.warn('Storage permission might be denied:', status);
+        }
       }
 
-      // Ensure PixelBill directory exists in Documents
+      // 确保 PixelBill 目录存在于 Documents
       const pixelBillDir = 'PixelBill';
       try {
-        await FilesystemImpl.mkdir({
+        await fs.mkdir({
           path: pixelBillDir,
-          directory: Directory.Documents,
+          directory: AdapterDirectory.Documents,
           recursive: true
         });
       } catch (e) {
-        // Ignore if exists
+        // 目录已存在时忽略
         console.log('PixelBill directory might already exist or failed to create:', e);
       }
 
@@ -101,19 +107,18 @@ export const getAutoDirectoryHandle = async (): Promise<StorageDirHandle> => {
 
 export const requestDirectoryHandle = async (): Promise<StorageDirHandle> => {
   if (isNativePlatform()) {
-    // On Android, we default to the Documents directory.
-    // We first request permissions to ensure we can access it.
+    // Android 默认使用 Documents 目录，先请求权限
     try {
-      const status = await FilesystemImpl.requestPermissions();
-      if (status.publicStorage !== 'granted') {
-        // Check if we effectively have permission (sometimes 'granted' is not returned but it works)
-        // But throwing here is safer to prompt UI feedback
-        // throw new Error('Storage permission denied');
-        console.warn('Storage permission might be denied or limited:', status);
+      const fs = FilesystemService.getInstance();
+      if (fs.requestPermissions) {
+        const status = await fs.requestPermissions();
+        if (status.publicStorage !== 'granted') {
+          console.warn('Storage permission might be denied or limited:', status);
+        }
       }
-      
-      const rootPath = ''; // Root of Directory.Documents
-      
+
+      const rootPath = ''; // Directory.Documents 的根路径
+
       return {
         kind: 'directory',
         path: rootPath,
@@ -136,18 +141,19 @@ export const getMemoryFileHandle = async (
 ): Promise<StorageHandle | null> => {
   if (isNativePlatform()) {
     const nativeDir = dirHandle as NativeDirHandle;
-    // Handle path joining safely
-    const filePath = nativeDir.path 
-      ? `${nativeDir.path}/${MEMORY_FILE_NAME}` 
+    // 安全拼接路径
+    const filePath = nativeDir.path
+      ? `${nativeDir.path}/${MEMORY_FILE_NAME}`
       : MEMORY_FILE_NAME;
-    
+
     try {
-      // Check if exists
-      await FilesystemImpl.stat({
+      // 检查文件是否存在
+      const fs = FilesystemService.getInstance();
+      await fs.stat({
         path: filePath,
-        directory: Directory.Documents
+        directory: AdapterDirectory.Documents
       });
-      
+
       return {
         kind: 'file',
         path: filePath,
@@ -155,7 +161,7 @@ export const getMemoryFileHandle = async (
       };
     } catch {
       if (create) {
-        // Just return the handle, the write operation will create it
+        // 返回句柄，写入时会创建文件
         return {
           kind: 'file',
           path: filePath,
@@ -178,13 +184,12 @@ export const readMemoryFile = async (fileHandle: StorageHandle): Promise<LedgerM
   if (isNativePlatform()) {
     const nativeHandle = fileHandle as NativeFileHandle;
     try {
-      const result = await FilesystemImpl.readFile({
+      const fs = FilesystemService.getInstance();
+      const text = await fs.readFile({
         path: nativeHandle.path,
-        directory: Directory.Documents,
-        encoding: Encoding.UTF8
+        directory: AdapterDirectory.Documents,
+        encoding: AdapterEncoding.UTF8
       });
-      
-      const text = result.data as string;
       return JSON.parse(text) as LedgerMemory;
     } catch (e) {
       console.error('Failed to read memory file (Native):', e);
@@ -209,11 +214,12 @@ export const writeMemoryFile = async (
 ): Promise<void> => {
   if (isNativePlatform()) {
     const nativeHandle = fileHandle as NativeFileHandle;
-    await FilesystemImpl.writeFile({
+    const fs = FilesystemService.getInstance();
+    await fs.writeFile({
       path: nativeHandle.path,
       data: JSON.stringify(data, null, 2),
-      directory: Directory.Documents,
-      encoding: Encoding.UTF8
+      directory: AdapterDirectory.Documents,
+      encoding: AdapterEncoding.UTF8
     });
   } else {
     const webHandle = fileHandle as FileSystemFileHandle;
@@ -226,25 +232,26 @@ export const writeMemoryFile = async (
 // Helper for recursive native scanning
 async function scanNativeDir(path: string, fileList: File[]): Promise<File[]> {
   try {
-    const result = await FilesystemImpl.readdir({
+    const fs = FilesystemService.getInstance();
+    const files = await fs.readdir({
       path: path,
-      directory: Directory.Documents
+      directory: AdapterDirectory.Documents
     });
-    
-    for (const file of result.files) {
+
+    for (const file of files) {
       const fullPath = path ? `${path}/${file.name}` : file.name;
-      
+
       if (file.type === 'file') {
         if (file.name.toLowerCase().endsWith('.csv')) {
-          // Read content
-          const readResult = await FilesystemImpl.readFile({
+          // 读取文件内容
+          const text = await fs.readFile({
             path: fullPath,
-            directory: Directory.Documents,
-            encoding: Encoding.UTF8
+            directory: AdapterDirectory.Documents,
+            encoding: AdapterEncoding.UTF8
           });
-          
-          // Create File object
-          const fileObj = new File([readResult.data as string], file.name, {
+
+          // 构造 File 对象
+          const fileObj = new File([text], file.name, {
             type: 'text/csv',
             lastModified: file.mtime
           });
@@ -328,62 +335,31 @@ export const DEFAULT_LEDGER_INDEX: LedgerIndex = {
 export const getLedgersIndexHandle = async (
   create: boolean = true
 ): Promise<StorageHandle | null> => {
-  if (isNativePlatform()) {
-    // 仿照 ConfigManager 的实现，直接使用 Directory.Data
-    // mock 层会将 Directory.Data 映射到 virtual_android_filesys/sandbox_path
-    const indexPath = LEDGERS_INDEX_NAME;
+  // native 和 web mock 路径相同，统一走 FilesystemService（Data 目录）
+  const indexPath = LEDGERS_INDEX_NAME;
+  const fs = FilesystemService.getInstance();
 
-    try {
-      // 检查是否存在
-      await FilesystemImpl.stat({
-        path: indexPath,
-        directory: Directory.Data
-      });
+  try {
+    await fs.stat({
+      path: indexPath,
+      directory: AdapterDirectory.Data
+    });
 
+    return {
+      kind: 'file',
+      path: indexPath,
+      name: LEDGERS_INDEX_NAME
+    };
+  } catch {
+    if (create) {
+      // 返回句柄，写入时会创建文件
       return {
         kind: 'file',
         path: indexPath,
         name: LEDGERS_INDEX_NAME
       };
-    } catch {
-      if (create) {
-        // 返回句柄，写入时会创建文件
-        return {
-          kind: 'file',
-          path: indexPath,
-          name: LEDGERS_INDEX_NAME
-        };
-      }
-      return null;
     }
-  } else {
-    // Web/测试环境：使用 mock 层的 DATA 目录（沙箱模拟）
-    // mock 层会将 Directory.Data 映射到 virtual_android_filesys/sandbox_path
-    const indexPath = LEDGERS_INDEX_NAME;
-
-    try {
-      // 检查是否存在
-      await FilesystemImpl.stat({
-        path: indexPath,
-        directory: Directory.Data
-      });
-
-      return {
-        kind: 'file',
-        path: indexPath,
-        name: LEDGERS_INDEX_NAME
-      };
-    } catch {
-      if (create) {
-        // 返回句柄，写入时会创建文件
-        return {
-          kind: 'file',
-          path: indexPath,
-          name: LEDGERS_INDEX_NAME
-        };
-      }
-      return null;
-    }
+    return null;
   }
 };
 
@@ -398,13 +374,12 @@ export const readLedgersIndex = async (
   if (isNativePlatform()) {
     const nativeHandle = fileHandle as NativeFileHandle;
     try {
-      const result = await FilesystemImpl.readFile({
+      const fs = FilesystemService.getInstance();
+      const text = await fs.readFile({
         path: nativeHandle.path,
-        directory: Directory.Data,
-        encoding: Encoding.UTF8
+        directory: AdapterDirectory.Data,
+        encoding: AdapterEncoding.UTF8
       });
-
-      const text = result.data as string;
       return JSON.parse(text) as LedgerIndex;
     } catch (e) {
       console.error('Failed to read ledgers index (Native):', e);
@@ -434,11 +409,12 @@ export const writeLedgersIndex = async (
 ): Promise<void> => {
   if (isNativePlatform()) {
     const nativeHandle = fileHandle as NativeFileHandle;
-    await FilesystemImpl.writeFile({
+    const fs = FilesystemService.getInstance();
+    await fs.writeFile({
       path: nativeHandle.path,
       data: JSON.stringify(data, null, 2),
-      directory: Directory.Data,
-      encoding: Encoding.UTF8
+      directory: AdapterDirectory.Data,
+      encoding: AdapterEncoding.UTF8
     });
   } else {
     const webHandle = fileHandle as FileSystemFileHandle;
@@ -469,9 +445,10 @@ export const getLedgerFileHandle = async (
 
     try {
       // 检查是否存在
-      await FilesystemImpl.stat({
+      const fs = FilesystemService.getInstance();
+      await fs.stat({
         path: filePath,
-        directory: Directory.Documents
+        directory: AdapterDirectory.Documents
       });
 
       return {
@@ -517,9 +494,10 @@ export const deleteLedgerFile = async (
       : fileName;
 
     try {
-      await FilesystemImpl.deleteFile({
+      const fs = FilesystemService.getInstance();
+      await fs.deleteFile({
         path: filePath,
-        directory: Directory.Documents
+        directory: AdapterDirectory.Documents
       });
     } catch (e) {
       console.error('Failed to delete ledger file (Native):', e);
@@ -548,12 +526,13 @@ export const scanForLedgerFiles = async (
   if (isNativePlatform()) {
     const nativeDir = dirHandle as NativeDirHandle;
     try {
-      const result = await FilesystemImpl.readdir({
+      const fs = FilesystemService.getInstance();
+      const files = await fs.readdir({
         path: nativeDir.path || '',
-        directory: Directory.Documents
+        directory: AdapterDirectory.Documents
       });
 
-      for (const file of result.files) {
+      for (const file of files) {
         if (file.type === 'file' && file.name.endsWith('.pixelbill.json')) {
           const name = file.name.replace('.pixelbill.json', '');
           ledgers.push({

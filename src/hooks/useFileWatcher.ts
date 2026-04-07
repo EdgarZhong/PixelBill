@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { isNativePlatform } from '../utils/fs-storage';
 import type { StorageHandle, NativeFileHandle } from '../utils/fs-storage';
-import { Filesystem, Directory } from '@capacitor/filesystem';
+import { FilesystemService } from '../core/adapters/FilesystemService';
+import { AdapterDirectory } from '../core/adapters/IFilesystemAdapter';
 
 export interface FileChangeInfo {
   lastModified: number;
@@ -42,11 +43,12 @@ export function useFileWatcher(
       if (isNativePlatform()) {
         const nativeHandle = fileHandle as NativeFileHandle;
         try {
-          const stat = await Filesystem.stat({
+          const fs = FilesystemService.getInstance();
+          const info = await fs.stat({
             path: nativeHandle.path,
-            directory: Directory.Documents
+            directory: AdapterDirectory.Documents
           });
-          return stat.mtime;
+          return info.mtime;
         } catch (e) {
           console.warn('[FileWatcher] Native stat failed:', e);
           throw e;

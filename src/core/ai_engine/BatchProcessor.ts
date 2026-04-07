@@ -2,12 +2,9 @@ import { AsyncMutex } from '../../utils/AsyncMutex';
 import { LLMClient } from '../llm_service/LLMClient';
 import { ConfigManager } from '../config/ConfigManager';
 import { PromptBuilder } from '../llm_service/prompt/PromptBuilder';
-import {
-  getAutoDirectoryHandle,
-  getLedgerFileHandle,
-  readMemoryFile
-} from '../../utils/fs-storage';
-import type { FullTransactionRecord } from '../../types/metadata';
+import { FilesystemService } from '../adapters/FilesystemService';
+import { AdapterDirectory, AdapterEncoding } from '../adapters/IFilesystemAdapter';
+import type { FullTransactionRecord, LedgerMemory } from '../../types/metadata';
 import type { Proposal } from '../plugin/types';
 import type { AIStatus, AIProgress, ProcessingResult } from './types';
 import { parse } from 'date-fns';
@@ -37,6 +34,19 @@ export class BatchProcessor {
   private proposalHandler?: (txId: string, proposal: Proposal) => void;
 
   private constructor() {}
+
+  /**
+   * 通过适配器层直接读取账本数据（替代旧的文件句柄模式）
+   */
+  private async readLedgerMemory(ledgerName: string): Promise<LedgerMemory> {
+    const fs = FilesystemService.getInstance();
+    const data = await fs.readFile({
+      path: `PixelBill/${ledgerName}.pixelbill.json`,
+      directory: AdapterDirectory.Documents,
+      encoding: AdapterEncoding.UTF8
+    });
+    return JSON.parse(data) as LedgerMemory;
+  }
 
   public static getInstance(): BatchProcessor {
     if (!BatchProcessor.instance) {
@@ -134,11 +144,6 @@ export class BatchProcessor {
         }
 
         const client = new LLMClient({ apiKey, baseUrl, model });
-        const dirHandle = await getAutoDirectoryHandle();
-        const fileHandle = await getLedgerFileHandle(dirHandle, ledgerName, false);
-        if (!fileHandle) {
-          throw new Error(`Could not access ledger file: ${ledgerName}`);
-        }
 
         /**
          * 循环消费：逐日处理队列中所有任务，直到队列清空或用户主动停止。
@@ -170,7 +175,7 @@ export class BatchProcessor {
           });
 
           // 读取该日交易
-          const memory = await readMemoryFile(fileHandle);
+          const memory = await this.readLedgerMemory(ledgerName);
           const txs = Object.values(memory.records) as FullTransactionRecord[];
           const dayTxs = txs.filter(tx => normalizeToDateKey(tx.time) === task.date);
 
@@ -207,7 +212,7 @@ export class BatchProcessor {
             if (this.proposalHandler) {
               const timestamp = Date.now();
               // 写回前重新读取最新内存，确保 is_verified 二次校验基于最新状态
-              const latestMemory = await readMemoryFile(fileHandle);
+              const latestMemory = await this.readLedgerMemory(ledgerName);
               for (const item of aiResult.results as Array<{ id: string; category: string; reasoning?: string }>) {
                 if (!item.id || !item.category) {
                   continue;
