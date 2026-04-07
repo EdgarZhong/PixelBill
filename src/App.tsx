@@ -355,9 +355,6 @@ function App() {
           console.warn('[SnapshotManager] findCurrentSnapshot() 已废弃，使用 getCurrentSnapshot() 替代');
           return await debugTools.getCurrentSnapshot(ledgerName);
         },
-          }
-          return snapId;
-        },
 
         /**
          * 查看自述文件内容
@@ -437,57 +434,11 @@ function App() {
 
           // Step 6: 测试自述文件
           console.log('\n[Step 6] 测试自述文件');
-          await configManager.setUserContext('我是西工大学生，和女朋友一起生活');
+          await configManager.saveUserContext('我是西工大学生，和女朋友一起生活');
           const ctx = await configManager.getUserContext();
           console.log(`  ✓ 自述文件: ${ctx?.substring(0, 30)}...`);
 
           console.log('%c✅ P1 测试完成 (v6)', 'color: #00ff00; font-weight: bold');
-        },
-          ]);
-          const memories1 = await MemoryManager.load(ledgerName);
-          console.log(`  ✓ 写入 ${memories1.length} 条记忆`);
-
-          // Step 2: 测试增量更新
-          console.log('\n[Step 2] 测试增量更新');
-          await MemoryManager.add(ledgerName, '益禾堂：奶茶饮品，归others');
-          const memories2 = await MemoryManager.load(ledgerName);
-          console.log(`  ✓ ADD 操作成功，现在有 ${memories2.length} 条记忆`);
-
-          await MemoryManager.modify(ledgerName, 2, '单笔餐饮 > 80元视为大餐（已调整）');
-          await MemoryManager.load(ledgerName);
-          console.log(`  ✓ MODIFY 操作成功，第2条已更新`);
-
-          await MemoryManager.delete(ledgerName, 3);
-          const memories4 = await MemoryManager.load(ledgerName);
-          console.log(`  ✓ DELETE 操作成功，现在有 ${memories4.length} 条记忆`);
-
-          // Step 3: 测试快照功能
-          console.log('\n[Step 3] 测试快照功能');
-          const snapId = await SnapshotManager.create(ledgerName, 'manual', 'P1 测试快照');
-          console.log(`  ✓ 创建快照成功: ${snapId}`);
-
-          const snapshots = await SnapshotManager.list(ledgerName);
-          console.log(`  ✓ 读取快照成功，共 ${snapshots.length} 个快照`);
-
-          // Step 4: 测试自述文件
-          console.log('\n[Step 4] 测试自述文件');
-          await SelfDescriptionManager.save('我是西工大学生，和女朋友一起生活，meal只统计双人用餐');
-          const selfDesc = await SelfDescriptionManager.load();
-          console.log(`  ✓ 保存自述成功`);
-          console.log(`  ✓ 读取自述成功: ${selfDesc?.substring(0, 30)}...`);
-
-          // Step 5: 测试 ConfigManager 兼容接口
-          console.log('\n[Step 5] 测试 ConfigManager 兼容接口');
-          const ctx = await configManager.getUserContext();
-          console.log(`  ✓ getUserContext 成功: ${ctx ? ctx.substring(0, 30) + '...' : '(空)'}`);
-
-          console.log('\n%c✅ P1 测试完成!', 'color: #00ff00; font-weight: bold');
-          return {
-            memoryCount: memories4.length,
-            snapshotCount: snapshots.length,
-            hasSelfDesc: !!selfDesc,
-            hasUserContext: !!ctx
-          };
         },
 
         /**

@@ -682,21 +682,6 @@ export class LedgerManager {
       // 文件不存在时静默忽略
     }
   }
-        try {
-          await Filesystem.deleteFile({
-            path: `${snapshotDir}/${fileName}`,
-            directory: Directory.Data
-          });
-        } catch {
-          // 单文件删除失败不中断
-        }
-      }
-      // Capacitor Filesystem 没有 rmdir，逐文件删除后目录自然为空
-      console.log(`[LedgerManager] Deleted snapshots for: ${ledgerName}`);
-    } catch {
-      // 目录不存在时静默忽略
-    }
-  }
 
   /**
    * 重命名账本时迁移所有关联的 AI 数据文件（v6 语义）
@@ -766,17 +751,6 @@ export class LedgerManager {
       console.log(`[LedgerManager] Migrated examples file: ${oldName} -> ${newName}`);
     } catch {
       // 源文件不存在时静默忽略
-    }
-  }
-            directory: Directory.Data
-          });
-        } catch {
-          // 单文件迁移失败不中断整体流程
-        }
-      }
-      console.log(`[LedgerManager] Migrated snapshots: ${oldName} -> ${newName}`);
-    } catch {
-      // 旧快照目录不存在时静默忽略
     }
   }
 
