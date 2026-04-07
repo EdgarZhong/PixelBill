@@ -21,7 +21,8 @@
  * ```
  */
 
-import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
+import { FilesystemService } from '../adapters/FilesystemService';
+import { AdapterDirectory, AdapterEncoding } from '../adapters/IFilesystemAdapter';
 import { SnapshotManager } from './SnapshotManager';
 
 /**

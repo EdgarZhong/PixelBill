@@ -19,7 +19,8 @@
  * ```
  */
 
-import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
+import { FilesystemService } from '../adapters/FilesystemService';
+import { AdapterDirectory, AdapterEncoding } from '../adapters/IFilesystemAdapter';
 
 /**
  * 快照元数据
@@ -86,19 +87,25 @@ export class SnapshotManager {
    */
   private static async loadIndex(ledgerName: string): Promise<SnapshotIndex> {
     const indexPath = this.getIndexPath(ledgerName);
+    const fs = FilesystemService.getInstance();
 
     try {
-      await Filesystem.stat({
+      const exists = await fs.exists({
         path: indexPath,
-        directory: Directory.Documents
+        directory: AdapterDirectory.Documents
       });
 
-      const result = await Filesystem.readFile({
+      if (!exists) {
+        // 索引不存在，返回空索引（v6：包含空的 current_snapshot_id）
+        return { current_snapshot_id: '', snapshots: [] };
+      }
+
+      const data = await fs.readFile({
         path: indexPath,
-        directory: Directory.Documents,
-        encoding: Encoding.UTF8
+        directory: AdapterDirectory.Documents,
+        encoding: AdapterEncoding.UTF8
       });
-      return JSON.parse(result.data as string) as SnapshotIndex;
+      return JSON.parse(data) as SnapshotIndex;
     } catch {
       // 索引不存在，返回空索引（v6：包含空的 current_snapshot_id）
       return { current_snapshot_id: '', snapshots: [] };
@@ -110,12 +117,13 @@ export class SnapshotManager {
    */
   private static async saveIndex(ledgerName: string, index: SnapshotIndex): Promise<void> {
     const indexPath = this.getIndexPath(ledgerName);
+    const fs = FilesystemService.getInstance();
 
-    await Filesystem.writeFile({
+    await fs.writeFile({
       path: indexPath,
       data: JSON.stringify(index, null, 2),
-      directory: Directory.Documents,
-      encoding: Encoding.UTF8,
+      directory: AdapterDirectory.Documents,
+      encoding: AdapterEncoding.UTF8,
       recursive: true
     });
   }
@@ -155,11 +163,12 @@ export class SnapshotManager {
 
       // 3. 保存快照文件到 Documents/PixelBill/classify_memory/{ledger}/{id}.md
       const snapshotPath = `${this.getLedgerDir(ledgerName)}/${snapshotId}.md`;
-      await Filesystem.writeFile({
+      const fs = FilesystemService.getInstance();
+      await fs.writeFile({
         path: snapshotPath,
         data: content,
-        directory: Directory.Documents,
-        encoding: Encoding.UTF8,
+        directory: AdapterDirectory.Documents,
+        encoding: AdapterEncoding.UTF8,
         recursive: true
       });
 
@@ -210,12 +219,13 @@ export class SnapshotManager {
       }
 
       // 删除快照文件
+      const fs = FilesystemService.getInstance();
       for (const snap of toDelete) {
         try {
           const snapPath = `${this.getLedgerDir(ledgerName)}/${snap.id}.md`;
-          await Filesystem.deleteFile({
+          await fs.deleteFile({
             path: snapPath,
-            directory: Directory.Documents
+            directory: AdapterDirectory.Documents
           });
         } catch (e) {
           console.warn(`[SnapshotManager] Failed to delete snapshot file ${snap.id}:`, e);
@@ -271,14 +281,15 @@ export class SnapshotManager {
 
       // 2. 读取内容（v6：从 Documents 目录读取）
       const snapshotPath = `${this.getLedgerDir(ledgerName)}/${snapshotId}.md`;
-      const result = await Filesystem.readFile({
+      const fs = FilesystemService.getInstance();
+      const data = await fs.readFile({
         path: snapshotPath,
-        directory: Directory.Documents,
-        encoding: Encoding.UTF8
+        directory: AdapterDirectory.Documents,
+        encoding: AdapterEncoding.UTF8
       });
 
       // 3. 解析内容（按行分割，保留原始格式）
-      const lines = (result.data as string)
+      const lines = data
         .split('\n')
         .map(line => line.trim())
         .filter(line => line.length > 0)
@@ -399,10 +410,11 @@ export class SnapshotManager {
 
       // 4. 删除快照文件
       const snapshotPath = `${this.getLedgerDir(ledgerName)}/${snapshotId}.md`;
+      const fs = FilesystemService.getInstance();
       try {
-        await Filesystem.deleteFile({
+        await fs.deleteFile({
           path: snapshotPath,
-          directory: Directory.Documents
+          directory: AdapterDirectory.Documents
         });
       } catch (e) {
         console.warn(`[SnapshotManager] Failed to delete snapshot file ${snapshotId}:`, e);
@@ -430,9 +442,10 @@ export class SnapshotManager {
   public static async clearAll(ledgerName: string): Promise<void> {
     try {
       const ledgerDir = this.getLedgerDir(ledgerName);
-      await Filesystem.rmdir({
+      const fs = FilesystemService.getInstance();
+      await fs.rmdir({
         path: ledgerDir,
-        directory: Directory.Documents,
+        directory: AdapterDirectory.Documents,
         recursive: true
       });
       console.log(`[SnapshotManager] Cleared all snapshots for ${ledgerName}`);

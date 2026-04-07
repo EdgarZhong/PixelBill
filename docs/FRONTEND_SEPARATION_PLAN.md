@@ -202,8 +202,8 @@ export interface IHapticsAdapter {
 - [ ] 编写适配器单元测试 - **待实现**
 
 #### Phase 2: 核心服务迁移（2-3天）
-- [ ] 迁移 `SnapshotManager`
-- [ ] 迁移 `MemoryManager`
+- [x] 迁移 `SnapshotManager` - ✅ 已完成
+- [x] 迁移 `MemoryManager` - ✅ 已完成（无直接 Capacitor 依赖）
 - [ ] 迁移 `LedgerManager`
 - [ ] 迁移 `LedgerService`
 - [ ] 迁移 `ExampleStore`
@@ -257,6 +257,18 @@ export interface IHapticsAdapter {
 - 适配器单元测试（Phase 6 统一测试）
 
 ### Phase 2-6: 待开始
+
+**Phase 2: 核心服务迁移** - 🚧 进行中
+
+**开始时间**: 2026-04-07  
+**已完成文件**:
+- `src/core/services/SnapshotManager.ts` - ✅ 已迁移（7处 Capacitor API 调用）
+- `src/core/services/MemoryManager.ts` - ✅ 已迁移（仅更新 import，无直接依赖）
+
+**进行中**:
+- 剩余 6 个核心服务文件待迁移
+
+**Phase 3-6**: 待开始
 
 ---
 
