@@ -179,7 +179,15 @@ public static async rollback(
 ```typescript
 // 获取当前快照 ID
 public static async getCurrentId(ledgerName: string): Promise<string>
+
+// 删除指定快照（v6 新增）
+public static async delete(ledgerName: string, snapshotId: string): Promise<boolean>
 ```
+
+**delete() 方法说明**：
+- 规则：不能删除 `current_snapshot_id` 指向的快照
+- 删除快照文件和索引中的元数据
+- 返回 `true` 表示删除成功，`false` 表示失败（当前快照或不存在）
 
 #### 4. 废弃方法
 
@@ -410,6 +418,10 @@ await window.__DEBUG_TOOLS__.getCurrentSnapshot('default')
 //   摘要: 学习会话：基于 5 条修正记录
 //   时间: 2026/3/17 15:10:00
 //   内容: 4 条记忆
+
+// 删除指定快照（v6 新增）
+await window.__DEBUG_TOOLS__.deleteSnapshot('2026-03-17_14-30-00-000')
+// 输出：[SnapshotManager] 已删除快照 2026-03-17_14-30-00-000
 ```
 
 ### 更新命令
